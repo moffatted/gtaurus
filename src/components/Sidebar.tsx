@@ -37,7 +37,7 @@ export function Sidebar({ className }: SidebarProps) {
     };
 
     return (
-        <aside className={clsx("w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col h-full", className)}>
+        <aside className={clsx("w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col h-full shadow-lg", className)}>
             <div className="p-4 border-b border-[var(--border-color)] flex items-center gap-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 <h1 className="font-bold text-lg text-[var(--text-primary)]">Gtaurus</h1>
@@ -52,8 +52,9 @@ export function Sidebar({ className }: SidebarProps) {
                             <label className="text-sm text-[var(--text-secondary)]">Port</label>
                             <button
                                 onClick={() => refetch()}
-                                className="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+                                className="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Refresh Ports"
+                                aria-label="Refresh serial ports"
                                 disabled={isLoading}
                             >
                                 <RefreshCw className={clsx("w-3 h-3 text-[var(--text-tertiary)]", isLoading && "animate-spin")} />
@@ -62,7 +63,8 @@ export function Sidebar({ className }: SidebarProps) {
                         <select
                             value={selectedPort}
                             onChange={(e) => setSelectedPort(e.target.value)}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-blue-500"
+                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 cursor-pointer"
+                            aria-label="Select serial port"
                         >
                             <option value="">Select Port</option>
                             {ports?.map((port) => (
@@ -76,7 +78,8 @@ export function Sidebar({ className }: SidebarProps) {
                         <select
                             value={baudRate}
                             onChange={(e) => setBaudRate(Number(e.target.value))}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-blue-500"
+                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 cursor-pointer"
+                            aria-label="Select baud rate"
                         >
                             <option value={115200}>115200</option>
                             <option value={9600}>9600</option>
@@ -87,7 +90,8 @@ export function Sidebar({ className }: SidebarProps) {
                     <button
                         onClick={handleConnect}
                         disabled={!selectedPort}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors"
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md active:scale-[0.98]"
+                        aria-label="Connect to selected port"
                     >
                         <PlugZap className="w-4 h-4" />
                         Connect
