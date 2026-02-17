@@ -5,39 +5,39 @@
 :root {
   color-scheme: light dark;
   
-  /* Light Mode - Professional Industrial Theme */
-  --bg-primary: #f8fafc;        /* slate-50 - clean, professional background */
-  --bg-secondary: #ffffff;      /* white - card backgrounds */
-  --bg-tertiary: #f1f5f9;       /* slate-100 - input backgrounds */
-  --bg-sidebar: #ffffff;        /* white - sidebar */
-  --bg-header: #ffffff;         /* white - header */
+  /* Light Mode - Softer Professional Theme */
+  --bg-primary: #fafbfc;        /* Very light gray - softer than pure white */
+  --bg-secondary: #f5f7fa;      /* Light blue-gray - subtle depth */
+  --bg-tertiary: #edf0f5;       /* Slightly darker for inputs */
+  --bg-sidebar: #f8f9fb;        /* Soft sidebar background */
+  --bg-header: #ffffff;         /* Clean white header */
   
-  --text-primary: #0f172a;      /* slate-900 - high contrast text */
-  --text-secondary: #475569;    /* slate-600 - medium contrast */
-  --text-tertiary: #64748b;     /* slate-500 - muted text */
+  --text-primary: #2d3748;      /* Softer dark gray instead of near-black */
+  --text-secondary: #5a6c7d;    /* Medium gray-blue */
+  --text-tertiary: #8492a6;     /* Muted gray */
   
-  --border-color: #e2e8f0;      /* slate-200 - visible borders */
+  --border-color: #dfe3e8;      /* Soft borders */
   
-  --accent-primary: #2563eb;    /* blue-600 - primary actions */
-  --accent-hover: #1d4ed8;      /* blue-700 - hover states */
+  --accent-primary: #4a90e2;    /* Softer blue */
+  --accent-hover: #357abd;      /* Muted blue hover */
 }
 
 .dark {
-  /* Dark Mode - Industrial Dashboard Theme */
-  --bg-primary: #0a0a0a;        /* near-black - deep background */
-  --bg-secondary: #1a1a1a;      /* dark gray - card backgrounds */
-  --bg-tertiary: #2a2a2a;       /* medium dark - input backgrounds */
-  --bg-sidebar: #1a1a1a;        /* dark gray - sidebar */
-  --bg-header: #1a1a1a;         /* dark gray - header */
+  /* Dark Mode - Softer Industrial Theme */
+  --bg-primary: #1a1d23;        /* Softer dark instead of pure black */
+  --bg-secondary: #23262d;      /* Subtle elevation */
+  --bg-tertiary: #2c2f36;       /* Input backgrounds */
+  --bg-sidebar: #1f2228;        /* Sidebar with slight warmth */
+  --bg-header: #23262d;         /* Header matches cards */
   
-  --text-primary: #f8fafc;      /* slate-50 - high contrast text */
-  --text-secondary: #cbd5e1;    /* slate-300 - medium contrast */
-  --text-tertiary: #94a3b8;     /* slate-400 - muted text */
+  --text-primary: #e4e7eb;      /* Softer white */
+  --text-secondary: #b4bcc8;    /* Medium gray */
+  --text-tertiary: #8892a0;     /* Muted text */
   
-  --border-color: #333333;      /* visible dark borders */
+  --border-color: #3a3f4a;      /* Softer borders */
   
-  --accent-primary: #3b82f6;    /* blue-500 - primary actions */
-  --accent-hover: #2563eb;      /* blue-600 - hover states */
+  --accent-primary: #5a9fd4;    /* Softer blue */
+  --accent-hover: #4a8fc4;      /* Muted hover */
 }
 
 body {

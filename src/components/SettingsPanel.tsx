@@ -21,11 +21,11 @@ export function SettingsPanel() {
       {/* Settings Modal */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4"
           onClick={() => setIsOpen(false)}
         >
           <div 
-            className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl w-full max-w-md mx-4 border border-gray-200 dark:border-[#333] overflow-hidden"
+            className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#333] overflow-hidden max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -49,7 +49,7 @@ export function SettingsPanel() {
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => setTheme('light')}
+                      onClick={async () => await setTheme('light')}
                       className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
                         theme === 'light'
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm'
@@ -62,7 +62,7 @@ export function SettingsPanel() {
                       <span className="font-medium">Light</span>
                     </button>
                     <button
-                      onClick={() => setTheme('dark')}
+                      onClick={async () => await setTheme('dark')}
                       className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
                         theme === 'dark'
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm'
