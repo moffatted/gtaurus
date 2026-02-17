@@ -1,0 +1,37 @@
+# Gtaurus Agent Rules
+
+This project uses the **T3-Tauri Stack** (Tauri v2, Rust, React, TypeScript, Tailwind CSS).
+
+## Tech Stack
+-   **Frontend**: React 19, Vite, TypeScript, Tailwind CSS v4.
+-   **Backend**: Rust (Edition 2021), Tauri v2, Tokio, Serialport.
+-   **State Management**: Zustand (UI), TanStack Query (Server).
+-   **Icons**: Lucide React.
+-   **Protocol**: FluidNC Character Counting Protocol (127-byte buffer).
+
+## Coding Guidelines
+
+### Rust (Backend)
+-   Use `async/await` with `tokio` for I/O bound tasks.
+-   Wrap shared state in `Arc<Mutex<T>>`.
+-   Errors: Use `Result<T, String>` for Tauri commands.
+-   Modules: Keep `lib.rs` clean; move logic to `driver.rs` or specific modules.
+-   **Explicit Imports**: Avoid glob imports (`use crate::driver::*`).
+
+### TypeScript / React (Frontend)
+-   **Strict Typing**: No `any`. Define interfaces for props and API responses.
+-   **Components**: Functional components with hooks.
+-   **Styling**: Use Tailwind utility classes via `clsx` and `tailwind-merge`.
+-   **State**: 
+    -   Use `useQuery` for data fetching (ports, status).
+    -   Use `useMutation` (or `invoke` wrapper) for actions (connect, send).
+    -   Use `zustand` for purely client-side state (sidebar open/close).
+
+## Agent Behavior
+-   **Plan First**: Before writing complex code, create or update `docs/IMPLEMENTATION_PLAN.md`.
+-   **Verify**: Always verify changes by running `npm run tauri dev` or checking compilation with `cargo check`.
+-   **Conciseness**: Keep files focused. Split large components/modules.
+
+## MCP Usage
+-   **Serial Port**: Simulate hardware via `mcp-server/serial-sim.ts` if available.
+-   **Documentation**: Refer to `docs/` for architecture details.

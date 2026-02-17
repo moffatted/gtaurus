@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Rust
+/src-tauri/target/
+/src-tauri/Cargo.lock
+# Cargo.lock is usually tracked for apps, but for libraries or if user prefers not to, uncomment above.
+# We will leave Cargo.lock tracked by default unless user specifies otherwise, so I will NOT ignore it in this edit,
+# but I'll add the target directory which is critical.
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS Generated
+.DS_Store
+Thumbs.db
+
