@@ -4,21 +4,33 @@
 
 **CRITICAL**: Always verify changes work before committing to version control.
 
-### Required Testing Steps
+### Testing Tauri Desktop Applications
+
+**For Tauri applications running as desktop apps:**
 
 1. **For UI/UX Changes**:
    - Verify the application is running (`npm run tauri dev`)
-   - Manually test the changed functionality in the running application
+   - The Tauri app runs as a native desktop window, not in a web browser
+   - Manually test the changed functionality in the running desktop application
+   - Test interactions (clicks, inputs, theme switching, etc.)
+   - Verify visual appearance in the desktop window
    - Test both light and dark modes if theme-related
    - Verify responsive behavior if layout-related
-   - Check for console errors in browser dev tools
+   - Check the terminal output for any console errors or warnings
+   - Check the browser dev tools if available (right-click > Inspect)
 
-2. **For Backend/API Changes**:
+2. **For Web Applications**:
+   - Use `browser_subagent` tool to open the application in Chrome
+   - Navigate to the changed functionality
+   - Test interactions and capture screenshots
+   - Check for console errors
+
+3. **For Backend/API Changes**:
    - Test the affected endpoints/commands
    - Verify error handling works as expected
    - Check logs for any warnings or errors
 
-3. **For Build Configuration Changes**:
+4. **For Build Configuration Changes**:
    - Run a clean build: `npm run build` or `npm run tauri build`
    - Verify no build errors or warnings
    - Test the built application if possible
