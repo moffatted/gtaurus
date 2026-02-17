@@ -4,7 +4,9 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use tauri::Emitter;
+
+pub struct SerialWrapper(pub Box<dyn SerialPort>);
+unsafe impl Send for SerialWrapper {}
 
 const MAX_BUFFER_SIZE: usize = 127; // Safe limit for GRBL/FluidNC (usually 128-254)
 
@@ -17,7 +19,7 @@ pub trait CNCController {
 }
 
 pub struct FluidNCDriver {
-    port: Option<Box<dyn SerialPort>>,
+    port: Option<SerialWrapper>,
     sender: Option<std::sync::mpsc::Sender<String>>,
     status: Arc<Mutex<String>>,
 }
@@ -40,8 +42,8 @@ impl CNCController for FluidNCDriver {
             .map_err(|e| e.to_string())?;
 
         // Clone for reading
-        let reader_port = port.try_clone().map_err(|e| e.to_string())?;
-        let mut writer_port = port.try_clone().map_err(|e| e.to_string())?;
+        let reader_port = SerialWrapper(port.try_clone().map_err(|e| e.to_string())?);
+        let mut writer_port = SerialWrapper(port.try_clone().map_err(|e| e.to_string())?);
 
         // Channel for sending commands to the writer thread
         let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -60,7 +62,7 @@ impl CNCController for FluidNCDriver {
         // READER THREAD
         // Listens for 'ok' and updates buffer counts
         thread::spawn(move || {
-            let mut reader = BufReader::new(reader_port);
+            let mut reader = BufReader::new(reader_port.0);
             let mut line = String::new();
             loop {
                 line.clear();
@@ -99,8 +101,8 @@ impl CNCController for FluidNCDriver {
                 }
 
                 // Send
-                let _ = writeln!(writer_port, "{}", cmd);
-                let _ = writer_port.flush();
+                let _ = writeln!(writer_port.0, "{}", cmd);
+                let _ = writer_port.0.flush();
 
                 // Update tracking
                 {
@@ -112,7 +114,7 @@ impl CNCController for FluidNCDriver {
             }
         });
 
-        self.port = Some(port);
+        self.port = Some(SerialWrapper(port));
         Ok(())
     }
 
@@ -126,9 +128,12 @@ impl CNCController for FluidNCDriver {
     }
 
     fn send_realtime_command(&mut self, cmd: char) -> Result<(), String> {
-        if let Some(port) = &mut self.port {
-            port.write_all(&[cmd as u8]).map_err(|e| e.to_string())?;
-            port.flush().map_err(|e| e.to_string())?;
+        if let Some(wrapper) = &mut self.port {
+            wrapper
+                .0
+                .write_all(&[cmd as u8])
+                .map_err(|e| e.to_string())?;
+            wrapper.0.flush().map_err(|e| e.to_string())?;
             Ok(())
         } else {
             Err("Not connected".to_string())

@@ -5,7 +5,7 @@ mod driver;
 use driver::{CNCController, FluidNCDriver};
 
 pub struct AppState {
-    pub driver: Mutex<Box<dyn CNCController + Send + Sync>>,
+    pub driver: Mutex<Box<dyn CNCController + Send>>,
 }
 
 // --- Commands ---
