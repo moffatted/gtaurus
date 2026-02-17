@@ -72,6 +72,7 @@ fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(AppState {
             driver: Mutex::new(Box::new(FluidNCDriver::new())),
         })

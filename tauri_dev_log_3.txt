@@ -18,3 +18,330 @@
      Running `target\debug\gtaurus.exe`
 [2m7:29:51 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
 [2m7:29:51 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m7:35:19 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m7:35:19 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+        Info File src-tauri\Cargo.toml changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+    Blocking waiting for file lock on package cache
+[2m7:35:32 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+    Updating crates.io index
+       Fetch [==========>          ]
+       Fetch [============>        ]
+       Fetch [================>    ]
+[2m7:35:35 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+       Fetch [==================>  ]
+                                      
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling syn v2.0.116
+   Compiling tracing-core v0.1.36
+    Building [========>    ] 288/408
+        Info File src-tauri\src\lib.rs changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+    Blocking waiting for file lock on artifact directory
+[2m7:35:44 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m7:35:55 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m7:36:12 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+   Compiling syn v2.0.116
+   Compiling tracing-core v0.1.36
+    Building [========>    ] 288/408
+    Building [========>    ] 289/408
+                                      
+   Compiling synstructure v0.13.2
+   Compiling darling_core v0.21.3
+   Compiling serde_derive_internals v0.29.1
+    Building [========>    ] 289/408
+    Building [========>    ] 290/408
+                                      
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.1
+   Compiling zerovec-derive v0.11.2
+   Compiling serde_derive v1.0.228
+   Compiling displaydoc v0.2.5
+   Compiling thiserror-impl v2.0.18
+   Compiling phf_macros v0.11.3
+   Compiling thiserror-impl v1.0.69
+   Compiling ctor v0.2.9
+   Compiling cssparser-macros v0.6.1
+   Compiling match_token v0.1.0
+   Compiling derive_more v0.99.20
+    Building [========>    ] 291/408
+                                      
+   Compiling windows-implement v0.60.2
+    Building [========>    ] 291/408
+                                      
+   Compiling windows-interface v0.59.3
+    Building [========>    ] 291/408
+                                      
+   Compiling schemars_derive v0.8.22
+    Building [========>    ] 292/408
+                                      
+   Compiling cssparser v0.29.6
+    Building [========>    ] 293/408
+                                      
+   Compiling webview2-com-macros v0.8.1
+    Building [========>    ] 294/408
+                                      
+   Compiling tracing-attributes v0.1.31
+    Building [========>    ] 295/408
+                                      
+   Compiling serialize-to-javascript-impl v0.1.2
+    Building [========>    ] 296/408
+                                      
+   Compiling phf v0.11.3
+    Building [========>    ] 297/408
+    Building [========>    ] 298/408
+                                      
+   Compiling windows-core v0.61.2
+    Building [========>    ] 299/408
+                                      
+   Compiling tokio-macros v2.6.0
+    Building [========>    ] 300/408
+                                      
+   Compiling serde_repr v0.1.20
+    Building [========>    ] 301/408
+    Building [========>    ] 302/408
+    Building [========>    ] 303/408
+                                      
+   Compiling thiserror v2.0.18
+    Building [========>    ] 304/408
+                                      
+   Compiling zerofrom v0.1.6
+    Building [========>    ] 305/408
+                                      
+   Compiling thiserror v1.0.69
+    Building [========>    ] 306/408
+    Building [========>    ] 307/408
+    Building [========>    ] 308/408
+                                      
+   Compiling tokio v1.49.0
+    Building [========>    ] 309/408
+    Building [========>    ] 310/408
+    Building [========>    ] 311/408
+                                      
+   Compiling darling_macro v0.21.3
+    Building [========>    ] 312/408
+                                      
+   Compiling tracing v0.1.44
+    Building [========>    ] 313/408
+                                      
+   Compiling selectors v0.24.0
+    Building [=========>   ] 314/408
+                                      
+   Compiling darling v0.21.3
+    Building [=========>   ] 315/408
+    Building [=========>   ] 316/408
+                                      
+   Compiling serde v1.0.228
+    Building [=========>   ] 317/408
+                                      
+   Compiling webview2-com-sys v0.38.2
+    Building [=========>   ] 318/408
+                                      
+   Compiling yoke v0.8.1
+    Building [=========>   ] 318/408
+    Building [=========>   ] 319/408
+    Building [=========>   ] 320/408
+    Building [=========>   ] 321/408
+                                      
+   Compiling softbuffer v0.4.8
+    Building [=========>   ] 321/408
+    Building [=========>   ] 322/408
+                                      
+   Compiling windows-future v0.2.1
+   Compiling windows-numerics v0.2.0
+   Compiling windows-collections v0.2.0
+    Building [=========>   ] 322/408
+    Building [=========>   ] 323/408
+                                      
+   Compiling serde_with_macros v3.16.1
+    Building [=========>   ] 324/408
+    Building [=========>   ] 325/408
+    Building [=========>   ] 326/408
+    Building [=========>   ] 327/408
+                                      
+   Compiling dpi v0.1.2
+   Compiling jsonptr v0.6.3
+   Compiling keyboard-types v0.7.0
+   Compiling serialize-to-javascript v0.1.2
+   Compiling serde_yaml v0.9.34+deprecated
+    Building [=========>   ] 327/408
+                                      
+   Compiling string_cache v0.8.9
+    Building [=========>   ] 327/408
+                                      
+   Compiling cargo-platform v0.1.9
+    Building [=========>   ] 328/408
+                                      
+   Compiling indexmap v1.9.3
+    Building [=========>   ] 329/408
+                                      
+   Compiling cargo_toml v0.22.3
+    Building [=========>   ] 330/408
+                                      
+   Compiling windows v0.61.3
+    Building [=========>   ] 331/408
+                                      
+   Compiling zerovec v0.11.5
+    Building [=========>   ] 332/408
+                                      
+   Compiling zerotrie v0.2.3
+    Building [=========>   ] 333/408
+                                      
+   Compiling markup5ever v0.14.1
+    Building [=========>   ] 334/408
+[2m7:36:25 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+    Building [=========>   ] 335/408
+                                      
+   Compiling json-patch v3.0.1
+    Building [=========>   ] 336/408
+                                      
+   Compiling cargo_metadata v0.19.2
+    Building [=========>   ] 337/408
+    Building [=========>   ] 338/408
+    Building [=========>   ] 339/408
+    Building [=========>   ] 340/408
+    Building [=========>   ] 341/408
+                                      
+   Compiling serde_with v3.16.1
+    Building [=========>   ] 342/408
+                                      
+   Compiling muda v0.17.1
+    Building [=========>   ] 342/408
+    Building [=========>   ] 343/408
+[2m7:36:26 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+                                      
+   Compiling html5ever v0.29.1
+    Building [=========>   ] 344/408
+    Building [=========>   ] 345/408
+    Building [==========>  ] 346/408
+    Building [==========>  ] 347/408
+    Building [==========>  ] 348/408
+                                      
+   Compiling tinystr v0.8.2
+    Building [==========>  ] 348/408
+                                      
+   Compiling potential_utf v0.1.4
+    Building [==========>  ] 349/408
+    Building [==========>  ] 350/408
+    Building [==========>  ] 351/408
+                                      
+   Compiling icu_locale_core v2.1.1
+    Building [==========>  ] 352/408
+                                      
+   Compiling icu_collections v2.1.1
+    Building [==========>  ] 353/408
+    Building [==========>  ] 354/408
+    Building [==========>  ] 355/408
+    Building [==========>  ] 356/408
+    Building [==========>  ] 357/408
+    Building [==========>  ] 358/408
+    Building [==========>  ] 359/408
+    Building [==========>  ] 360/408
+                                      
+   Compiling icu_provider v2.1.1
+    Building [==========>  ] 360/408
+    Building [==========>  ] 361/408
+                                      
+   Compiling icu_normalizer v2.1.1
+   Compiling icu_properties v2.1.2
+    Building [==========>  ] 361/408
+    Building [==========>  ] 362/408
+    Building [==========>  ] 363/408
+    Building [==========>  ] 364/408
+                                      
+   Compiling kuchikiki v0.8.8-speedreader
+    Building [==========>  ] 364/408
+    Building [==========>  ] 365/408
+    Building [==========>  ] 366/408
+    Building [==========>  ] 367/408
+    Building [==========>  ] 368/408
+    Building [==========>  ] 369/408
+                                      
+   Compiling idna_adapter v1.2.1
+    Building [==========>  ] 369/408
+    Building [==========>  ] 370/408
+    Building [==========>  ] 371/408
+                                      
+   Compiling idna v1.1.0
+    Building [==========>  ] 371/408
+    Building [==========>  ] 372/408
+    Building [==========>  ] 373/408
+    Building [==========>  ] 374/408
+    Building [==========>  ] 375/408
+                                      
+   Compiling url v2.5.8
+    Building [==========>  ] 375/408
+    Building [==========>  ] 376/408
+    Building [===========> ] 377/408
+                                      
+   Compiling urlpattern v0.3.0
+   Compiling schemars v0.8.22
+    Building [===========> ] 377/408
+    Building [===========> ] 378/408
+    Building [===========> ] 379/408
+                                      
+   Compiling tauri-utils v2.8.2
+    Building [===========> ] 379/408
+    Building [===========> ] 380/408
+    Building [===========> ] 381/408
+    Building [===========> ] 382/408
+[2m7:36:35 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+                                      
+   Compiling tauri-build v2.5.5
+   Compiling tauri-plugin v2.5.3
+   Compiling tauri-codegen v2.5.4
+    Building [===========> ] 382/408
+    Building [===========> ] 383/408
+    Building [===========> ] 384/408
+    Building [===========> ] 385/408
+    Building [===========> ] 386/408
+                                      
+   Compiling tauri v2.10.2
+   Compiling tauri-macros v2.5.4
+   Compiling tauri-plugin-opener v2.5.3
+   Compiling tauri-plugin-store v2.4.2
+   Compiling gtaurus v0.1.0 (C:\Users\moffa\projects\gtaurus-app\src-tauri)
+    Building [===========> ] 387/408
+    Building [===========> ] 388/408
+    Building [===========> ] 389/408
+    Building [===========> ] 390/408
+    Building [===========> ] 391/408
+    Building [===========> ] 392/408
+    Building [===========> ] 393/408
+    Building [===========> ] 394/408
+    Building [===========> ] 395/408
+[2m7:36:46 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+    Building [===========> ] 396/408
+                                      
+   Compiling tao v0.34.5
+    Building [===========> ] 396/408
+    Building [===========> ] 397/408
+                                      
+   Compiling webview2-com v0.38.2
+    Building [===========> ] 397/408
+    Building [===========> ] 398/408
+    Building [===========> ] 399/408
+                                      
+   Compiling wry v0.54.2
+   Compiling tauri-runtime v2.10.0
+    Building [===========> ] 399/408
+    Building [===========> ] 400/408
+                                      
+   Compiling tauri-runtime-wry v2.10.0
+    Building [===========> ] 400/408
+    Building [===========> ] 401/408
+    Building [===========> ] 402/408
+    Building [===========> ] 403/408
+    Building [===========> ] 404/408
+    Building [===========> ] 405/408
+[2m7:37:05 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+    Building [===========> ] 406/408
+[2m7:37:06 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m7:37:10 am[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+    Building [===========> ] 407/408
+                                      
+error: failed to remove file `C:\Users\moffa\projects\gtaurus-app\src-tauri\target\debug\gtaurus.exe`
+Caused by:
+  Access is denied. (os error 5)

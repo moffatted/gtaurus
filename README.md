@@ -7,9 +7,10 @@
 ### Frontend (User Interface)
 -   **Framework**: React + Vite + TypeScript
 -   **State Management**: 
-    -   `Zustand` for UI state (sidebar toggles, active tabs).
+    -   `Zustand` for UI state (sidebar toggles, active tabs, theme preferences).
     -   `TanStack Query` for server state (serial ports, connection status).
--   **Styling**: Tailwind CSS + `clsx`/`tailwind-merge`.
+    -   `Tauri Store Plugin` for persistent configuration (theme settings).
+-   **Styling**: Tailwind CSS + `clsx`/`tailwind-merge` with CSS variables for theming.
 -   **Icons**: Lucide React.
 -   **Communication**: Invokes Tauri commands to communicate with the Rust backend.
 
