@@ -20,7 +20,7 @@ async function getStore(): Promise<Store> {
 
 
 export const useThemeStore = create<ThemeStore>((set) => ({
-  theme: 'dark',
+  theme: 'light',
   
   setTheme: async (theme: Theme) => {
     set({ theme });
@@ -37,7 +37,7 @@ export const useThemeStore = create<ThemeStore>((set) => ({
     try {
       const s = await getStore();
       const savedTheme = await s.get<Theme>('theme');
-      const theme = savedTheme || 'dark';
+      const theme = savedTheme || 'light';
       set({ theme });
       
       // Apply theme to document
@@ -45,8 +45,10 @@ export const useThemeStore = create<ThemeStore>((set) => ({
       document.documentElement.classList.add(theme);
     } catch (error) {
       console.error('Failed to load theme:', error);
-      // Default to dark theme
-      document.documentElement.classList.add('dark');
+      // Default to light theme
+      const theme = 'light';
+      set({ theme });
+      document.documentElement.classList.add('light');
     }
   },
 }));
