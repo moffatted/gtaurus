@@ -51,18 +51,55 @@
 
 ## 🏃‍♂️ Usage
 
-### Start Development Server
-This runs the React dev server and opens the Tauri application window with hot-reloading enabled.
-```bash
-npm run tauri dev
-```
+Gtaurus supports **two deployment modes**: Desktop (Tauri) and Web (Browser).
 
-### Build for Production
-Creates an optimized release build for your OS.
+### Desktop Mode (Tauri) - Full Features
+
+**Development:**
 ```bash
-npm run tauri build
+npm run tauri:dev
 ```
-The executable will be located in `src-tauri/target/release/bundle/`.
+This runs the React dev server and opens the Tauri application window with hot-reloading enabled.
+
+**Production Build:**
+```bash
+npm run tauri:build
+```
+Creates an optimized release build for your OS. The executable will be located in `src-tauri/target/release/bundle/`.
+
+**Features Available:**
+- ✅ **FluidNC Manager**: Execute commands and manage configuration files.
+- ✅ **Emergency Stop**: Software E-Stop button sending immediate Soft Reset (`0x18`).
+- ✅ **Integrated Consoles**: G-code terminal with history and real-time control buttons.
+- ✅ **Digital Readout (DRO)**: Real-time axis positions (WPos/MPos), feed rate, and spindle speed.
+- ✅ **Tooltip System**: Contextual help throughout the interface.
+- ✅ Serial port communication with CNC hardware
+- ✅ Theme persistence via Tauri Store
+- ✅ Full desktop integration
+
+---
+
+### Web Mode (Browser) - Limited Features
+
+**Development:**
+```bash
+npm run dev
+```
+Starts the Vite dev server on `http://localhost:3000`. Open in your browser.
+
+**Production Build:**
+```bash
+npm run build:web
+npm run preview
+```
+Creates an optimized web build in the `dist/` directory.
+
+**Features Available:**
+- ✅ Theme switching (persisted via localStorage)
+- ✅ UI preview and testing
+- ❌ Serial port communication (requires desktop app)
+
+**Note:** Serial communication features are disabled in web mode with an informational message displayed in the sidebar.
 
 ## 🛑 Stopping the Application
 -   **Development**: Close the application window or press `Ctrl+C` in the terminal where `npm run tauri dev` is running.
@@ -91,7 +128,40 @@ gtaurus-app/
 
 ## 🤝 Contributing
 1.  Fork the project.
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request.
+
+---
+
+## 🔌 FluidNC References
+
+Gtaurus is purpose-built for boards running **FluidNC** firmware.
+
+| Resource | URL |
+|---|---|
+| FluidNC Firmware | https://github.com/bdring/FluidNC |
+| FluidNC Web UI (ESP3D-WEBUI) | https://github.com/michmela44/ESP3D-WEBUI |
+| FluidNC Wiki (Commands, Settings, Config) | http://wiki.fluidnc.com |
+| FluidNC Wiki — Commands & Settings | http://wiki.fluidnc.com/en/features/commands_and_settings |
+
+### Target Hardware
+- **Board**: MKS DLC32 v2.1 running FluidNC
+- **USB**: Connected to 2010 Mac Mini
+- **WiFi**: `192.168.68.64` (local network, used for remote development/testing)
+
+### Connection Modes
+| Mode | Address | Notes |
+|---|---|---|
+| Serial/USB | e.g. `/dev/cu.usbserial-...` | 115200 baud, Grbl character-counting protocol |
+| WiFi WebSocket | `ws://192.168.68.64/ws` | Same text protocol over WebSocket; preferred for remote dev |
+| WiFi HTTP | `http://192.168.68.64/command?commandText=<cmd>` | One-shot commands only |
+
+### FluidNC Protocol Notes
+- **Wire format**: Grbl-compatible line-based text (`command\n` → `ok\n` or `error:N\n`)
+- **Realtime bytes**: `?` (status), `!` (feed hold), `~` (resume), `0x18` (soft reset) — sent without `\n`, bypass the buffer
+- **`$` commands**: FluidNC-specific actions (`$Home`, `$MD`, `$G`, `$I`, etc.). Machine config is in `config.yaml`, not `$$` numbered settings.
+- **Event format**: Tauri backend emits all received lines as `fluidnc://rx` events to the frontend
+
+

@@ -1,14 +1,14 @@
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 mod driver;
 use driver::{CNCController, FluidNCDriver};
 
 pub struct AppState {
-    pub driver: Mutex<Box<dyn CNCController + Send>>,
+    pub driver: Mutex<Box<dyn CNCController>>,
 }
 
-// --- Commands ---
+// ─── Commands ─────────────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn list_serial_ports() -> Vec<String> {
@@ -18,55 +18,62 @@ fn list_serial_ports() -> Vec<String> {
     }
 }
 
+/// Connect over USB/serial
 #[tauri::command]
-fn connect_to_board(
+fn connect_serial(
     state: State<'_, AppState>,
+    app: AppHandle,
     port_name: String,
     baud_rate: u32,
 ) -> Result<String, String> {
-    let mut driver = state
-        .driver
-        .lock()
-        .map_err(|_| "Failed to lock driver".to_string())?;
-    driver.connect(&port_name, baud_rate)?;
+    let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+    driver.connect_serial(&port_name, baud_rate, app)?;
     Ok(format!("Connected to {}", port_name))
 }
 
+/// Connect over WiFi via Telnet TCP (FluidNC port 23)
 #[tauri::command]
-fn send_realtime(state: State<'_, AppState>, cmd: char) -> Result<(), String> {
-    let mut driver = state
-        .driver
-        .lock()
-        .map_err(|_| "Failed to lock driver".to_string())?;
-    driver.send_realtime_command(cmd)
+fn connect_telnet(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    host: String,
+    ws_port: Option<u16>,
+) -> Result<String, String> {
+    let port = ws_port.unwrap_or(23);
+    let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+    driver.connect_telnet(&host, port, app)?;
+    Ok(format!("Connected to {}:{}", host, port))
 }
 
+/// Disconnect from whatever transport is active
 #[tauri::command]
-fn stream_gcode_file(state: State<'_, AppState>, path: String) -> Result<(), String> {
-    let mut driver = state
-        .driver
-        .lock()
-        .map_err(|_| "Failed to lock driver".to_string())?;
-    driver.stream_file(path)
+fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
+    let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+    driver.disconnect();
+    Ok(())
 }
 
+/// Send a G-code or $ command (buffered, respects character-counting for serial)
 #[tauri::command]
 fn send_gcode(state: State<'_, AppState>, cmd: String) -> Result<(), String> {
-    let mut driver = state
-        .driver
-        .lock()
-        .map_err(|_| "Failed to lock driver".to_string())?;
+    let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
     driver.send_command(cmd)
+}
+
+/// Send a real-time byte (?, !, ~, 0x18, …) — bypasses the command buffer
+#[tauri::command]
+fn send_realtime(state: State<'_, AppState>, byte: u8) -> Result<(), String> {
+    let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+    driver.send_realtime(byte)
 }
 
 #[tauri::command]
 fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
-    let driver = state
-        .driver
-        .lock()
-        .map_err(|_| "Failed to lock driver".to_string())?;
+    let driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
     Ok(driver.get_status())
 }
+
+// ─── App bootstrap ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -78,11 +85,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_serial_ports,
-            connect_to_board,
+            connect_serial,
+            connect_telnet,
+            disconnect,
             send_gcode,
             send_realtime,
-            stream_gcode_file,
-            get_connection_status
+            get_connection_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

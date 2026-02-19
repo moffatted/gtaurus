@@ -1,0 +1,502 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  KeyboardEvent,
+} from 'react';
+import {
+  Terminal,
+  Wifi,
+  Usb,
+  Play,
+  Square,
+  RotateCcw,
+  HelpCircle,
+  X,
+  ChevronRight,
+  AlertTriangle,
+  PlugZap,
+  Unplug,
+} from 'lucide-react';
+import { Tooltip } from './ui/Tooltip';
+import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { useSettingsStore } from '../stores/settingsStore';
+import { isTauriApp } from '../utils/platform';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type LineType = 'cmd' | 'ok' | 'error' | 'status' | 'msg' | 'alarm' | 'info' | 'sys';
+
+interface LogLine {
+  id: number;
+  text: string;
+  type: LineType;
+  ts: number;
+}
+
+let lineId = 0;
+
+function classify(text: string): LineType {
+  if (text.startsWith('[GTaurus]')) return 'sys';
+  if (text === 'ok')               return 'ok';
+  if (text.startsWith('error:'))   return 'error';
+  if (text.startsWith('ALARM:'))   return 'alarm';
+  if (text.startsWith('<') && text.endsWith('>')) return 'status';
+  if (text.startsWith('[MSG:'))    return 'msg';
+  if (text.startsWith('['))        return 'info';
+  return 'info';
+}
+
+const LINE_STYLES: Record<LineType, string> = {
+  cmd:    'text-[var(--accent-primary)]',
+  ok:     'text-emerald-400/80',
+  error:  'text-red-400',
+  alarm:  'text-red-500 font-bold',
+  status: 'text-cyan-400',
+  msg:    'text-amber-400',
+  info:   'text-[var(--text-tertiary)]',
+  sys:    'text-violet-400 italic',
+};
+
+// ─── Connection Dialog ────────────────────────────────────────────────────────
+
+interface ConnectDialogProps {
+  onClose: () => void;
+  onConnected: () => void;
+}
+
+function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
+  const { settings, updateSettings } = useSettingsStore();
+  const conn = settings.connection;
+
+  const [mode, setMode]         = useState(conn.preferredMode);
+  const [wsHost, setWsHost]     = useState(conn.wsHost);
+  const [wsPort, setWsPort]     = useState(conn.wsPort ?? 23);
+  const [port, setPort]         = useState(conn.serialPort);
+  const [baud, setBaud]         = useState(conn.baudRate);
+  const [ports, setPorts]       = useState<string[]>([]);
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError]       = useState('');
+
+  useEffect(() => {
+    if (mode === 'serial' && isTauriApp()) {
+      invoke<string[]>('list_serial_ports').then(setPorts).catch(() => setPorts([]));
+    }
+  }, [mode]);
+
+  async function handleConnect() {
+    if (!isTauriApp()) {
+      setError('Serial/WebSocket requires the desktop app.');
+      return;
+    }
+    setConnecting(true);
+    setError('');
+    try {
+      if (mode === 'websocket') {
+        await invoke('connect_telnet', { host: wsHost, wsPort });
+        updateSettings({ connection: { ...conn, preferredMode: 'websocket', wsHost, wsPort } });
+      } else {
+        await invoke('connect_serial', { portName: port, baudRate: baud });
+        updateSettings({ connection: { ...conn, preferredMode: 'serial', serialPort: port, baudRate: baud } });
+      }
+      onConnected();
+      onClose();
+    } catch (e: unknown) {
+      setError(String(e));
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] shadow-2xl w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-2">
+            <PlugZap className="w-5 h-5 text-[var(--accent-primary)]" />
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Connect to FluidNC</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] cursor-pointer">
+            <X className="w-4 h-4 text-[var(--text-secondary)]" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Mode selector */}
+          <div className="grid grid-cols-2 gap-2">
+            {(['websocket', 'serial'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
+                  mode === m
+                    ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] text-[var(--accent-primary)]'
+                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                {m === 'websocket'
+                  ? <><Wifi className="w-4 h-4" /> WiFi</>
+                  : <><Usb className="w-4 h-4" /> USB Serial</>
+                }
+              </button>
+            ))}
+          </div>
+
+          {/* Fields */}
+          {mode === 'websocket' ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  Host
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={wsHost}
+                    onChange={(e) => setWsHost(e.target.value)}
+                    placeholder="fluidnc.local"
+                    className="flex-1 px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
+                  />
+                  <input
+                    type="number"
+                    value={wsPort}
+                    onChange={(e) => setWsPort(Number(e.target.value))}
+                    min={1}
+                    max={65535}
+                    className="w-20 px-2 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
+                  Connects to <code className="font-mono">{wsHost}:{wsPort}</code> (TCP/Telnet)
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Serial Port</label>
+                <select
+                  value={port}
+                  onChange={(e) => setPort(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer"
+                >
+                  <option value="">Select port…</option>
+                  {ports.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Baud Rate</label>
+                <select
+                  value={baud}
+                  onChange={(e) => setBaud(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer"
+                >
+                  {[9600, 19200, 38400, 57600, 115200, 230400].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-start gap-2 text-red-400 text-xs bg-red-400/10 border border-red-400/30 rounded-lg px-3 py-2">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-[var(--border-color)] flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConnect}
+            disabled={connecting || (mode === 'serial' && !port) || (mode === 'websocket' && !wsHost)}
+            className="px-4 py-2 text-sm rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {connecting ? 'Connecting…' : 'Connect'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── GcodeConsole ─────────────────────────────────────────────────────────────
+
+const MAX_HISTORY = 50;
+
+export function GcodeConsole() {
+  const [lines, setLines]             = useState<LogLine[]>([]);
+  const [input, setInput]             = useState('');
+  const [connected, setConnected]     = useState(false);
+  const [statusLabel, setStatusLabel] = useState('Disconnected');
+  const [showConnect, setShowConnect] = useState(false);
+  const [cmdHistory, setCmdHistory]   = useState<string[]>([]);
+  const [histIdx, setHistIdx]         = useState(-1);
+
+  const logRef   = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Append a line to the log
+  const appendLine = useCallback((text: string, type?: LineType) => {
+    setLines((prev) => [
+      ...prev.slice(-999), // keep last 1000 lines
+      { id: lineId++, text, type: type ?? classify(text), ts: Date.now() },
+    ]);
+  }, []);
+
+  // Auto-scroll log to bottom
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [lines]);
+
+  // Listen for FluidNC RX events
+  useEffect(() => {
+    if (!isTauriApp()) {
+      appendLine('[GTaurus] Serial/WebSocket requires the desktop app.', 'sys');
+      return;
+    }
+
+    let unlisten: UnlistenFn | null = null;
+
+    listen<string>('fluidnc://rx', (event) => {
+      const text = event.payload.trim();
+      if (!text) return;
+      appendLine(text);
+      // Detect connection-closed messages
+      if (text.includes('connection closed') || text.includes('read error')) {
+        setConnected(false);
+        setStatusLabel('Disconnected');
+      }
+    }).then((fn) => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
+  }, [appendLine]);
+
+  // Sync connection status from backend on mount
+  useEffect(() => {
+    if (!isTauriApp()) return;
+    invoke<string>('get_connection_status')
+      .then((s) => {
+        setStatusLabel(s);
+        setConnected(s !== 'Disconnected');
+      })
+      .catch(() => {});
+  }, []);
+
+  // Send a command
+  async function sendCommand(cmd: string) {
+    const trimmed = cmd.trim();
+    if (!trimmed || !isTauriApp()) return;
+    appendLine(`> ${trimmed}`, 'cmd');
+    try {
+      await invoke('send_gcode', { cmd: trimmed });
+    } catch (e) {
+      appendLine(`error: ${String(e)}`, 'error');
+    }
+    setCmdHistory((prev) => {
+      const next = [trimmed, ...prev.filter((c) => c !== trimmed)].slice(0, MAX_HISTORY);
+      return next;
+    });
+    setHistIdx(-1);
+    setInput('');
+  }
+
+  // Send a realtime byte
+  async function sendRealtime(byte: number, label: string) {
+    if (!isTauriApp() || !connected) return;
+    appendLine(`> [${label}]`, 'cmd');
+    try {
+      await invoke('send_realtime', { byte });
+    } catch (e) {
+      appendLine(`error: ${String(e)}`, 'error');
+    }
+  }
+
+  function handleDisconnect() {
+    if (!isTauriApp()) return;
+    invoke('disconnect').then(() => {
+      setConnected(false);
+      setStatusLabel('Disconnected');
+      appendLine('[GTaurus] Disconnected', 'sys');
+    }).catch(() => {});
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      sendCommand(input);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = Math.min(histIdx + 1, cmdHistory.length - 1);
+      setHistIdx(next);
+      setInput(cmdHistory[next] ?? '');
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = histIdx - 1;
+      if (next < 0) { setHistIdx(-1); setInput(''); }
+      else { setHistIdx(next); setInput(cmdHistory[next]); }
+    }
+  }
+
+  function handleConnected() {
+    invoke<string>('get_connection_status')
+      .then((s) => {
+        setConnected(true);
+        setStatusLabel(s);
+      })
+      .catch(() => {});
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
+        <Terminal className="w-4 h-4 text-[var(--accent-primary)] mr-1" />
+        <span className="text-xs font-semibold text-[var(--text-primary)] mr-2">G-code Console</span>
+
+        {/* Status badge */}
+        <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium mr-auto ${
+          connected
+            ? 'bg-emerald-400/15 text-emerald-400 border border-emerald-400/30'
+            : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-color)]'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-[var(--text-tertiary)]'}`} />
+          {statusLabel}
+        </span>
+
+        {/* Realtime buttons — only active when connected */}
+        <Tooltip content="Status Query (?)" position="bottom">
+            <button
+            onClick={() => sendRealtime(0x3F, '?')}
+            disabled={!connected}
+            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+        </Tooltip>
+        <Tooltip content="Feed Hold (!)" position="bottom">
+            <button
+            onClick={() => sendRealtime(0x21, '! Feed Hold')}
+            disabled={!connected}
+            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+            <Square className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+        </Tooltip>
+        <Tooltip content="Cycle Start / Resume (~)" position="bottom">
+            <button
+            onClick={() => sendRealtime(0x7E, '~ Resume')}
+            disabled={!connected}
+            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+            <Play className="w-3.5 h-3.5 text-emerald-400" />
+            </button>
+        </Tooltip>
+        <Tooltip content="Soft Reset (Ctrl+X)" position="bottom">
+            <button
+            onClick={() => sendRealtime(0x18, 'Soft Reset')}
+            disabled={!connected}
+            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+            <RotateCcw className="w-3.5 h-3.5 text-red-400" />
+            </button>
+        </Tooltip>
+
+        <div className="w-px h-4 bg-[var(--border-color)] mx-0.5" />
+
+        {/* Connect / Disconnect */}
+        {connected ? (
+          <Tooltip content="Disconnect" position="bottom">
+            <button
+                onClick={handleDisconnect}
+                className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+            >
+                <Unplug className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+            </button>
+          </Tooltip>
+        ) : (
+          <Tooltip content="Connect to controller" position="bottom">
+            <button
+                onClick={() => setShowConnect(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-medium cursor-pointer transition-colors"
+            >
+                <PlugZap className="w-3 h-3" /> Connect
+            </button>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* ── Log ───────────────────────────────────────────────────────────── */}
+      <div
+        ref={logRef}
+        className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed space-y-0.5 min-h-0"
+      >
+        {lines.length === 0 && (
+          <p className="text-[var(--text-tertiary)] italic mt-4 text-center">
+            Console output will appear here. Click <strong>Connect</strong> to get started.
+          </p>
+        )}
+        {lines.map((line) => (
+          <div key={line.id} className={`flex items-start gap-2 ${LINE_STYLES[line.type]}`}>
+            <ChevronRight className={`w-3 h-3 mt-0.5 flex-shrink-0 ${line.type === 'cmd' ? 'opacity-100' : 'opacity-0'}`} />
+            <span className="break-all">{line.text}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Input bar ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
+        <span className="text-[var(--accent-primary)] font-mono text-xs select-none">{'>'}</span>
+        <Tooltip content="Type G-code or $ commands (Enter to send)" position="top" className="flex-1">
+            <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={connected ? 'Type G-code or $ command… (↑↓ for history)' : 'Not connected'}
+            disabled={!connected}
+            className="w-full bg-transparent text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none disabled:opacity-50"
+            autoComplete="off"
+            spellCheck={false}
+            />
+        </Tooltip>
+        <Tooltip content="Send command" position="top">
+            <button
+            onClick={() => sendCommand(input)}
+            disabled={!connected || !input.trim()}
+            className="px-2.5 py-1 text-xs rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+            Send
+            </button>
+        </Tooltip>
+      </div>
+
+      {/* ── Connection dialog ──────────────────────────────────────────────── */}
+      {showConnect && (
+        <ConnectDialog
+          onClose={() => setShowConnect(false)}
+          onConnected={handleConnected}
+        />
+      )}
+    </div>
+  );
+}
