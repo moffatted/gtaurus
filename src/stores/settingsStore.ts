@@ -40,6 +40,7 @@ export interface ConnectionSettings {
   // Visualizer Settings
   wsHost: string;
   wsPort: number;
+  statusPollInterval: number;
 }
 
 export interface Settings {
@@ -84,6 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
     terminalScrollback: 1000,
     wsHost: "192.168.68.61",
     wsPort: 23,
+    statusPollInterval: 2000,
   },
   showAutolevelMesh: false,
 };
@@ -173,7 +175,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         }
       });
       set({
-        settings: { ...DEFAULT_SETTINGS, ...saved, dashboardPanels: merged },
+        settings: { 
+          ...DEFAULT_SETTINGS, 
+          ...saved, 
+          connection: { ...DEFAULT_SETTINGS.connection, ...saved.connection },
+          dashboardPanels: merged 
+        },
         initialized: true,
       });
     } else {
@@ -182,7 +189,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   updateSettings: (patch) => {
-    const next = { ...get().settings, ...patch };
+    let next = { ...get().settings, ...patch };
+    
+    // Safety check for status polling interval
+    if (next.connection.statusPollInterval < 1000) {
+      next = {
+        ...next,
+        connection: { ...next.connection, statusPollInterval: 1000 }
+      };
+    }
+
     set({ settings: next });
     void saveToStorage(next);
   },

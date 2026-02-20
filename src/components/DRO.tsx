@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Activity, Move, Zap } from 'lucide-react';
+import { useSettingsStore } from '../stores/settingsStore';
 import { Tooltip } from './ui/Tooltip';
 
 interface AxisState {
@@ -29,6 +30,8 @@ export function DRO() {
   });
 
       // Re-write listener to be safe with state
+  const { settings } = useSettingsStore();
+
   useEffect(() => {
       const unlisten = listen<string>('fluidnc://rx', (event) => {
           const line = event.payload;
@@ -67,13 +70,13 @@ export function DRO() {
 
       const interval = setInterval(() => {
          invoke('send_realtime', { byte: 0x3F }).catch(() => {});
-      }, 250);
+      }, settings.connection.statusPollInterval || 2000);
 
       return () => {
           unlisten.then(f => f());
           clearInterval(interval);
       };
-  }, []);
+  }, [settings.connection.statusPollInterval]);
 
   const getStatusColor = (s: string) => {
       if (s.startsWith('Idle')) return 'bg-green-500/20 text-green-400 border-green-500/30';

@@ -69,6 +69,68 @@ fn send_realtime(state: State<'_, AppState>, byte: u8) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn fetch_fluidnc_file(url: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let res = client.get(url).send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP Error: {}", res.status()));
+    }
+    res.text().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn restart_fluidnc(url: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // We expect the connection to drop or timeout because the board restarts immediately,
+    // but often it will complete the redirect to /did_restart first.
+    match client.get(url).send().await {
+        Ok(res) => {
+            if res.status().is_success() {
+                res.text().await.map_err(|e| e.to_string())
+            } else {
+                Err(format!("HTTP Error: {}", res.status()))
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            // If it's a timeout or connection reset, we consider it "sent"
+            if err_str.contains("timeout")
+                || err_str.contains("connection reset")
+                || err_str.contains("channel closed")
+            {
+                Ok("Restart command sent (connection closed)".to_string())
+            } else {
+                Err(err_str)
+            }
+        }
+    }
+}
+
+#[tauri::command]
+async fn upload_fluidnc_file(url: String, filename: String, content: String) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let form = reqwest::multipart::Form::new().text("path", "/").part(
+        "myfile",
+        reqwest::multipart::Part::text(content).file_name(filename),
+    );
+
+    let res = client
+        .post(url)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("Upload failed: {}", res.status()));
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
     let driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
     Ok(driver.get_status())
@@ -92,6 +154,9 @@ pub fn run() {
             send_gcode,
             send_realtime,
             get_connection_status,
+            fetch_fluidnc_file,
+            upload_fluidnc_file,
+            restart_fluidnc,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

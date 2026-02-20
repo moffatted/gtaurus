@@ -4,7 +4,7 @@ import {
   Palette, SlidersHorizontal, Cable, Crosshair,
   Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
-  Wifi, UsbIcon, RefreshCw, Power,
+  Wifi, UsbIcon, RefreshCw, Power, Activity,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { invoke } from '@tauri-apps/api/core';
@@ -205,6 +205,7 @@ function ConnectionContent() {
 
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(String(conn.wsPort));
+  const [pollInterval, setPollInterval] = useState(String(conn.statusPollInterval));
   const [serialPort, setSP]     = useState(conn.serialPort);
   const [baudRate, setBaud]     = useState(String(conn.baudRate));
   const [ports, setPorts]       = useState<string[]>([]);
@@ -264,6 +265,15 @@ function ConnectionContent() {
     updateSettings({
       connection: { ...conn, serialPort: newPort ?? serialPort, baudRate: isNaN(baud) ? 115200 : baud },
     });
+  };
+
+  const savePoll = () => {
+    let val = parseInt(pollInterval, 10);
+    if (isNaN(val) || val < 1000) val = 2000;
+    updateSettings({
+      connection: { ...conn, statusPollInterval: val },
+    });
+    setPollInterval(String(val));
   };
 
   const inputCls =
@@ -385,6 +395,36 @@ function ConnectionContent() {
               <option key={b} value={b}>{b}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Monitoring */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+          <Activity className="w-3.5 h-3.5" />
+          <span className="text-xs font-semibold uppercase tracking-wide">Monitoring</span>
+        </div>
+
+        <div>
+          <label className={labelCls}>Status Polling Interval (ms)</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={pollInterval}
+              onChange={(e) => setPollInterval(e.target.value)}
+              onBlur={savePoll}
+              min={1000}
+              max={10000}
+              step={100}
+              className={inputCls}
+            />
+          </div>
+          <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+            How often the DRO requests coordinates and machine state from the controller. 
+            <strong> Minimum: 1000ms. Default: 2000ms.</strong> Lowering this too far can cause the web service to disconnect.
+          </p>
         </div>
       </div>
     </div>
