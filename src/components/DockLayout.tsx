@@ -93,6 +93,14 @@ export function DockLayout(props: DockLayoutProps) {
           if (index === 0) {
              apiInstance.addPanel(panelConfig);
           } else {
+             // Basic initial sizing for panels that tend to take up too much space by default
+             if (panelData.id === 'console') {
+                 panelConfig.size = 250; // Give console a smaller initial vertical space
+             }
+             if (panelData.id === 'dro') {
+                 panelConfig.size = 350; // Give DRO a smaller initial horizontal space
+             }
+
              // Alternate direction to tile correctly: 'right', 'below', 'right'...
              // By omitting referencePanel, Dockview uses the active group (the last added panel)
              panelConfig.position = { 
@@ -125,8 +133,8 @@ export function DockLayout(props: DockLayoutProps) {
       const apiInstance = event.api;
       setApi(apiInstance);
 
-      // Restore layout or Default (Bumped to v5 to force reset)
-      const saved = localStorage.getItem('dockview-layout-v5');
+      // Restore layout or Default (Bumped to v6 to force reset and apply new default sizes)
+      const saved = localStorage.getItem('dockview-layout-v6');
       let loaded = false;
       if (saved) {
           try {
@@ -145,7 +153,7 @@ export function DockLayout(props: DockLayoutProps) {
       // Save on change
       apiInstance.onDidLayoutChange(() => {
           if (isRebuildingRef.current) return;
-          localStorage.setItem('dockview-layout-v5', JSON.stringify(apiInstance.toJSON()));
+          localStorage.setItem('dockview-layout-v6', JSON.stringify(apiInstance.toJSON()));
       });
 
       // Sync close events to store
