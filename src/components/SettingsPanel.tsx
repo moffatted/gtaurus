@@ -176,6 +176,40 @@ function ProbeContent() {
   return (
     <div className="space-y-8">
       
+      {/* 0. Probe Type */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>Probe Type</h4>
+        <div className="space-y-3">
+            <div>
+              <label className={labelCls}>Selected Probe Profile</label>
+              <select
+                value={prb.probeType}
+                onChange={(e) => setProbeSettings({ probeType: e.target.value })}
+                className={inputCls}
+              >
+                <optgroup label="Workpiece Probes (Spindle-Mounted)">
+                  <option value="Touch-Trigger Probe">Touch-Trigger Probe / Kinematic</option>
+                  <option value="Scanning Probe">Analog Scanning Probe</option>
+                  <option value="3D Sensor">3D Sensor (Mechanical/Analog)</option>
+                </optgroup>
+                <optgroup label="Tool Setters (Table-Mounted)">
+                  <option value="Contact Tool Setter">Contact Tool Setter / Auto Tool Zero</option>
+                  <option value="Non-Contact Tool Setter">Laser Tool Setter / NC Probe</option>
+                </optgroup>
+                <optgroup label="Touch Plates (Zeroing Plates)">
+                  <option value="Z-Zero Plate">Z-Zero Plate / Tool Setting Block</option>
+                  <option value="3-Axis Finder">3-Axis / Corner Finding Touch Plate</option>
+                </optgroup>
+              </select>
+              <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic">
+                Select the physical type of probe you are using to configure predefined interaction behaviors based on standard operating logic.
+              </p>
+            </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
       {/* 1. Movement & Feedrate */}
       <div className="space-y-4">
         <h4 className={subHeaderCls}>1. Movement & Feedrate</h4>

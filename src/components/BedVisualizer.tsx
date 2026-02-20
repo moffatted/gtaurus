@@ -1,8 +1,9 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
+import { listen } from '@tauri-apps/api/event';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -76,38 +77,130 @@ function Toolpath() {
 
 // ─── Mock Autolevel Mesh ───────────────────────────────────────────────────
 
+interface HeightMapData {
+  min_x: number;
+  min_y: number;
+  spacing: number;
+  cols: number;
+  rows: number;
+  grid: number[];
+}
+
 function AutolevelMesh() {
   const { settings } = useSettingsStore();
+  const [mapData, setMapData] = useState<HeightMapData | null>(null);
+
+  useEffect(() => {
+    // Listen for the "autolevel:grid_update" event from the Rust backend
+    const unlisten = listen<HeightMapData>('autolevel:grid_update', (event) => {
+       console.log("Received new HeightMap data:", event.payload);
+       setMapData(event.payload);
+    });
+    
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
 
   const geometry = useMemo(() => {
-    // Create a dense plane representation of the bed
-    const geo = new THREE.PlaneGeometry(BED_SIZE_X, BED_SIZE_Y, 20, 20);
-    // Rotate the plane to lay flat (XZ plane)
+    if (!mapData) {
+      // Create a flat dense plane representation
+      const geo = new THREE.PlaneGeometry(BED_SIZE_X, BED_SIZE_Y, 20, 20);
+      geo.rotateX(-Math.PI / 2);
+      
+      const positions = geo.attributes.position;
+      const colors = new Float32Array(positions.count * 3);
+      // Fill with default yellow-ish "level" color or a neutral color
+      const defaultColor = new THREE.Color('#333333'); 
+      for (let i = 0; i < positions.count; i++) {
+         colors[i * 3] = defaultColor.r;
+         colors[i * 3 + 1] = defaultColor.g;
+         colors[i * 3 + 2] = defaultColor.b;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      
+      return geo;
+    }
+
+    // Build geometry that strictly matches the heightmap bounds and resolution
+    const width = (mapData.cols - 1) * mapData.spacing;
+    const height = (mapData.rows - 1) * mapData.spacing;
+    
+    // PlaneGeometry is centered at origin. We need segments = cols-1 and rows-1
+    const geo = new THREE.PlaneGeometry(width, height, mapData.cols - 1, mapData.rows - 1);
     geo.rotateX(-Math.PI / 2);
     
-    // Add some "warp" to the vertices to mock an uneven bed
+    // Shift it so its bottom-left is at (min_x, min_y) instead of (-width/2, -height/2)
+    const offsetX = mapData.min_x + width / 2;
+    const offsetZ = mapData.min_y + height / 2; // Z in Three.js corresponds to Y on the CNC table
+
+    geo.translate(offsetX, 0, offsetZ);
+
     const positions = geo.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i); // Represents Y in CNC
-      // Calculate a slight warp (e.g., bowl shaped with noise)
-      // Map Y up/down
-      const warp = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 5; 
-      positions.setY(i, warp);
+    const colors = new Float32Array(positions.count * 3);
+    
+    // Find min and max Z to normalize colors
+    let minZ = 0;
+    let maxZ = 0;
+    if (mapData.grid.length > 0) {
+        minZ = Math.min(...mapData.grid);
+        maxZ = Math.max(...mapData.grid);
     }
+    // Prevent division by zero if completely flat
+    if (Math.abs(maxZ - minZ) < 0.001) {
+        maxZ = 1.0;
+        minZ = -1.0;
+    }
+
+    const highColor = new THREE.Color('#ef4444'); // Red
+    const levelColor = new THREE.Color('#eab308'); // Yellow
+    const lowColor = new THREE.Color('#3b82f6'); // Blue
+    const tempColor = new THREE.Color();
+    
+    // Map the 1D grid array to the vertices
+    // ThreeJS PlaneGeometry vertices order: top-to-bottom, left-to-right
+    // Our HeightMap grid order: Y=min_y to max_y (bottom-to-top), X=min_x to max_x (left-to-right)
+    for (let r = 0; r < mapData.rows; r++) {
+      for (let c = 0; c < mapData.cols; c++) {
+         // ThreeJS vertex index from top-left
+         const threeR = (mapData.rows - 1) - r; 
+         const vIdx = threeR * mapData.cols + c;
+         
+         // HeightMap index from bottom-left
+         const hmIdx = r * mapData.cols + c;
+         const zValue = mapData.grid[hmIdx];
+         
+         positions.setY(vIdx, zValue);
+
+         // Determine color based on height relative to zero
+         if (zValue >= 0) {
+             const t = Math.min(zValue / Math.max(maxZ, 0.001), 1.0);
+             tempColor.lerpColors(levelColor, highColor, t);
+         } else {
+             const t = Math.min(Math.abs(zValue) / Math.abs(Math.min(minZ, -0.001)), 1.0);
+             tempColor.lerpColors(levelColor, lowColor, t);
+         }
+
+         colors[vIdx * 3] = tempColor.r;
+         colors[vIdx * 3 + 1] = tempColor.g;
+         colors[vIdx * 3 + 2] = tempColor.b;
+      }
+    }
+    
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
     return geo;
-  }, []);
+  }, [mapData]);
 
   if (!settings.showAutolevelMesh) return null;
 
   return (
     <mesh geometry={geometry} position={[0, -0.1, 0]}>
       <meshStandardMaterial 
-        color="#a855f7" 
+        vertexColors={true}
         wireframe={true} 
         transparent 
-        opacity={0.3} 
+        opacity={0.6} 
       />
     </mesh>
   );

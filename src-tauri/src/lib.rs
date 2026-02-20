@@ -1,12 +1,15 @@
-use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter, State};
 
+pub mod autolevel;
 mod driver;
 mod driver_tests;
+
 use driver::{CNCController, FluidNCDriver};
 
 pub struct AppState {
-    pub driver: Mutex<Box<dyn CNCController>>,
+    pub driver: Arc<Mutex<Box<dyn CNCController>>>,
+    pub height_map: Arc<Mutex<Option<autolevel::height_map::HeightMap>>>,
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -230,6 +233,174 @@ fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
     Ok(driver.get_status())
 }
 
+#[tauri::command]
+fn start_probing(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    min_x: f64,
+    min_y: f64,
+    max_x: f64,
+    max_y: f64,
+    spacing: f64,
+) -> Result<String, String> {
+    let cols = ((max_x - min_x) / spacing).ceil() as usize + 1;
+    let rows = ((max_y - min_y) / spacing).ceil() as usize + 1;
+
+    let map = autolevel::height_map::HeightMap::new(min_x, min_y, spacing, cols, rows);
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    {
+        let mut driver_guard = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+        driver_guard.add_rx_subscriber(tx);
+    }
+
+    {
+        let mut hm_lock = state
+            .height_map
+            .lock()
+            .map_err(|_| "Lock failed".to_string())?;
+        // Initialize empty map, emit immediate update to UI
+        let _ = app_handle.emit("autolevel:grid_update", &map);
+        *hm_lock = Some(map);
+    }
+
+    let driver_clone = Arc::clone(&state.driver);
+    let map_clone = Arc::clone(&state.height_map);
+    let app_handle_clone = app_handle.clone();
+
+    // Spawn blocking background thread for orchestrating probing routine
+    std::thread::spawn(move || {
+        for r in 0..rows {
+            // "Z-mode/snake" pattern is superior, but standard row/col is fine for now
+            // To make it snake, we can reverse columns on odd rows
+            let c_iter: Box<dyn Iterator<Item = usize>> = if r % 2 == 0 {
+                Box::new(0..cols)
+            } else {
+                Box::new((0..cols).rev())
+            };
+
+            for c in c_iter {
+                let x = min_x + (c as f64) * spacing;
+                let y = min_y + (r as f64) * spacing;
+
+                // 1. Move safely in XY plane to probe point and drop to Z=1 (just slightly above board)
+                {
+                    if let Ok(mut driver) = driver_clone.lock() {
+                        let _ = driver.send_command(format!("G0 X{:.3} Y{:.3} Z2.0", x, y));
+                    }
+                }
+
+                // Give driver a tiny moment just to ensure serial spacing
+                std::thread::sleep(std::time::Duration::from_millis(50));
+
+                // 2. Descend using probe cycle to Z = -10 at slow feed F50
+                {
+                    if let Ok(mut driver) = driver_clone.lock() {
+                        let _ = driver.send_command("G38.2 Z-10 F50".to_string());
+                    }
+                }
+
+                // 3. Wait blockingly for PRB response
+                let mut probed_z = 0.0;
+                while let Ok(line) = rx.recv() {
+                    let res = autolevel::probe_runner::parse_probe_report(&line);
+                    if let autolevel::probe_runner::ProbeResult::Success(pos) = res {
+                        probed_z = pos.z;
+                        break;
+                    } else if res == autolevel::probe_runner::ProbeResult::Failed {
+                        // Failed to trigger within bounds. Print to console and abort thread.
+                        eprintln!(
+                            "[AutoLevel] Probe failed to trigger properly at X:{} Y:{}",
+                            x, y
+                        );
+                        // Send general reset/abort symbol to machine (?)
+                        return;
+                    }
+                }
+
+                // 4. Add point to HeightMap and broadcast
+                {
+                    if let Ok(mut hm_lock) = map_clone.lock() {
+                        if let Some(ref mut hm) = *hm_lock {
+                            hm.set_z_at_index(c, r, probed_z);
+                            let _ = app_handle_clone.emit("autolevel:grid_update", &*hm);
+                        }
+                    }
+                }
+
+                // 5. Retract up slightly above 0 point to clear for travel to next XY
+                {
+                    if let Ok(mut driver) = driver_clone.lock() {
+                        let _ = driver.send_command("G0 Z2.0".to_string());
+                    }
+                }
+            }
+        }
+
+        println!("[AutoLevel] Probing Routine completed successfully!");
+    });
+
+    Ok(format!("Probing initialized for {}x{} grid", cols, rows))
+}
+
+#[tauri::command]
+fn warp_gcode(
+    gcode: String,
+    min_x: f64,
+    min_y: f64,
+    spacing: f64,
+    cols: usize,
+    rows: usize,
+    data: Vec<f64>,
+) -> String {
+    let mut map = autolevel::height_map::HeightMap::new(min_x, min_y, spacing, cols, rows);
+    // Fill the data explicitly
+    map.grid = data;
+
+    autolevel::warper::parse_and_warp(&gcode, &map)
+}
+
+#[tauri::command]
+fn stream_local_gcode(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    let content =
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Check if we have an active height map and warp the content if we do!
+    let final_gcode = {
+        let hm_lock = state
+            .height_map
+            .lock()
+            .map_err(|_| "Lock failed".to_string())?;
+        if let Some(ref hm) = *hm_lock {
+            println!(
+                "[AutoLevel] Applying height map warp to {} before streaming.",
+                path
+            );
+            autolevel::warper::parse_and_warp(&content, hm)
+        } else {
+            content
+        }
+    };
+
+    let driver_clone = Arc::clone(&state.driver);
+
+    std::thread::spawn(move || {
+        println!("[GTaurus] Starting G-code stream job...");
+        for line in final_gcode.lines() {
+            let l = line.trim();
+            if l.is_empty() || l.starts_with(';') || l.starts_with('(') {
+                continue;
+            }
+            if let Ok(mut driver) = driver_clone.lock() {
+                let _ = driver.send_command(l.to_string());
+            }
+        }
+        println!("[GTaurus] Finished streaming G-code job.");
+    });
+
+    Ok(format!("Streaming started"))
+}
+
 // ─── App bootstrap ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -239,7 +410,8 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
-            driver: Mutex::new(Box::new(FluidNCDriver::new())),
+            driver: Arc::new(Mutex::new(Box::new(FluidNCDriver::new()))),
+            height_map: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             list_serial_ports,
@@ -249,6 +421,7 @@ pub fn run() {
             send_gcode,
             send_realtime,
             get_connection_status,
+            start_probing,
             fetch_fluidnc_file,
             upload_fluidnc_file,
             restart_fluidnc,
@@ -259,6 +432,8 @@ pub fn run() {
             delete_local_file,
             copy_to_storage,
             validate_gcode_file,
+            warp_gcode,
+            stream_local_gcode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

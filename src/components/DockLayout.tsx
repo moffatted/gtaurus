@@ -3,6 +3,7 @@ import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from 'dockview
 import 'dockview/dist/styles/dockview.css';
 import { BedVisualizer } from './BedVisualizer';
 import { useSettingsStore } from '../stores/settingsStore';
+import { AutoLevelPanel } from './AutoLevelPanel';
 import "./DockLayout.css"; 
 
 interface DockLayoutProps {
@@ -12,6 +13,7 @@ interface DockLayoutProps {
   jogPanel: ReactNode;
   fileManagerPanel: ReactNode;
   statsPanel: ReactNode;
+  probePanel: ReactNode;
 }
 
 // Context to provide panel content to wrapper components
@@ -65,6 +67,14 @@ const StatsPanelWrapper = () => {
         return <div className="text-red-500 p-4">Error: Context Missing</div>;
     }
     return <div className="h-full w-full overflow-hidden">{ctx.statsPanel}</div>;
+}
+const ProbePanelWrapper = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in ProbePanelWrapper!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full overflow-hidden">{ctx.probePanel}</div>;
 }
 
 // Placeholder Panel wrapper for unimplemented features
@@ -133,9 +143,11 @@ export function DockLayout(props: DockLayoutProps) {
       jog: JogPanel,
       fileManager: FileManagerPanel,
       stats: StatsPanelWrapper,
+      probe: ProbePanelWrapper,
       macros: () => <PlaceholderPanel title="Macros" />,
       toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
       visualizer: BedVisualizer,
+      autolevel: AutoLevelPanel,
       default: (_props: IDockviewPanelProps) => <div className="p-4">Unknown Panel</div>
   }), []);
 

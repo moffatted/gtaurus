@@ -87,6 +87,18 @@ export default function FileManager() {
     }
   };
 
+  const handlePlay = async (filename: string) => {
+    if (!confirm(`Are you sure you want to stream ${filename} to the CNC? Ensure the machine is homed and zeroed.`)) return;
+    try {
+      const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
+      await invoke('stream_local_gcode', { path: fullPath });
+      alert(`Started streaming ${filename}`);
+    } catch (err) {
+      console.error("[FileManager] Streaming failed:", err);
+      alert("Failed to start streaming.");
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -212,6 +224,7 @@ export default function FileManager() {
 
                 <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
+                    onClick={() => handlePlay(file.name)}
                     className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-all"
                     title="Send to CNC"
                   >

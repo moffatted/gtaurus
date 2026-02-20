@@ -56,11 +56,11 @@ export interface ProbeSettings {
   slowFeedrate: number;
   retractDistance: number;
   maxTravel: number;
-  // Physical
   signalState: "NO" | "NC";
   switchOffMethod: "Timer" | "Optical" | "Move";
   transmissionPower: number;
   triggerFilter: number;
+  probeType: string;
   // Calibration
   stylusDiameter: number;
   zOffset: number;
@@ -171,8 +171,10 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
   { id: "stats", label: "Machine Statistics", enabled: false, defaultWidth: 400 },
+  { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320 },
   { id: "macros", label: "Macros", enabled: false },
   { id: "toolchanger", label: "Tool Changer", enabled: false },
+  { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -204,6 +206,7 @@ export const DEFAULT_SETTINGS: Settings = {
     switchOffMethod: "Timer",
     transmissionPower: 1,
     triggerFilter: 10,
+    probeType: "Touch-Trigger Probe",
     stylusDiameter: 6,
     zOffset: 0,
     runout: 0,

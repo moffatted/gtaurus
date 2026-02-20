@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Activity, Move, Zap, Home, Play, Pause, XCircle, Target } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useMachineStore } from '../stores/machineStore';
 import { Tooltip } from './ui/Tooltip';
 
 interface AxisState {
@@ -31,6 +32,7 @@ export function DRO() {
 
       // Re-write listener to be safe with state
   const { settings } = useSettingsStore();
+  const { setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
 
   useEffect(() => {
       const unlisten = listen<string>('fluidnc://rx', (event) => {
@@ -43,6 +45,9 @@ export function DRO() {
           setState((prev) => {
               const next = { ...prev };
               next.status = parts[0];
+
+              if (parts[0] === 'Home') setHasHomed(true);
+              if (parts[0] === 'Alarm') resetPrerequisites();
               
               parts.slice(1).forEach((part) => {
                   const [key, val] = part.split(':');
@@ -109,7 +114,7 @@ export function DRO() {
                  </span>
                  <Tooltip content={`Zero ${label} Axis`} position="left">
                     <button 
-                        onClick={() => sendGcode(`G10 L20 P1 ${label}0`)}
+                        onClick={() => { sendGcode(`G10 L20 P1 ${label}0`); setHasZeroed(true); }}
                         className="p-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white rounded-lg transition-all shadow-sm shrink-0"
                     >
                         <Target className="w-4 h-4" />
@@ -199,14 +204,14 @@ export function DRO() {
             {/* Zero Controls */}
             <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
                 <button 
-                    onClick={() => sendGcode('G10 L20 P1 X0 Y0 Z0')}
+                    onClick={() => { sendGcode('G10 L20 P1 X0 Y0 Z0'); setHasZeroed(true); }}
                     className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
                 >
                     <Target className="w-4 h-4" />
                     Zero All
                 </button>
                 <button 
-                    onClick={() => sendGcode('G10 L20 P1 X0 Y0')}
+                    onClick={() => { sendGcode('G10 L20 P1 X0 Y0'); setHasZeroed(true); }}
                     className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
                 >
                     <Target className="w-4 h-4" />

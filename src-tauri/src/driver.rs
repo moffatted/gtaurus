@@ -58,6 +58,7 @@ pub trait CNCController: Send {
 
     fn disconnect(&mut self);
     fn get_status(&self) -> String;
+    fn add_rx_subscriber(&mut self, tx: std::sync::mpsc::Sender<String>);
 }
 
 // ─── Active connection container ──────────────────────────────────────────────
@@ -81,6 +82,7 @@ enum ActiveConnection {
 pub struct FluidNCDriver {
     conn: ActiveConnection,
     status: ConnectionStatus,
+    subscribers: Arc<Mutex<Vec<std::sync::mpsc::Sender<String>>>>,
 }
 
 impl FluidNCDriver {
@@ -88,11 +90,19 @@ impl FluidNCDriver {
         Self {
             conn: ActiveConnection::None,
             status: ConnectionStatus::Disconnected,
+            subscribers: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    fn emit(handle: &AppHandle, line: &str) {
+    fn emit(
+        handle: &AppHandle,
+        subs: &Arc<Mutex<Vec<std::sync::mpsc::Sender<String>>>>,
+        line: &str,
+    ) {
         let _ = handle.emit(RX_EVENT, line.to_string());
+        if let Ok(mut subs_guard) = subs.lock() {
+            subs_guard.retain(|tx| tx.send(line.to_string()).is_ok());
+        }
     }
 
     // ── Serial helpers ─────────────────────────────────────────────────────
@@ -101,6 +111,7 @@ impl FluidNCDriver {
         reader_port: SerialWrapper,
         pending_bytes: Arc<Mutex<usize>>,
         pending_lens: Arc<Mutex<VecDeque<usize>>>,
+        subscribers: Arc<Mutex<Vec<std::sync::mpsc::Sender<String>>>>,
         handle: AppHandle,
     ) {
         thread::spawn(move || {
@@ -110,7 +121,7 @@ impl FluidNCDriver {
                 line.clear();
                 match reader.read_line(&mut line) {
                     Ok(0) => {
-                        Self::emit(&handle, "[GTaurus] Serial EOF");
+                        Self::emit(&handle, &subscribers, "[GTaurus] Serial EOF");
                         break;
                     }
                     Ok(_) => {
@@ -123,12 +134,12 @@ impl FluidNCDriver {
                                     *bytes = bytes.saturating_sub(len);
                                 }
                             }
-                            Self::emit(&handle, &trimmed);
+                            Self::emit(&handle, &subscribers, &trimmed);
                         }
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
                     Err(_) => {
-                        Self::emit(&handle, "[GTaurus] Serial read error");
+                        Self::emit(&handle, &subscribers, "[GTaurus] Serial read error");
                         break;
                     }
                 }
@@ -165,7 +176,11 @@ impl FluidNCDriver {
     // ── Telnet (TCP) helpers ───────────────────────────────────────────────
 
     /// Spawns a reader thread on a cloned TcpStream.
-    fn spawn_tcp_reader(stream: TcpStream, handle: AppHandle) {
+    fn spawn_tcp_reader(
+        stream: TcpStream,
+        subscribers: Arc<Mutex<Vec<std::sync::mpsc::Sender<String>>>>,
+        handle: AppHandle,
+    ) {
         thread::spawn(move || {
             let mut reader = BufReader::new(stream);
             let mut line = String::new();
@@ -173,18 +188,22 @@ impl FluidNCDriver {
                 line.clear();
                 match reader.read_line(&mut line) {
                     Ok(0) => {
-                        Self::emit(&handle, "[GTaurus] Telnet connection closed");
+                        Self::emit(&handle, &subscribers, "[GTaurus] Telnet connection closed");
                         break;
                     }
                     Ok(_) => {
                         let trimmed = line.trim().to_string();
                         if !trimmed.is_empty() {
-                            Self::emit(&handle, &trimmed);
+                            Self::emit(&handle, &subscribers, &trimmed);
                         }
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
                     Err(e) => {
-                        Self::emit(&handle, &format!("[GTaurus] Telnet read error: {e}"));
+                        Self::emit(
+                            &handle,
+                            &subscribers,
+                            &format!("[GTaurus] Telnet read error: {e}"),
+                        );
                         break;
                     }
                 }
@@ -231,6 +250,7 @@ impl CNCController for FluidNCDriver {
 
         Self::emit(
             &handle,
+            &self.subscribers,
             &format!(
                 "[GTaurus] Connected via Serial: {} @ {} baud",
                 port_name, baud_rate
@@ -241,6 +261,7 @@ impl CNCController for FluidNCDriver {
             reader_clone,
             pending_bytes.clone(),
             pending_lens.clone(),
+            self.subscribers.clone(),
             handle,
         );
         Self::spawn_serial_writer(writer_clone, cmd_rx, pending_bytes, pending_lens);
@@ -274,10 +295,11 @@ impl CNCController for FluidNCDriver {
 
         Self::emit(
             &handle,
+            &self.subscribers,
             &format!("[GTaurus] Connected via Telnet (WiFi): {addr}"),
         );
 
-        Self::spawn_tcp_reader(reader_clone, handle);
+        Self::spawn_tcp_reader(reader_clone, self.subscribers.clone(), handle);
         Self::spawn_tcp_writer(writer_arc, cmd_rx);
 
         self.status = ConnectionStatus::Telnet(addr);
@@ -324,5 +346,11 @@ impl CNCController for FluidNCDriver {
 
     fn get_status(&self) -> String {
         self.status.to_string()
+    }
+
+    fn add_rx_subscriber(&mut self, tx: std::sync::mpsc::Sender<String>) {
+        if let Ok(mut subs) = self.subscribers.lock() {
+            subs.push(tx);
+        }
     }
 }
