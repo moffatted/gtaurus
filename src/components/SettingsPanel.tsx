@@ -85,7 +85,7 @@ function ThemeContent() {
 // ─── Dashboard section ───────────────────────────────────────────────────────
 
 function DashboardContent() {
-  const { settings, setDashboardPanelEnabled, setDashboardPanelSize, moveDashboardPanelUp, moveDashboardPanelDown } =
+  const { settings, setDashboardPanelEnabled, setDashboardPanelDimensions, moveDashboardPanelUp, moveDashboardPanelDown } =
     useSettingsStore();
 
   const sorted = [...settings.dashboardPanels].sort((a, b) => a.order - b.order);
@@ -93,7 +93,7 @@ function DashboardContent() {
   return (
     <div className="space-y-2">
       <p className="text-xs text-[var(--text-tertiary)] pb-1">
-        Enable panels and drag to set the display order on your Dashboard.
+        Enable panels and set their default width/height on your Dashboard.
       </p>
 
       {sorted.map((panel, idx) => (
@@ -139,23 +139,42 @@ function DashboardContent() {
             {panel.label}
           </span>
 
-          {/* Size Input */}
-          <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity mr-2">
-            <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">Size</span>
-            <input
-              type="number"
-              min="100"
-              max="2000"
-              step="10"
-              className="w-16 px-1.5 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
-              placeholder="Auto"
-              value={panel.size || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setDashboardPanelSize(panel.id, val ? parseInt(val, 10) : undefined);
-              }}
-              disabled={!panel.enabled}
-            />
+          {/* Width / Height Inputs */}
+          <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity mr-1">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">W</span>
+              <input
+                type="number"
+                min="100"
+                max="2000"
+                step="10"
+                className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
+                placeholder="Auto"
+                value={panel.defaultWidth || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDashboardPanelDimensions(panel.id, { defaultWidth: val ? parseInt(val, 10) : undefined });
+                }}
+                disabled={!panel.enabled}
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">H</span>
+              <input
+                type="number"
+                min="100"
+                max="2000"
+                step="10"
+                className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
+                placeholder="Auto"
+                value={panel.defaultHeight || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDashboardPanelDimensions(panel.id, { defaultHeight: val ? parseInt(val, 10) : undefined });
+                }}
+                disabled={!panel.enabled}
+              />
+            </div>
           </div>
 
           {/* Enable/disable toggle */}

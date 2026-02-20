@@ -25,8 +25,10 @@ export interface DashboardPanel {
   enabled: boolean;
   /** 0-based display order. Lower = appears first. */
   order: number;
-  /** Initial dockview size constraint when mapped to the layout. */
-  size?: number;
+  /** Default width in pixels for the panel (used by DockView setSize). */
+  defaultWidth?: number;
+  /** Default height in pixels for the panel (used by DockView setSize). */
+  defaultHeight?: number;
 }
 
 export interface ConnectionSettings {
@@ -56,9 +58,9 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "dro", label: "Digital Readout (DRO)", enabled: true, size: 350 },
-  { id: "console", label: "G-code Console", enabled: true, size: 250 },
-  { id: "jog", label: "Jog Controls", enabled: false, size: 250 },
+  { id: "dro", label: "Digital Readout (DRO)", enabled: true, defaultWidth: 350 },
+  { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
+  { id: "jog", label: "Jog Controls", enabled: false, defaultWidth: 280 },
   { id: "manager", label: "FluidNC Manager", enabled: false },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false },
@@ -140,7 +142,7 @@ interface SettingsStore {
 
   // Dashboard helpers
   setDashboardPanelEnabled: (id: string, enabled: boolean) => void;
-  setDashboardPanelSize: (id: string, size: number | undefined) => void;
+  setDashboardPanelDimensions: (id: string, dims: { defaultWidth?: number; defaultHeight?: number }) => void;
   moveDashboardPanelUp: (id: string) => void;
   moveDashboardPanelDown: (id: string) => void;
   // Connection helpers
@@ -191,9 +193,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     void saveToStorage(next);
   },
 
-  setDashboardPanelSize: (id, size) => {
+  setDashboardPanelDimensions: (id, dims) => {
     const panels = get().settings.dashboardPanels.map((p) =>
-      p.id === id ? { ...p, size } : p,
+      p.id === id ? { ...p, ...dims } : p,
     );
     const next = { ...get().settings, dashboardPanels: panels };
     set({ settings: next });

@@ -91,19 +91,27 @@ export function DockLayout(props: DockLayoutProps) {
           }
 
           if (index === 0) {
-             apiInstance.addPanel(panelConfig);
-          } else {
-             // Apply the user-configured size (from Settings > Dashboard)
-             if (panelData.size) {
-                 panelConfig.size = panelData.size;
+             const addedPanel = apiInstance.addPanel(panelConfig);
+             // Apply configured dimensions via DockView's setSize API
+             const sizeEvent: any = {};
+             if (panelData.defaultWidth) sizeEvent.width = panelData.defaultWidth;
+             if (panelData.defaultHeight) sizeEvent.height = panelData.defaultHeight;
+             if (sizeEvent.width || sizeEvent.height) {
+                 addedPanel.api.setSize(sizeEvent);
              }
-
+          } else {
              // Alternate direction to tile correctly: 'right', 'below', 'right'...
-             // By omitting referencePanel, Dockview uses the active group (the last added panel)
              panelConfig.position = { 
                  direction: index % 2 === 1 ? 'right' : 'below' 
              };
-             apiInstance.addPanel(panelConfig);
+             const addedPanel = apiInstance.addPanel(panelConfig);
+             // Apply configured dimensions via DockView's setSize API
+             const sizeEvent: any = {};
+             if (panelData.defaultWidth) sizeEvent.width = panelData.defaultWidth;
+             if (panelData.defaultHeight) sizeEvent.height = panelData.defaultHeight;
+             if (sizeEvent.width || sizeEvent.height) {
+                 addedPanel.api.setSize(sizeEvent);
+             }
           }
       });
       } finally {
@@ -131,7 +139,7 @@ export function DockLayout(props: DockLayoutProps) {
       setApi(apiInstance);
 
       // Restore layout or Default (Bumped to v6 to force reset and apply new default sizes)
-      const saved = localStorage.getItem('dockview-layout-v7');
+      const saved = localStorage.getItem('dockview-layout-v8');
       let loaded = false;
       if (saved) {
           try {
@@ -150,7 +158,7 @@ export function DockLayout(props: DockLayoutProps) {
       // Save on change
       apiInstance.onDidLayoutChange(() => {
           if (isRebuildingRef.current) return;
-          localStorage.setItem('dockview-layout-v7', JSON.stringify(apiInstance.toJSON()));
+          localStorage.setItem('dockview-layout-v8', JSON.stringify(apiInstance.toJSON()));
       });
 
       // Sync close events to store
@@ -180,7 +188,7 @@ export function DockLayout(props: DockLayoutProps) {
   useEffect(() => {
     if (!api) return;
 
-    const syncPanel = (id: string, visible: boolean, title: string, minHeight?: number, minWidth?: number, size?: number) => {
+    const syncPanel = (id: string, visible: boolean, title: string, minHeight?: number, minWidth?: number, defaultWidth?: number, defaultHeight?: number) => {
         const panel = api.getPanel(id);
         if (visible && !panel) {
             console.log(`Restoring panel: ${id}`);
@@ -192,8 +200,8 @@ export function DockLayout(props: DockLayoutProps) {
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            // Re-open with configured size
-            const addConfig: any = {
+            // Re-open panel
+            const addedPanel = api.addPanel({
                 id: id,
                 component: id,
                 title: title,
@@ -201,11 +209,14 @@ export function DockLayout(props: DockLayoutProps) {
                 minimumHeight: minHeight,
                 minimumWidth: minWidth,
                 position: { direction: dir }
-            };
-            if (size) {
-                addConfig.size = size;
+            });
+            // Apply configured dimensions via DockView's setSize API
+            const sizeEvent: any = {};
+            if (defaultWidth) sizeEvent.width = defaultWidth;
+            if (defaultHeight) sizeEvent.height = defaultHeight;
+            if (sizeEvent.width || sizeEvent.height) {
+                addedPanel.api.setSize(sizeEvent);
             }
-            api.addPanel(addConfig);
         } else if (!visible && panel) {
             console.log(`Closing panel: ${id}`, panel);
             try {
@@ -223,7 +234,7 @@ export function DockLayout(props: DockLayoutProps) {
     settings.dashboardPanels.forEach((panelDef) => {
        const minHeight = (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'jog' || panelDef.id === 'visualizer') ? 400 : 150;
        const minWidth  = panelDef.id === 'jog' ? 250 : (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'visualizer' ? 300 : undefined);
-       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, minHeight, minWidth, panelDef.size);
+       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, minHeight, minWidth, panelDef.defaultWidth, panelDef.defaultHeight);
     });
 
   }, [settings.dashboardPanels, api]);
