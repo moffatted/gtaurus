@@ -93,12 +93,9 @@ export function DockLayout(props: DockLayoutProps) {
           if (index === 0) {
              apiInstance.addPanel(panelConfig);
           } else {
-             // Basic initial sizing for panels that tend to take up too much space by default
-             if (panelData.id === 'console') {
-                 panelConfig.size = 250; // Give console a smaller initial vertical space
-             }
-             if (panelData.id === 'dro') {
-                 panelConfig.size = 350; // Give DRO a smaller initial horizontal space
+             // Apply the user-configured size (from Settings > Dashboard)
+             if (panelData.size) {
+                 panelConfig.size = panelData.size;
              }
 
              // Alternate direction to tile correctly: 'right', 'below', 'right'...
@@ -134,7 +131,7 @@ export function DockLayout(props: DockLayoutProps) {
       setApi(apiInstance);
 
       // Restore layout or Default (Bumped to v6 to force reset and apply new default sizes)
-      const saved = localStorage.getItem('dockview-layout-v6');
+      const saved = localStorage.getItem('dockview-layout-v7');
       let loaded = false;
       if (saved) {
           try {
@@ -153,7 +150,7 @@ export function DockLayout(props: DockLayoutProps) {
       // Save on change
       apiInstance.onDidLayoutChange(() => {
           if (isRebuildingRef.current) return;
-          localStorage.setItem('dockview-layout-v6', JSON.stringify(apiInstance.toJSON()));
+          localStorage.setItem('dockview-layout-v7', JSON.stringify(apiInstance.toJSON()));
       });
 
       // Sync close events to store
@@ -183,7 +180,7 @@ export function DockLayout(props: DockLayoutProps) {
   useEffect(() => {
     if (!api) return;
 
-    const syncPanel = (id: string, visible: boolean, title: string, minHeight?: number, minWidth?: number) => {
+    const syncPanel = (id: string, visible: boolean, title: string, minHeight?: number, minWidth?: number, size?: number) => {
         const panel = api.getPanel(id);
         if (visible && !panel) {
             console.log(`Restoring panel: ${id}`);
@@ -195,8 +192,8 @@ export function DockLayout(props: DockLayoutProps) {
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            // Re-open
-            api.addPanel({
+            // Re-open with configured size
+            const addConfig: any = {
                 id: id,
                 component: id,
                 title: title,
@@ -204,16 +201,17 @@ export function DockLayout(props: DockLayoutProps) {
                 minimumHeight: minHeight,
                 minimumWidth: minWidth,
                 position: { direction: dir }
-            });
+            };
+            if (size) {
+                addConfig.size = size;
+            }
+            api.addPanel(addConfig);
         } else if (!visible && panel) {
             console.log(`Closing panel: ${id}`, panel);
-            // panel.close() seems to be missing in this version?
-            // Try api.removePanel(panel) or panel.api.close()
             try {
                 if ('close' in panel && typeof (panel as any).close === 'function') {
                     (panel as any).close();
                 } else {
-                    // Fallback to API removal
                     api.removePanel(panel);
                 }
             } catch (e) {
@@ -225,7 +223,7 @@ export function DockLayout(props: DockLayoutProps) {
     settings.dashboardPanels.forEach((panelDef) => {
        const minHeight = (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'jog' || panelDef.id === 'visualizer') ? 400 : 150;
        const minWidth  = panelDef.id === 'jog' ? 250 : (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'visualizer' ? 300 : undefined);
-       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, minHeight, minWidth);
+       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, minHeight, minWidth, panelDef.size);
     });
 
   }, [settings.dashboardPanels, api]);

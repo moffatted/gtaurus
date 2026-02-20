@@ -85,7 +85,7 @@ function ThemeContent() {
 // ─── Dashboard section ───────────────────────────────────────────────────────
 
 function DashboardContent() {
-  const { settings, setDashboardPanelEnabled, moveDashboardPanelUp, moveDashboardPanelDown } =
+  const { settings, setDashboardPanelEnabled, setDashboardPanelSize, moveDashboardPanelUp, moveDashboardPanelDown } =
     useSettingsStore();
 
   const sorted = [...settings.dashboardPanels].sort((a, b) => a.order - b.order);
@@ -138,6 +138,25 @@ function DashboardContent() {
           >
             {panel.label}
           </span>
+
+          {/* Size Input */}
+          <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity mr-2">
+            <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">Size</span>
+            <input
+              type="number"
+              min="100"
+              max="2000"
+              step="10"
+              className="w-16 px-1.5 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
+              placeholder="Auto"
+              value={panel.size || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDashboardPanelSize(panel.id, val ? parseInt(val, 10) : undefined);
+              }}
+              disabled={!panel.enabled}
+            />
+          </div>
 
           {/* Enable/disable toggle */}
           <button

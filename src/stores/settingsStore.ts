@@ -25,6 +25,8 @@ export interface DashboardPanel {
   enabled: boolean;
   /** 0-based display order. Lower = appears first. */
   order: number;
+  /** Initial dockview size constraint when mapped to the layout. */
+  size?: number;
 }
 
 export interface ConnectionSettings {
@@ -54,9 +56,9 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "dro", label: "Digital Readout (DRO)", enabled: true },
-  { id: "console", label: "G-code Console", enabled: true },
-  { id: "jog", label: "Jog Controls", enabled: false },
+  { id: "dro", label: "Digital Readout (DRO)", enabled: true, size: 350 },
+  { id: "console", label: "G-code Console", enabled: true, size: 250 },
+  { id: "jog", label: "Jog Controls", enabled: false, size: 250 },
   { id: "manager", label: "FluidNC Manager", enabled: false },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false },
@@ -138,6 +140,7 @@ interface SettingsStore {
 
   // Dashboard helpers
   setDashboardPanelEnabled: (id: string, enabled: boolean) => void;
+  setDashboardPanelSize: (id: string, size: number | undefined) => void;
   moveDashboardPanelUp: (id: string) => void;
   moveDashboardPanelDown: (id: string) => void;
   // Connection helpers
@@ -182,6 +185,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setDashboardPanelEnabled: (id, enabled) => {
     const panels = get().settings.dashboardPanels.map((p) =>
       p.id === id ? { ...p, enabled } : p,
+    );
+    const next = { ...get().settings, dashboardPanels: panels };
+    set({ settings: next });
+    void saveToStorage(next);
+  },
+
+  setDashboardPanelSize: (id, size) => {
+    const panels = get().settings.dashboardPanels.map((p) =>
+      p.id === id ? { ...p, size } : p,
     );
     const next = { ...get().settings, dashboardPanels: panels };
     set({ settings: next });
