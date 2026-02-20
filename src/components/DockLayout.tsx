@@ -10,6 +10,8 @@ interface DockLayoutProps {
   droPanel: ReactNode;
   managerPanel: ReactNode;
   jogPanel: ReactNode;
+  fileManagerPanel: ReactNode;
+  statsPanel: ReactNode;
 }
 
 // Context to provide panel content to wrapper components
@@ -47,6 +49,22 @@ const JogPanel = () => {
         return <div className="text-red-500 p-4">Error: Context Missing</div>;
     }
     return <div className="h-full w-full overflow-hidden">{ctx.jogPanel}</div>;
+}
+const FileManagerPanel = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in FileManagerPanel!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full">{ctx.fileManagerPanel}</div>;
+}
+const StatsPanelWrapper = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in StatsPanelWrapper!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full overflow-hidden">{ctx.statsPanel}</div>;
 }
 
 // Placeholder Panel wrapper for unimplemented features
@@ -113,8 +131,8 @@ export function DockLayout(props: DockLayoutProps) {
       dro: DROPanel,
       manager: ManagerPanel,
       jog: JogPanel,
-      fileManager: () => <PlaceholderPanel title="File Manager" />,
-      statusMonitor: () => <PlaceholderPanel title="Status Monitor" />,
+      fileManager: FileManagerPanel,
+      stats: StatsPanelWrapper,
       macros: () => <PlaceholderPanel title="Macros" />,
       toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
       visualizer: BedVisualizer,
@@ -224,12 +242,11 @@ export function DockLayout(props: DockLayoutProps) {
 
   return (
     <DockLayoutContext.Provider value={props}>
-        <div className="h-full w-full relative dock-layout-container text-white" style={{ display: 'flex', flexDirection: 'column', minHeight: '800px', height: '100%', width: '100%' }}> 
-            {/* Added fixed style to debug layout collapse */}
+        <div className="h-full w-full relative dock-layout-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '800px', height: '100%', width: '100%' }}> 
             <DockviewReact
                 components={components}
                 onReady={onReady}
-                className="dockview-theme-dark"
+                className="dockview-theme-dark flex-1"
             />
         </div>
     </DockLayoutContext.Provider>

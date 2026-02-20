@@ -46,6 +46,22 @@ export default defineConfig(async () => ({
   },
   
   build: {
-    chunkSizeWarningLimit: 1000, 
+    chunkSizeWarningLimit: 1200, 
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) {
+              return 'vendor-three';
+            }
+            if (id.includes('dockview')) {
+              return 'vendor-dockview';
+            }
+            // Group everything else into a main vendor chunk
+            return 'vendor'; 
+          }
+        },
+      },
+    },
   },
 }));

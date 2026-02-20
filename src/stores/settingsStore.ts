@@ -12,6 +12,7 @@
 
 import { create } from "zustand";
 import { Store } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 import { isTauriApp } from "../utils/platform";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -43,6 +44,98 @@ export interface ConnectionSettings {
   statusPollInterval: number;
 }
 
+export interface GeneralSettings {
+  carvingUnits: "mm" | "inches";
+  firmwareFallback: "Grbl" | "GrblHAL";
+  safeHeight: number;
+}
+
+export interface ProbeSettings {
+  // Movement
+  fastFeedrate: number;
+  slowFeedrate: number;
+  retractDistance: number;
+  maxTravel: number;
+  // Physical
+  signalState: "NO" | "NC";
+  switchOffMethod: "Timer" | "Optical" | "Move";
+  transmissionPower: number;
+  triggerFilter: number;
+  // Calibration
+  stylusDiameter: number;
+  zOffset: number;
+  runout: number;
+  deflectionOffsets: {
+    xPos: number;
+    xNeg: number;
+    yPos: number;
+    yNeg: number;
+  };
+  // Safety
+  protectedPositioning: boolean;
+  overtravelLimit: number;
+  hardStop: boolean;
+  // Logic
+  wcoUpdate: boolean;
+  toleranceCheck: number;
+  toolBreakageTolerance: number;
+}
+
+export interface SpindleSettings {
+  // Dynamic Performance
+  accelTime: number;
+  decelTime: number;
+  minRPM: number;
+  maxRPM: number;
+  // Speed Control
+  pwmFrequency: number;
+  pulleyRatio: number;
+  scalingMaxVoltage: number;
+  scalingMaxRPM: number;
+  // CSS & Limits
+  cssLimitRPM: number;
+  invertDirection: boolean;
+  // Thermal & Power
+  currentLimit: number;
+  minPowerThreshold: number;
+  brakingMethod: "Coast" | "DC" | "Regen";
+  // Interaction & Feedback
+  orientDegree: number;
+  ssoStep: number;
+  warmupEnabled: boolean;
+}
+
+export interface JobHistoryEntry {
+  id: string;
+  startTime: number;
+  endTime?: number;
+  durationSec?: number;
+  status: 'running' | 'completed' | 'failed';
+}
+
+export interface StatsSettings {
+  // Collection filters
+  enableLogging: boolean;
+  minJobDurationSec: number;
+  // Job metrics
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  jobHistory: JobHistoryEntry[];
+  // Time metrics
+  totalMachineOnTimeSec: number;
+  totalSpindleTimeSec: number;
+  totalCuttingTimeSec: number;
+  totalRapidTimeSec: number;
+  // Performance
+  machineUtilizationRate: number; // 0-1 percentage
+  averageCycleTimeSec: number;
+  // OEE targets
+  targetAvailability: number;
+  targetPerformance: number;
+  targetQuality: number;
+}
+
 export interface Settings {
   // Dashboard section
   dashboardPanels: DashboardPanel[];
@@ -50,7 +143,17 @@ export interface Settings {
   dashboardLayout?: string;
   // Connection
   connection: ConnectionSettings;
+  // General
+  general: GeneralSettings;
+  // Probe
+  probe: ProbeSettings;
+  // Spindle
+  spindle: SpindleSettings;
+  // Stats
+  stats: StatsSettings;
   showAutolevelMesh: boolean;
+  // File Manager
+  gcodeStoragePath: string;
   // Future sections add their keys here
 }
 
@@ -64,10 +167,10 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "dro", label: "Digital Readout (DRO)", enabled: true, defaultWidth: 350 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
   { id: "jog", label: "Jog Controls", enabled: false, defaultWidth: 280 },
-  { id: "manager", label: "FluidNC Manager", enabled: false },
+  { id: "manager", label: "FluidNC Manager", enabled: false, defaultWidth: 450 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
-  { id: "fileManager", label: "File Manager", enabled: false },
-  { id: "statusMonitor", label: "Status Monitor", enabled: false },
+  { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
+  { id: "stats", label: "Machine Statistics", enabled: false, defaultWidth: 400 },
   { id: "macros", label: "Macros", enabled: false },
   { id: "toolchanger", label: "Tool Changer", enabled: false },
 ];
@@ -87,7 +190,68 @@ export const DEFAULT_SETTINGS: Settings = {
     wsPort: 23,
     statusPollInterval: 2000,
   },
+  general: {
+    carvingUnits: "mm",
+    firmwareFallback: "Grbl",
+    safeHeight: 5,
+  },
+  probe: {
+    fastFeedrate: 500,
+    slowFeedrate: 50,
+    retractDistance: 2,
+    maxTravel: 50,
+    signalState: "NC",
+    switchOffMethod: "Timer",
+    transmissionPower: 1,
+    triggerFilter: 10,
+    stylusDiameter: 6,
+    zOffset: 0,
+    runout: 0,
+    deflectionOffsets: { xPos: 0, xNeg: 0, yPos: 0, yNeg: 0 },
+    protectedPositioning: true,
+    overtravelLimit: 5,
+    hardStop: true,
+    wcoUpdate: true,
+    toleranceCheck: 0.1,
+    toolBreakageTolerance: 0.5,
+  },
+  spindle: {
+    accelTime: 3,
+    decelTime: 5,
+    minRPM: 3000,
+    maxRPM: 24000,
+    pwmFrequency: 5,
+    pulleyRatio: 1,
+    scalingMaxVoltage: 10,
+    scalingMaxRPM: 24000,
+    cssLimitRPM: 5000,
+    invertDirection: false,
+    currentLimit: 10,
+    minPowerThreshold: 10,
+    brakingMethod: "Coast",
+    orientDegree: 0,
+    ssoStep: 10,
+    warmupEnabled: true,
+  },
+  stats: {
+    enableLogging: true,
+    minJobDurationSec: 10,
+    totalJobs: 0,
+    completedJobs: 0,
+    failedJobs: 0,
+    jobHistory: [],
+    totalMachineOnTimeSec: 0,
+    totalSpindleTimeSec: 0,
+    totalCuttingTimeSec: 0,
+    totalRapidTimeSec: 0,
+    machineUtilizationRate: 0,
+    averageCycleTimeSec: 0,
+    targetAvailability: 0.85,
+    targetPerformance: 0.9,
+    targetQuality: 0.98,
+  },
   showAutolevelMesh: false,
+  gcodeStoragePath: "", // Will be initialized to home/gcode_files
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -155,6 +319,14 @@ interface SettingsStore {
   setTerminalScrollback: (lines: number) => void;
   setShowAutolevelMesh: (show: boolean) => void;
   // General
+  setGeneralSettings: (patch: Partial<GeneralSettings>) => void;
+  // Probe
+  setProbeSettings: (patch: Partial<ProbeSettings>) => void;
+  // Spindle
+  setSpindleSettings: (patch: Partial<SpindleSettings>) => void;
+  // Stats
+  setStatsSettings: (patch: Partial<StatsSettings>) => void;
+  // General
   resetSettings: () => void;
 }
 
@@ -163,7 +335,30 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   initialized: false,
 
   initSettings: async () => {
-    const saved = await loadFromStorage();
+    let saved = await loadFromStorage();
+    
+    // Initialize gcodeStoragePath if missing or non-existent
+    if (isTauriApp()) {
+      try {
+        let path = saved?.gcodeStoragePath;
+        if (!path) {
+          const home = await invoke<string>('get_home_dir');
+          // Windows fix: normalize backslashes to forward slashes for consistency
+          path = `${home}/gcode_files`.replace(/\\/g, '/');
+        }
+        await invoke('ensure_dir_exists', { path });
+        
+        // If we didn't have saved settings, create a base with the path
+        if (!saved) {
+          saved = { ...DEFAULT_SETTINGS, gcodeStoragePath: path };
+        } else if (!saved.gcodeStoragePath) {
+          saved.gcodeStoragePath = path;
+        }
+      } catch (err) {
+        console.error("[settings] Storage init failed:", err);
+      }
+    }
+
     if (saved) {
       // Merge saved panels with any newly added default panels
       // so new panel types appear after an app update.
@@ -283,6 +478,42 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         showAutolevelMesh: show,
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setGeneralSettings: (patch) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        general: { ...state.settings.general, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setProbeSettings: (patch) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        probe: { ...state.settings.probe, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setSpindleSettings: (patch: Partial<SpindleSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        spindle: { ...state.settings.spindle, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setStatsSettings: (patch: Partial<StatsSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        stats: { ...state.settings.stats, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Activity, Move, Zap } from 'lucide-react';
+import { Activity, Move, Zap, Home, Play, Pause, XCircle, Target } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { Tooltip } from './ui/Tooltip';
 
@@ -86,21 +86,34 @@ export function DRO() {
       return 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-color)]';
   };
 
+  const sendRealtime = (byte: number) => {
+    invoke('send_realtime', { byte }).catch(console.error);
+  };
+
+  const sendGcode = (cmd: string) => {
+    invoke('send_gcode', { cmd }).catch(console.error);
+  };
+
   const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
       const wpos = mpos - wco;
       return (
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex justify-between items-baseline mb-1">
-                <span className="text-2xl font-bold font-mono text-[var(--accent-primary)]">{label}</span>
-                <span className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Axis</span>
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-3 flex flex-col gap-1 shadow-sm min-w-0">
+            <div className="flex justify-between items-baseline mb-0.5">
+                <span className="text-xl font-bold font-mono text-[var(--accent-primary)] shrink-0">{label}</span>
+                <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Axis</span>
             </div>
             
-            <div className="flex justify-between items-end border-b border-[var(--border-color)] pb-2 mb-2">
-                 <span className="text-3xl font-mono text-[var(--text-primary)] tracking-tight">
+            <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-1.5 mb-1.5 min-w-0 gap-2">
+                 <span className="text-2xl font-mono text-[var(--text-primary)] tracking-tight truncate flex-1">
                     {wpos.toFixed(3)}
                  </span>
-                 <Tooltip content="Work Position (MPos - WCo)" position="left">
-                    <span className="text-xs text-[var(--text-tertiary)] mb-1 cursor-help border-b border-dotted border-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">WPos</span>
+                 <Tooltip content={`Zero ${label} Axis`} position="left">
+                    <button 
+                        onClick={() => sendGcode(`G10 L20 P1 ${label}0`)}
+                        className="p-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white rounded-lg transition-all shadow-sm shrink-0"
+                    >
+                        <Target className="w-4 h-4" />
+                    </button>
                  </Tooltip>
             </div>
 
@@ -115,31 +128,91 @@ export function DRO() {
   };
 
   return (
-    <div className="h-full flex flex-col gap-6 p-4 max-w-4xl mx-auto w-full">
+    <div className="h-full flex flex-col gap-5 p-4 max-w-4xl mx-auto w-full min-w-[350px]">
         {/* Connection & Status Header */}
-        <div className="flex items-center justify-between gap-4">
-             <Tooltip content="Current Machine State" position="bottom">
-                 <div className={`px-4 py-2 rounded-lg border font-mono font-bold text-lg tracking-wide shadow-sm flex items-center gap-2 ${getStatusColor(state.status)}`}>
-                     <Activity className="w-5 h-5" />
-                     {state.status}
-                 </div>
-             </Tooltip>
-
-             <div className="flex gap-6 text-sm font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-4 py-2 rounded-lg border border-[var(--border-color)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+             <div className="flex items-center gap-3">
+                <Tooltip content="Current Machine State" position="bottom">
+                    <div className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-base tracking-wide shadow-sm flex items-center gap-2 shrink-0 ${getStatusColor(state.status)}`}>
+                        <Activity className="w-4 h-4" />
+                        {state.status}
+                    </div>
+                </Tooltip>
+                <Tooltip content="Home All Axis ($H)" position="bottom">
+                    <button 
+                        onClick={() => sendGcode('$H')}
+                        className="p-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
+                    >
+                        <Home className="w-4 h-4" />
+                        Home
+                    </button>
+                </Tooltip>
+             </div>
+ 
+             <div className="flex gap-4 text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] ml-auto shrink-0 shadow-sm">
                  <Tooltip content="Feed Rate (mm/min)" position="bottom">
-                     <div className="flex items-center gap-2 cursor-help">
-                         <Move className="w-4 h-4 text-[var(--text-tertiary)]" />
+                     <div className="flex items-center gap-1.5 cursor-help">
+                         <Move className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                          <span>F: <span className="text-[var(--text-primary)]">{state.feed}</span></span>
                      </div>
                  </Tooltip>
                  <div className="w-px bg-[var(--border-color)]" />
                  <Tooltip content="Spindle Speed (RPM)" position="bottom">
-                     <div className="flex items-center gap-2 cursor-help">
-                         <Zap className="w-4 h-4 text-[var(--text-tertiary)]" />
+                     <div className="flex items-center gap-1.5 cursor-help">
+                         <Zap className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                          <span>S: <span className="text-[var(--text-primary)]">{state.spindle}</span></span>
                      </div>
                  </Tooltip>
              </div>
+        </div>
+
+        {/* Control Groups */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Job Controls */}
+            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
+                <button 
+                    onClick={() => sendRealtime(0x7E)} 
+                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30 rounded-lg transition-colors font-bold text-xs"
+                    title="Cycle Start (~)"
+                >
+                    <Play className="w-4 h-4" />
+                    Start
+                </button>
+                <button 
+                    onClick={() => sendRealtime(0x21)} 
+                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg transition-colors font-bold text-xs"
+                    title="Feed Hold (!)"
+                >
+                    <Pause className="w-4 h-4" />
+                    Pause
+                </button>
+                <button 
+                    onClick={() => sendRealtime(0x18)} 
+                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors font-bold text-xs"
+                    title="Reset (CTRL-X)"
+                >
+                    <XCircle className="w-4 h-4" />
+                    Stop
+                </button>
+            </div>
+
+            {/* Zero Controls */}
+            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
+                <button 
+                    onClick={() => sendGcode('G10 L20 P1 X0 Y0 Z0')}
+                    className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
+                >
+                    <Target className="w-4 h-4" />
+                    Zero All
+                </button>
+                <button 
+                    onClick={() => sendGcode('G10 L20 P1 X0 Y0')}
+                    className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
+                >
+                    <Target className="w-4 h-4" />
+                    Zero XY
+                </button>
+            </div>
         </div>
 
         {/* Axis Display */}
@@ -150,8 +223,8 @@ export function DRO() {
         </div>
         
         {/* Info / Footer */}
-        <div className="mt-auto text-center text-xs text-[var(--text-tertiary)] font-mono">
-             Work Position = Machine Position - Work Coordinate Offset
+        <div className="text-center text-[10px] text-[var(--text-tertiary)] font-mono italic">
+             Work Pos = Machine Pos - Work Offset
         </div>
     </div>
   );

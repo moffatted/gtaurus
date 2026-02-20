@@ -13,6 +13,9 @@ import { HelpModal } from "./components/Help/HelpModal";
 import { EStopButton } from "./components/EStopButton";
 import { DockLayout } from "./components/DockLayout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import FileManager from "./components/FileManager";
+import { StatsPanel } from "./components/StatsPanel";
+import { useStatsTracker } from "./hooks/useStatsTracker";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +28,8 @@ function App() {
     initTheme();
     initSettings();
   }, [initTheme, initSettings]);
+
+  useStatsTracker();
 
   if (!initialized) {
     return (
@@ -61,6 +66,8 @@ function App() {
                  droPanel={<DRO />}
                  jogPanel={<JogPanel />}
                  managerPanel={<FluidNCManager />}
+                 fileManagerPanel={<FileManager />}
+                 statsPanel={<StatsPanel />}
               />
             </ErrorBoundary>
           </div>

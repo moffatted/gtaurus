@@ -5,9 +5,11 @@ import {
   Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
   Wifi, UsbIcon, RefreshCw, Power, Activity,
+  Folder, HardDrive,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { invoke } from '@tauri-apps/api/core';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
 import { useSettingsStore } from '../stores/settingsStore';
 
@@ -78,6 +80,575 @@ function ThemeContent() {
           <span className="text-sm font-medium">{t}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+// ─── General section ─────────────────────────────────────────────────────────
+
+function GeneralContent() {
+  const { settings, setGeneralSettings } = useSettingsStore();
+  const gen = settings.general;
+
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+  const inputCls =
+    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
+    'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
+
+  return (
+    <div className="space-y-6">
+      {/* Carving Units */}
+      <div className="space-y-3">
+        <label className={labelCls}>Carving Units</label>
+        <div className="grid grid-cols-2 gap-3">
+          {(['mm', 'inches'] as const).map((u) => (
+            <button
+              key={u}
+              onClick={() => setGeneralSettings({ carvingUnits: u })}
+              className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer capitalize ${
+                gen.carvingUnits === u
+                  ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] text-[var(--accent-primary)] shadow-sm'
+                  : 'border-[var(--border-color)] hover:border-[var(--accent-primary)]/50 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
+            >
+              <span className="text-sm font-medium">{u}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Firmware Fallback */}
+      <div>
+        <label className={labelCls}>Firmware Fallback</label>
+        <select
+          value={gen.firmwareFallback}
+          onChange={(e) => setGeneralSettings({ firmwareFallback: e.target.value as any })}
+          className={inputCls + ' cursor-pointer'}
+        >
+          <option value="Grbl">Grbl</option>
+          <option value="GrblHAL">GrblHAL</option>
+        </select>
+        <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+          Select the controller firmware type if auto-detection fails.
+        </p>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Safe Height */}
+      <div>
+        <label className={labelCls}>Safe Height (Z mm)</label>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={gen.safeHeight}
+            onChange={(e) => setGeneralSettings({ safeHeight: parseFloat(e.target.value) || 0 })}
+            className={inputCls}
+            min={0}
+            step={0.5}
+          />
+        </div>
+        <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+          The distance the Z-axis retracts before making XY rapid moves.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Probe section ───────────────────────────────────────────────────────────
+
+function ProbeContent() {
+  const { settings, setProbeSettings } = useSettingsStore();
+  const prb = settings.probe;
+
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+  const inputCls =
+    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
+    'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
+  
+  const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-3 mt-1";
+
+  return (
+    <div className="space-y-8">
+      
+      {/* 1. Movement & Feedrate */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>1. Movement & Feedrate</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Fast Feed (mm/min)</label>
+            <input
+              type="number"
+              value={prb.fastFeedrate}
+              onChange={(e) => setProbeSettings({ fastFeedrate: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Slow Feed (mm/min)</label>
+            <input
+              type="number"
+              value={prb.slowFeedrate}
+              onChange={(e) => setProbeSettings({ slowFeedrate: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Retract (mm)</label>
+            <input
+              type="number"
+              value={prb.retractDistance}
+              onChange={(e) => setProbeSettings({ retractDistance: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Max Travel (mm)</label>
+            <input
+              type="number"
+              value={prb.maxTravel}
+              onChange={(e) => setProbeSettings({ maxTravel: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 2. Physical & Transmission */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>2. Physical & Transmission</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Signal State</label>
+            <div className="flex gap-1.5 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
+              {(['NO', 'NC'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setProbeSettings({ signalState: s })}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    prb.signalState === s
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Switch-Off</label>
+            <select
+              value={prb.switchOffMethod}
+              onChange={(e) => setProbeSettings({ switchOffMethod: e.target.value as any })}
+              className={inputCls}
+            >
+              <option value="Timer">Timer</option>
+              <option value="Optical">Optical</option>
+              <option value="Move">Physical Move</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Trigger Filter (ms)</label>
+            <input
+              type="number"
+              value={prb.triggerFilter}
+              onChange={(e) => setProbeSettings({ triggerFilter: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Signal Power (1-10)</label>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={prb.transmissionPower}
+              onChange={(e) => setProbeSettings({ transmissionPower: parseInt(e.target.value) })}
+              className="w-full accent-[var(--accent-primary)] mt-1.5"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 3. Calibration Data */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>3. Calibration Data</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Ball Diameter (mm)</label>
+            <input
+              type="number"
+              value={prb.stylusDiameter}
+              onChange={(e) => setProbeSettings({ stylusDiameter: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Z-Offset (mm)</label>
+            <input
+              type="number"
+              value={prb.zOffset}
+              onChange={(e) => setProbeSettings({ zOffset: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>Deflection Offsets (mm)</label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] w-6 text-[var(--text-tertiary)] font-mono">X+</span>
+              <input
+                type="number"
+                value={prb.deflectionOffsets.xPos}
+                onChange={(e) => setProbeSettings({ deflectionOffsets: { ...prb.deflectionOffsets, xPos: parseFloat(e.target.value) || 0 } })}
+                className={inputCls + " text-center px-1"}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] w-6 text-[var(--text-tertiary)] font-mono">X-</span>
+              <input
+                type="number"
+                value={prb.deflectionOffsets.xNeg}
+                onChange={(e) => setProbeSettings({ deflectionOffsets: { ...prb.deflectionOffsets, xNeg: parseFloat(e.target.value) || 0 } })}
+                className={inputCls + " text-center px-1"}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] w-6 text-[var(--text-tertiary)] font-mono">Y+</span>
+              <input
+                type="number"
+                value={prb.deflectionOffsets.yPos}
+                onChange={(e) => setProbeSettings({ deflectionOffsets: { ...prb.deflectionOffsets, yPos: parseFloat(e.target.value) || 0 } })}
+                className={inputCls + " text-center px-1"}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] w-6 text-[var(--text-tertiary)] font-mono">Y-</span>
+              <input
+                type="number"
+                value={prb.deflectionOffsets.yNeg}
+                onChange={(e) => setProbeSettings({ deflectionOffsets: { ...prb.deflectionOffsets, yNeg: parseFloat(e.target.value) || 0 } })}
+                className={inputCls + " text-center px-1"}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 4. Safety & Interaction */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>4. Safety & Interaction</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-[var(--text-primary)]">Protected Positioning</label>
+              <p className="text-[10px] text-[var(--text-tertiary)]">Stop if probe triggers during rapid moves.</p>
+            </div>
+            <button
+              onClick={() => setProbeSettings({ protectedPositioning: !prb.protectedPositioning })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${prb.protectedPositioning ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${prb.protectedPositioning ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-[var(--text-primary)]">Emergency Hard Stop</label>
+              <p className="text-[10px] text-[var(--text-tertiary)]">Immediate E-Stop vs decelerated stop.</p>
+            </div>
+            <button
+              onClick={() => setProbeSettings({ hardStop: !prb.hardStop })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${prb.hardStop ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${prb.hardStop ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 5. Cycle Logic */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>5. Cycle Logic</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-primary)]">Auto-Update Work Offset</span>
+            <button
+              onClick={() => setProbeSettings({ wcoUpdate: !prb.wcoUpdate })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${prb.wcoUpdate ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${prb.wcoUpdate ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Part Tolerance (mm)</label>
+              <input
+                type="number"
+                value={prb.toleranceCheck}
+                onChange={(e) => setProbeSettings({ toleranceCheck: parseFloat(e.target.value) || 0 })}
+                className={inputCls}
+                step={0.01}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Tool Breakage (mm)</label>
+              <input
+                type="number"
+                value={prb.toolBreakageTolerance}
+                onChange={(e) => setProbeSettings({ toolBreakageTolerance: parseFloat(e.target.value) || 0 })}
+                className={inputCls}
+                step={0.1}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Spindle section ─────────────────────────────────────────────────────────
+
+function SpindleContent() {
+  const { settings, setSpindleSettings } = useSettingsStore();
+  const spd = settings.spindle;
+
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+  const inputCls =
+    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
+    'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
+  
+  const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-3 mt-1";
+
+  return (
+    <div className="space-y-8">
+      
+      {/* 1. Dynamic Performance */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>1. Dynamic Performance</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Accel Time (s)</label>
+            <input
+              type="number"
+              value={spd.accelTime}
+              onChange={(e) => setSpindleSettings({ accelTime: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              step={0.1}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Decel Time (s)</label>
+            <input
+              type="number"
+              value={spd.decelTime}
+              onChange={(e) => setSpindleSettings({ decelTime: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              step={0.1}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Min RPM</label>
+            <input
+              type="number"
+              value={spd.minRPM}
+              onChange={(e) => setSpindleSettings({ minRPM: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Max RPM</label>
+            <input
+              type="number"
+              value={spd.maxRPM}
+              onChange={(e) => setSpindleSettings({ maxRPM: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 2. Speed Control & Signal Logic */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>2. Speed Control & Signal Logic</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>PWM Freq (kHz)</label>
+            <input
+              type="number"
+              value={spd.pwmFrequency}
+              onChange={(e) => setSpindleSettings({ pwmFrequency: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              step={0.1}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Pulley Ratio</label>
+            <input
+              type="number"
+              value={spd.pulleyRatio}
+              onChange={(e) => setSpindleSettings({ pulleyRatio: parseFloat(e.target.value) || 1 })}
+              className={inputCls}
+              step={0.01}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Max Voltage (V)</label>
+            <input
+              type="number"
+              value={spd.scalingMaxVoltage}
+              onChange={(e) => setSpindleSettings({ scalingMaxVoltage: parseFloat(e.target.value) || 10 })}
+              className={inputCls}
+              step={0.1}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Max Scaled RPM</label>
+            <input
+              type="number"
+              value={spd.scalingMaxRPM}
+              onChange={(e) => setSpindleSettings({ scalingMaxRPM: parseInt(e.target.value) || 24000 })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 3. CSS & Limits */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>3. CSS & Limits</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-primary)]">Invert Direction (M3/M4)</span>
+            <button
+              onClick={() => setSpindleSettings({ invertDirection: !spd.invertDirection })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${spd.invertDirection ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${spd.invertDirection ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          <div>
+            <label className={labelCls}>CSS Clamp Limit (RPM)</label>
+            <input
+              type="number"
+              value={spd.cssLimitRPM}
+              onChange={(e) => setSpindleSettings({ cssLimitRPM: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 4. Thermal & Power */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>4. Thermal & Power</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Current Limit (A)</label>
+            <input
+              type="number"
+              value={spd.currentLimit}
+              onChange={(e) => setSpindleSettings({ currentLimit: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              step={0.1}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Min Power (%)</label>
+            <input
+              type="number"
+              value={spd.minPowerThreshold}
+              onChange={(e) => setSpindleSettings({ minPowerThreshold: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+              min={0}
+              max={100}
+            />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>Braking Method</label>
+          <div className="flex gap-1.5 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
+            {(['Coast', 'DC', 'Regen'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setSpindleSettings({ brakingMethod: m })}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  spd.brakingMethod === m
+                    ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 5. Interaction & Feedback */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>5. Interaction & Feedback</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-primary)]">Enable Warm-up Routine</span>
+            <button
+              onClick={() => setSpindleSettings({ warmupEnabled: !spd.warmupEnabled })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${spd.warmupEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${spd.warmupEnabled ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Orient Degree</label>
+              <input
+                type="number"
+                value={spd.orientDegree}
+                onChange={(e) => setSpindleSettings({ orientDegree: parseFloat(e.target.value) || 0 })}
+                className={inputCls}
+                step={0.1}
+                min={0}
+                max={359.9}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>SSO Step (%)</label>
+              <input
+                type="number"
+                value={spd.ssoStep}
+                onChange={(e) => setSpindleSettings({ ssoStep: parseInt(e.target.value) || 10 })}
+                className={inputCls}
+                min={1}
+                max={100}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -431,6 +1002,75 @@ function ConnectionContent() {
   );
 }
 
+// ─── File Manager section ────────────────────────────────────────────────────
+
+function FileManagerContent() {
+  const { settings, updateSettings } = useSettingsStore();
+  const [path, setPath] = useState(settings.gcodeStoragePath);
+
+  const savePath = async () => {
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    try {
+      await invoke('ensure_dir_exists', { path: trimmed });
+      updateSettings({ gcodeStoragePath: trimmed });
+    } catch (err) {
+      console.error("[settings] Failed to update storage path:", err);
+    }
+  };
+
+  const inputCls =
+    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
+    'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
+
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+          <HardDrive className="w-3.5 h-3.5" />
+          <span className="text-xs font-semibold uppercase tracking-wide">Local Storage</span>
+        </div>
+
+        <div>
+          <label className={labelCls}>G-code Storage Path</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              onBlur={savePath}
+              placeholder="C:/Users/me/gcode_files"
+              className={inputCls}
+            />
+            <button
+              onClick={async () => {
+                const selected = await openDialog({ directory: true, multiple: false });
+                if (selected && typeof selected === 'string') {
+                  const normalized = selected.replace(/\\/g, '/');
+                  setPath(normalized);
+                  await invoke('ensure_dir_exists', { path: normalized });
+                  updateSettings({ gcodeStoragePath: normalized });
+                }
+              }}
+              className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)] border border-[var(--border-color)] rounded-lg text-[var(--text-secondary)] transition-colors"
+              title="Browse folders"
+            >
+              <Folder className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+            The directory on this computer where your G-code files are stored. 
+            Default is <span className="font-mono">~/gcode_files</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Visualizer section ───────────────────────────────────────────────────────
 
 function VisualizerContent() {
@@ -465,6 +1105,172 @@ function VisualizerContent() {
   );
 }
 
+// ─── Stats section ───────────────────────────────────────────────────────────
+
+function StatsContent() {
+  const { settings, setStatsSettings, setDashboardPanelEnabled } = useSettingsStore();
+  const sts = settings.stats;
+  const isPanelEnabled = settings.dashboardPanels.find(p => p.id === 'stats')?.enabled ?? false;
+
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+  const inputCls =
+    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
+    'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
+  
+  const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-3 mt-1";
+
+  const formatTime = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return `${h}h ${m}m`;
+  };
+
+  return (
+    <div className="space-y-8">
+      
+      {/* 1. Data Collection */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>1. Data Collection</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-primary)]">Log Telemetry & Jobs</span>
+            <button
+              onClick={() => setStatsSettings({ enableLogging: !sts.enableLogging })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${sts.enableLogging ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${sts.enableLogging ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          <div>
+            <label className={labelCls}>Minimum Job Duration (s)</label>
+            <input
+              type="number"
+              value={sts.minJobDurationSec}
+              onChange={(e) => setStatsSettings({ minJobDurationSec: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+              min={1}
+            />
+            <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic">
+              Jobs shorter than this will not be saved to statistics.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 2. OEE Targets */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>2. OEE Performance Targets</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Availability Target (%)</label>
+            <input
+              type="number"
+              value={Math.round(sts.targetAvailability * 100)}
+              onChange={(e) => setStatsSettings({ targetAvailability: (parseInt(e.target.value) || 0) / 100 })}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Performance Target (%)</label>
+            <input
+              type="number"
+              value={Math.round(sts.targetPerformance * 100)}
+              onChange={(e) => setStatsSettings({ targetPerformance: (parseInt(e.target.value) || 0) / 100 })}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>Quality Target (Yield %)</label>
+            <input
+              type="number"
+              value={Math.round(sts.targetQuality * 100)}
+              onChange={(e) => setStatsSettings({ targetQuality: (parseInt(e.target.value) || 0) / 100 })}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 4. Display */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>3. Display & Dashboard</h4>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm text-[var(--text-primary)] mb-1 block">Show Stats Panel</span>
+            <span className="text-[10px] text-[var(--text-tertiary)]">Enable the live statistics monitor on the main dashboard.</span>
+          </div>
+          <button
+            onClick={() => setDashboardPanelEnabled('stats', !isPanelEnabled)}
+            className={`relative h-5 w-9 rounded-full transition-colors ${isPanelEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${isPanelEnabled ? 'translate-x-4' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 3. Global Stats (Read Only with Reset) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-1">
+          <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>3. Accumulated Statistics</h4>
+          <button 
+            onClick={() => {
+              if (confirm("Are you sure you want to reset all machine statistics? This cannot be undone.")) {
+                setStatsSettings({
+                  totalJobs: 0,
+                  completedJobs: 0,
+                  failedJobs: 0,
+                  totalMachineOnTimeSec: 0,
+                  totalSpindleTimeSec: 0,
+                  totalCuttingTimeSec: 0,
+                  totalRapidTimeSec: 0,
+                  machineUtilizationRate: 0,
+                  averageCycleTimeSec: 0,
+                });
+              }
+            }}
+            className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300 transition-colors"
+          >
+            Reset All
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+          <div className="space-y-1">
+            <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Total Jobs</span>
+            <div className="text-lg font-mono text-[var(--text-primary)]">{sts.totalJobs}</div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Success Rate</span>
+            <div className="text-lg font-mono text-[var(--text-primary)]">
+              {sts.totalJobs > 0 ? Math.round((sts.completedJobs / sts.totalJobs) * 100) : 0}%
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Spindle Hours</span>
+            <div className="text-lg font-mono text-[var(--text-primary)]">{formatTime(sts.totalSpindleTimeSec)}</div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Cutting Time</span>
+            <div className="text-lg font-mono text-[var(--text-primary)]">{formatTime(sts.totalCuttingTimeSec)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Section definitions ─────────────────────────────────────────────────────
 
 const SECTIONS = [
@@ -472,6 +1278,7 @@ const SECTIONS = [
   { id: 'theme',       title: 'Theme',          icon: <Palette className="w-4 h-4" /> },
   { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" /> },
   { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" /> },
+  { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" /> },
   { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" /> },
   { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" /> },
   { id: 'visualizer',  title: 'Bed Visualizer',     icon: <Box className="w-4 h-4" /> },
@@ -487,7 +1294,12 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 function getSectionContent(id: SectionId): ReactNode | undefined {
   if (id === 'dashboard')  return <DashboardContent />;
   if (id === 'theme')      return <ThemeContent />;
+  if (id === 'general')    return <GeneralContent />;
   if (id === 'connection') return <ConnectionContent />;
+  if (id === 'file-manager') return <FileManagerContent />;
+  if (id === 'probe')        return <ProbeContent />;
+  if (id === 'spindle')      return <SpindleContent />;
+  if (id === 'stats')        return <StatsContent />;
   if (id === 'visualizer') return <VisualizerContent />;
   return undefined; // renders placeholder
 }

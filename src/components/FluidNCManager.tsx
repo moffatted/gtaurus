@@ -186,16 +186,16 @@ function ConfigEditor() {
     };
 
     return (
-        <div className="flex flex-col h-full gap-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-1">
-                    <div className="flex items-center gap-2">
+        <div className="flex flex-col h-full gap-4 min-w-[380px]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 shrink-0">
                         <div className="flex items-center bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-md px-2 py-1">
                             <input 
                                 type="text"
                                 value={activeFilename}
                                 onChange={(e) => setActiveFilename(e.target.value)}
-                                className="bg-transparent border-none text-xs font-mono text-[var(--accent-primary)] focus:outline-none w-32"
+                                className="bg-transparent border-none text-xs font-mono text-[var(--accent-primary)] focus:outline-none w-28"
                                 placeholder="config.yaml"
                             />
                         </div>
@@ -208,7 +208,7 @@ function ConfigEditor() {
                             </button>
                         </Tooltip>
                     </div>
-                    <div className="relative flex-1 max-w-sm">
+                    <div className="relative flex-1 min-w-[120px] max-w-sm">
                         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
                         <input 
                             type="text"
@@ -219,7 +219,7 @@ function ConfigEditor() {
                         />
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                     <Tooltip content="Copy to Clipboard" position="bottom">
                         <button onClick={copyToClipboard} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded cursor-pointer">
                             <Copy className="w-4 h-4" />
@@ -537,7 +537,7 @@ export function FluidNCManager() {
   const [tab, setTab] = useState<'commands' | 'settings' | 'config'>('commands');
 
   return (
-    <div className="h-full flex flex-col overflow-hidden p-4 max-w-5xl mx-auto w-full gap-4">
+    <div className="h-full flex flex-col overflow-hidden p-4 max-w-5xl mx-auto w-full gap-4 min-w-[400px]">
       {/* Tabs */}
       <div className="flex border-b border-[var(--border-color)]">
         {[

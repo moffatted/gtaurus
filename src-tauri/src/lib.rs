@@ -130,6 +130,100 @@ async fn upload_fluidnc_file(url: String, filename: String, content: String) -> 
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+pub struct LocalFile {
+    name: String,
+    size: u64,
+    modified: u64, // timestamp in seconds
+}
+
+#[tauri::command]
+fn get_home_dir() -> Result<String, String> {
+    dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .ok_or_else(|| "Could not find home directory".to_string())
+}
+
+#[tauri::command]
+fn ensure_dir_exists(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
+    let mut files = Vec::new();
+    let entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let metadata = entry.metadata().map_err(|e| e.to_string())?;
+        if metadata.is_file() {
+            files.push(LocalFile {
+                name: entry.file_name().to_string_lossy().to_string(),
+                size: metadata.len(),
+                modified: metadata
+                    .modified()
+                    .map_err(|e| e.to_string())?
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|e| e.to_string())?
+                    .as_secs(),
+            });
+        }
+    }
+    Ok(files)
+}
+
+#[tauri::command]
+fn save_local_file(path: String, filename: String, content: String) -> Result<(), String> {
+    let mut full_path = std::path::PathBuf::from(path);
+    full_path.push(filename);
+    std::fs::write(full_path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_local_file(path: String, filename: String) -> Result<(), String> {
+    let mut full_path = std::path::PathBuf::from(path);
+    full_path.push(filename);
+    std::fs::remove_file(full_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn copy_to_storage(source_path: String, dest_dir: String) -> Result<(), String> {
+    let source = std::path::PathBuf::from(source_path);
+    let filename = source.file_name().ok_or("Invalid filename")?;
+    let mut dest = std::path::PathBuf::from(dest_dir);
+    dest.push(filename);
+    std::fs::copy(source, dest)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn validate_gcode_file(path: String) -> Result<bool, String> {
+    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+
+    // Basic validation: check for common G-code characters or commands
+    // We look for any line starting with G, M, X, Y, Z, $ or containing them
+    // This is a simple heuristic, as requested.
+    let is_gcode = content.lines().any(|line| {
+        let l = line.trim();
+        if l.is_empty() || l.starts_with(';') || l.starts_with('(') {
+            return false;
+        }
+        l.starts_with('G')
+            || l.starts_with('M')
+            || l.starts_with('X')
+            || l.starts_with('Y')
+            || l.starts_with('Z')
+            || l.starts_with('$')
+            || l.starts_with('F')
+            || l.starts_with('S')
+            || l.starts_with('T')
+    });
+
+    Ok(is_gcode)
+}
+
 #[tauri::command]
 fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
     let driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
@@ -143,6 +237,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             driver: Mutex::new(Box::new(FluidNCDriver::new())),
         })
@@ -157,6 +252,13 @@ pub fn run() {
             fetch_fluidnc_file,
             upload_fluidnc_file,
             restart_fluidnc,
+            get_home_dir,
+            ensure_dir_exists,
+            list_local_files,
+            save_local_file,
+            delete_local_file,
+            copy_to_storage,
+            validate_gcode_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
