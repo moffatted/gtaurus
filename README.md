@@ -12,6 +12,8 @@
     -   `Tauri Store Plugin` for persistent configuration (theme settings).
 -   **Styling**: Tailwind CSS + `clsx`/`tailwind-merge` with CSS variables for theming.
 -   **Icons**: Lucide React.
+-   **Window Docking**: \`dockview\` for customizable, draggable panels.
+-   **Testing**: \`vitest\` with \`@testing-library/react\` and \`jsdom\` for component and unit testing.
 -   **Communication**: Invokes Tauri commands to communicate with the Rust backend.
 
 ### Backend (System Layer)
@@ -73,6 +75,9 @@ Creates an optimized release build for your OS. The executable will be located i
 - ✅ **Integrated Consoles**: G-code terminal with history and real-time control buttons.
 - ✅ **Digital Readout (DRO)**: Real-time axis positions (WPos/MPos), feed rate, and spindle speed.
 - ✅ **Tooltip System**: Contextual help throughout the interface.
+- ✅ **DockView Layout**: Rearrangeable and dockable windows for maximum workspace customization.
+- ✅ **Tool Changer**: Integrated panel for tool changing setup.
+- ✅ **Bed Visualizer**: 3D interactive viewer (`@react-three/fiber`) of the CNC bed, spindle position, toolpaths, and autolevel meshes.
 - ✅ Serial port communication with CNC hardware
 - ✅ Theme persistence via Tauri Store
 - ✅ Full desktop integration

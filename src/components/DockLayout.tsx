@@ -1,7 +1,8 @@
-import { ReactNode, useState, useMemo, createContext, useContext, useEffect } from 'react';
+import { ReactNode, useState, useMemo, createContext, useContext, useEffect, useRef, useCallback } from 'react';
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
-import { useLayoutStore } from '../stores/layoutStore';
+import { BedVisualizer } from './BedVisualizer';
+import { useSettingsStore } from '../stores/settingsStore';
 import "./DockLayout.css"; 
 
 interface DockLayoutProps {
@@ -48,9 +49,62 @@ const JogPanel = () => {
     return <div className="h-full w-full overflow-hidden">{ctx.jogPanel}</div>;
 }
 
+// Placeholder Panel wrapper for unimplemented features
+const PlaceholderPanel = ({ title }: { title: string }) => (
+    <div className="flex items-center justify-center h-full w-full bg-[var(--bg-primary)] p-4 text-center text-[var(--text-tertiary)] italic">
+        {title} (Not implemented yet)
+    </div>
+);
+
 export function DockLayout(props: DockLayoutProps) {
-  const { panels, setPanelVisibility } = useLayoutStore();
+  const { settings, setDashboardPanelEnabled } = useSettingsStore();
   const [api, setApi] = useState<any>(null);
+  const prevOrderRef = useRef<string>('');
+  const isRebuildingRef = useRef<boolean>(false);
+
+  const buildLayout = useCallback((apiInstance: any) => {
+      console.log("Initializing Layout...");
+      isRebuildingRef.current = true;
+      try {
+          apiInstance.clear();
+
+          // Get ordered and enabled panels from settings
+          const activePanels = [...settings.dashboardPanels]
+              .filter(p => p.enabled)
+              .sort((a, b) => a.order - b.order);
+
+      // Dynamically add panels
+      activePanels.forEach((panelData, index) => {
+          const panelConfig: any = {
+              id: panelData.id,
+              component: panelData.id,
+              title: panelData.label,
+              renderer: 'always',
+              minimumHeight: 150,
+              minimumWidth: 250
+          };
+
+          // Special constraints
+          if (panelData.id === 'dro' || panelData.id === 'manager' || panelData.id === 'jog' || panelData.id === 'visualizer') {
+              panelConfig.minimumHeight = 400;
+              panelConfig.minimumWidth = panelData.id === 'jog' ? 250 : 300;
+          }
+
+          if (index === 0) {
+             apiInstance.addPanel(panelConfig);
+          } else {
+             // Alternate direction to tile correctly: 'right', 'below', 'right'...
+             // By omitting referencePanel, Dockview uses the active group (the last added panel)
+             panelConfig.position = { 
+                 direction: index % 2 === 1 ? 'right' : 'below' 
+             };
+             apiInstance.addPanel(panelConfig);
+          }
+      });
+      } finally {
+          isRebuildingRef.current = false;
+      }
+  }, [settings.dashboardPanels]);
 
   // Stable map of components
   const components = useMemo(() => ({
@@ -58,6 +112,11 @@ export function DockLayout(props: DockLayoutProps) {
       dro: DROPanel,
       manager: ManagerPanel,
       jog: JogPanel,
+      fileManager: () => <PlaceholderPanel title="File Manager" />,
+      statusMonitor: () => <PlaceholderPanel title="Status Monitor" />,
+      macros: () => <PlaceholderPanel title="Macros" />,
+      toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
+      visualizer: BedVisualizer,
       default: (_props: IDockviewPanelProps) => <div className="p-4">Unknown Panel</div>
   }), []);
 
@@ -80,75 +139,37 @@ export function DockLayout(props: DockLayoutProps) {
       }
 
       if (!loaded) {
-          console.log("Initializing Default Layout v5...");
-          apiInstance.clear();
-
-          // Strategy: Use Object References for robust positioning.
-          
-           apiInstance.clear(); // Reset 
-
-           // 1. First Panel: DRO (Start)
-           const pDro = apiInstance.addPanel({
-               id: 'dro',
-               component: 'dro',
-               title: 'DRO',
-               renderer: 'always',
-               minimumHeight: 400,
-               minimumWidth: 300
-           });
-
-           // 2. Console (Bottom) - Splits DRO vertically
-           // Result: [ DRO ]
-           //         [ Console ]
-           apiInstance.addPanel({
-               id: 'console',
-               component: 'console',
-               title: 'Console',
-               renderer: 'always',
-               minimumHeight: 150,
-               position: { referencePanel: pDro, direction: 'below' }
-           });
-
-           // 3. Jog (Right of DRO) - Splits DRO horizontally
-           // Result: [ DRO | Jog ]
-           //         [  Console  ]
-           const pJog = apiInstance.addPanel({
-               id: 'jog',
-               component: 'jog',
-               title: 'Jog Control',
-               renderer: 'always',
-               minimumHeight: 400,
-               minimumWidth: 250,
-               position: { referencePanel: pDro, direction: 'right' } 
-           });
-
-           // 4. Manager (Right of Jog) - Splits Jog horizontally
-           // Result: [ DRO | Jog | Manager ]
-           //         [      Console         ]
-           apiInstance.addPanel({
-               id: 'manager',
-               component: 'manager',
-               title: 'FluidNC',
-               renderer: 'always',
-               minimumHeight: 400,
-               minimumWidth: 300,
-               position: { referencePanel: pJog, direction: 'right' }
-           });
+          buildLayout(apiInstance);
       }
       
       // Save on change
       apiInstance.onDidLayoutChange(() => {
+          if (isRebuildingRef.current) return;
           localStorage.setItem('dockview-layout-v5', JSON.stringify(apiInstance.toJSON()));
       });
 
       // Sync close events to store
       apiInstance.onDidRemovePanel((event: any) => {
-           if (event.id === 'console') setPanelVisibility('console', false);
-           if (event.id === 'dro') setPanelVisibility('dro', false);
-           if (event.id === 'manager') setPanelVisibility('manager', false);
-           if (event.id === 'jog') setPanelVisibility('jog', false);
+           if (isRebuildingRef.current) return;
+           setDashboardPanelEnabled(event.id, false);
       });
   };
+
+  // Rebuild Layout on Explicit Order Change
+  useEffect(() => {
+     if (!api) return;
+     // Track the full order independent of 'enabled' to isolate move up/down actions
+     const currentOrder = [...settings.dashboardPanels]
+         .sort((a, b) => a.order - b.order)
+         .map(p => p.id)
+         .join(',');
+
+     if (prevOrderRef.current && prevOrderRef.current !== currentOrder) {
+         console.log("Settings panel order changed! Rebuilding dock layout...");
+         buildLayout(api);
+     }
+     prevOrderRef.current = currentOrder;
+  }, [settings.dashboardPanels, api, buildLayout]);
 
   // Two-way Sync: Store -> Dockview
   useEffect(() => {
@@ -158,6 +179,14 @@ export function DockLayout(props: DockLayoutProps) {
         const panel = api.getPanel(id);
         if (visible && !panel) {
             console.log(`Restoring panel: ${id}`);
+            
+            // Determine expected index for tiling direction
+            const activePanels = [...settings.dashboardPanels]
+              .filter(p => p.enabled)
+              .sort((a, b) => a.order - b.order);
+            const index = activePanels.findIndex(p => p.id === id);
+            const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
+
             // Re-open
             api.addPanel({
                 id: id,
@@ -165,7 +194,8 @@ export function DockLayout(props: DockLayoutProps) {
                 title: title,
                 renderer: 'always',
                 minimumHeight: minHeight,
-                minimumWidth: minWidth // Apply width constraint
+                minimumWidth: minWidth,
+                position: { direction: dir }
             });
         } else if (!visible && panel) {
             console.log(`Closing panel: ${id}`, panel);
@@ -184,12 +214,13 @@ export function DockLayout(props: DockLayoutProps) {
         }
     };
 
-    syncPanel('console', panels.console, "Console", 150);
-    syncPanel('dro', panels.dro, "DRO", 400, 300);
-    syncPanel('manager', panels.manager, "FluidNC", 400, 300);
-    syncPanel('jog', panels.jog, "Jog Control", 400, 250);
+    settings.dashboardPanels.forEach((panelDef) => {
+       const minHeight = (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'jog' || panelDef.id === 'visualizer') ? 400 : 150;
+       const minWidth  = panelDef.id === 'jog' ? 250 : (panelDef.id === 'dro' || panelDef.id === 'manager' || panelDef.id === 'visualizer' ? 300 : undefined);
+       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, minHeight, minWidth);
+    });
 
-  }, [panels, api]);
+  }, [settings.dashboardPanels, api]);
 
   return (
     <DockLayoutContext.Provider value={props}>

@@ -10,9 +10,9 @@
  *   3. Read/write from `useSettingsStore` in your component.
  */
 
-import { create } from 'zustand';
-import { Store } from '@tauri-apps/plugin-store';
-import { isTauriApp } from '../utils/platform';
+import { create } from "zustand";
+import { Store } from "@tauri-apps/plugin-store";
+import { isTauriApp } from "../utils/platform";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -28,9 +28,12 @@ export interface DashboardPanel {
 }
 
 export interface ConnectionSettings {
-  preferredMode: 'serial' | 'websocket';
+  preferredMode: "serial" | "websocket";
   serialPort: string;
   baudRate: number;
+  terminalFontSize: number;
+  terminalScrollback: number;
+  // Visualizer Settings
   wsHost: string;
   wsPort: number;
 }
@@ -40,6 +43,7 @@ export interface Settings {
   dashboardPanels: DashboardPanel[];
   // Connection
   connection: ConnectionSettings;
+  showAutolevelMesh: boolean;
   // Future sections add their keys here
 }
 
@@ -49,35 +53,43 @@ export interface Settings {
  * Built-in panel types. These are the panels a user can place on the
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
-export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, 'order'>[] = [
-  { id: 'dro',           label: 'Digital Readout (DRO)', enabled: false },
-  { id: 'console',       label: 'G-code Console',        enabled: false },
-  { id: 'jogControls',   label: 'Jog Controls',          enabled: false },
-  { id: 'fileManager',   label: 'File Manager',          enabled: false },
-  { id: 'statusMonitor', label: 'Status Monitor',        enabled: false },
-  { id: 'macros',        label: 'Macros',                enabled: false },
+export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
+  { id: "dro", label: "Digital Readout (DRO)", enabled: true },
+  { id: "console", label: "G-code Console", enabled: true },
+  { id: "jog", label: "Jog Controls", enabled: false },
+  { id: "manager", label: "FluidNC Manager", enabled: false },
+  { id: "visualizer", label: "Bed Visualizer", enabled: false },
+  { id: "fileManager", label: "File Manager", enabled: false },
+  { id: "statusMonitor", label: "Status Monitor", enabled: false },
+  { id: "macros", label: "Macros", enabled: false },
+  { id: "toolchanger", label: "Tool Changer", enabled: false },
 ];
 
-const DEFAULT_SETTINGS: Settings = {
-  dashboardPanels: AVAILABLE_DASHBOARD_PANELS.map((p, i) => ({ ...p, order: i })),
+export const DEFAULT_SETTINGS: Settings = {
+  dashboardPanels: AVAILABLE_DASHBOARD_PANELS.map((p, i) => ({
+    ...p,
+    order: i,
+  })),
   connection: {
-    preferredMode: 'websocket',
-    serialPort: '',
+    preferredMode: "websocket",
+    serialPort: "",
     baudRate: 115200,
-    wsHost: '192.168.68.61',
+    terminalFontSize: 14,
+    terminalScrollback: 1000,
+    wsHost: "192.168.68.61",
     wsPort: 23,
   },
+  showAutolevelMesh: false,
 };
-
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
 
-const STORE_KEY = 'appSettings';
+const STORE_KEY = "appSettings";
 let tauriStore: Store | null = null;
 
 async function getTauriStore(): Promise<Store> {
   if (!tauriStore) {
-    tauriStore = await Store.load('settings.json');
+    tauriStore = await Store.load("settings.json");
   }
   return tauriStore;
 }
@@ -93,7 +105,7 @@ async function loadFromStorage(): Promise<Settings | null> {
       return raw ? (JSON.parse(raw) as Settings) : null;
     }
   } catch (err) {
-    console.error('[settings] Failed to load:', err);
+    console.error("[settings] Failed to load:", err);
     return null;
   }
 }
@@ -108,7 +120,7 @@ async function saveToStorage(settings: Settings): Promise<void> {
       localStorage.setItem(STORE_KEY, JSON.stringify(settings));
     }
   } catch (err) {
-    console.error('[settings] Failed to save:', err);
+    console.error("[settings] Failed to save:", err);
   }
 }
 
@@ -128,6 +140,12 @@ interface SettingsStore {
   setDashboardPanelEnabled: (id: string, enabled: boolean) => void;
   moveDashboardPanelUp: (id: string) => void;
   moveDashboardPanelDown: (id: string) => void;
+  // Connection helpers
+  setTerminalFontSize: (size: number) => void;
+  setTerminalScrollback: (lines: number) => void;
+  setShowAutolevelMesh: (show: boolean) => void;
+  // General
+  resetSettings: () => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -146,7 +164,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           merged.push({ ...p, order: merged.length });
         }
       });
-      set({ settings: { ...saved, dashboardPanels: merged }, initialized: true });
+      set({
+        settings: { ...saved, dashboardPanels: merged },
+        initialized: true,
+      });
     } else {
       set({ initialized: true });
     }
@@ -160,7 +181,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setDashboardPanelEnabled: (id, enabled) => {
     const panels = get().settings.dashboardPanels.map((p) =>
-      p.id === id ? { ...p, enabled } : p
+      p.id === id ? { ...p, enabled } : p,
     );
     const next = { ...get().settings, dashboardPanels: panels };
     set({ settings: next });
@@ -168,13 +189,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   moveDashboardPanelUp: (id) => {
-    const panels = [...get().settings.dashboardPanels].sort((a, b) => a.order - b.order);
+    const panels = [...get().settings.dashboardPanels].sort(
+      (a, b) => a.order - b.order,
+    );
     const idx = panels.findIndex((p) => p.id === id);
     if (idx <= 0) return;
     // Swap order values with the panel above
     const reordered = panels.map((p, i) => {
       if (i === idx - 1) return { ...p, order: idx };
-      if (i === idx)     return { ...p, order: idx - 1 };
+      if (i === idx) return { ...p, order: idx - 1 };
       return p;
     });
     const next = { ...get().settings, dashboardPanels: reordered };
@@ -183,16 +206,50 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   moveDashboardPanelDown: (id) => {
-    const panels = [...get().settings.dashboardPanels].sort((a, b) => a.order - b.order);
+    const panels = [...get().settings.dashboardPanels].sort(
+      (a, b) => a.order - b.order,
+    );
     const idx = panels.findIndex((p) => p.id === id);
     if (idx < 0 || idx >= panels.length - 1) return;
     const reordered = panels.map((p, i) => {
-      if (i === idx)     return { ...p, order: idx + 1 };
+      if (i === idx) return { ...p, order: idx + 1 };
       if (i === idx + 1) return { ...p, order: idx };
       return p;
     });
     const next = { ...get().settings, dashboardPanels: reordered };
     set({ settings: next });
     void saveToStorage(next);
+  },
+
+  setTerminalFontSize: (size) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        connection: { ...state.settings.connection, terminalFontSize: size },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setTerminalScrollback: (lines) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        connection: { ...state.settings.connection, terminalScrollback: lines },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setShowAutolevelMesh: (show) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        showAutolevelMesh: show,
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  resetSettings: () => {
+    set({ settings: DEFAULT_SETTINGS });
+    void saveToStorage(DEFAULT_SETTINGS);
   },
 }));

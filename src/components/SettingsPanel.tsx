@@ -353,6 +353,40 @@ function ConnectionContent() {
   );
 }
 
+// ─── Visualizer section ───────────────────────────────────────────────────────
+
+function VisualizerContent() {
+  const { settings, setShowAutolevelMesh } = useSettingsStore();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">Show Autolevel Mesh</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            Display the generated autolevel heightmap overlay on the CNC bed.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAutolevelMesh(!settings.showAutolevelMesh)}
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            settings.showAutolevelMesh ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)]'
+          }`}
+          role="switch"
+          aria-checked={settings.showAutolevelMesh}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              settings.showAutolevelMesh ? 'translate-x-4' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Section definitions ─────────────────────────────────────────────────────
 
 const SECTIONS = [
@@ -362,7 +396,7 @@ const SECTIONS = [
   { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" /> },
   { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" /> },
   { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" /> },
-  { id: 'visualizer',  title: 'Visualizer',     icon: <Box className="w-4 h-4" /> },
+  { id: 'visualizer',  title: 'Bed Visualizer',     icon: <Box className="w-4 h-4" /> },
   { id: 'history',     title: 'History',        icon: <History className="w-4 h-4" /> },
   { id: 'stats',       title: 'Stats',          icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'toolchanger', title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" /> },
@@ -376,6 +410,7 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
   if (id === 'dashboard')  return <DashboardContent />;
   if (id === 'theme')      return <ThemeContent />;
   if (id === 'connection') return <ConnectionContent />;
+  if (id === 'visualizer') return <VisualizerContent />;
   return undefined; // renders placeholder
 }
 
