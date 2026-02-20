@@ -57,7 +57,7 @@ const PlaceholderPanel = ({ title }: { title: string }) => (
 );
 
 export function DockLayout(props: DockLayoutProps) {
-  const { settings, setDashboardPanelEnabled, setDashboardLayout, initialized } = useSettingsStore();
+  const { settings, setDashboardPanelEnabled, setDashboardLayout } = useSettingsStore();
   const [api, setApi] = useState<any>(null);
   const prevOrderRef = useRef<string>('');
   const isRebuildingRef = useRef<boolean>(false);

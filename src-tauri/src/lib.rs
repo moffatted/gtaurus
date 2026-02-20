@@ -2,6 +2,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
 mod driver;
+mod driver_tests;
 use driver::{CNCController, FluidNCDriver};
 
 pub struct AppState {

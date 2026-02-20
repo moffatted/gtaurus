@@ -170,3 +170,9 @@ Gtaurus is purpose-built for boards running **FluidNC** firmware.
 - **Event format**: Tauri backend emits all received lines as `fluidnc://rx` events to the frontend
 
 
+Verification Plan
+
+Automated Tests
+Run npm run test:web to ensure Vitest successfully runs a stub React component test.
+Run cargo test inside src-tauri to ensure Rust unit tests pass.
+Run npm run test:e2e to ensure WebdriverIO can successfully build the Tauri app, launch it, and execute a basic UI interaction test without crashing.
