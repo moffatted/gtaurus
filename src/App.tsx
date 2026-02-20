@@ -19,11 +19,20 @@ const queryClient = new QueryClient();
 function App() {
   const initTheme    = useThemeStore((state) => state.initTheme);
   const initSettings = useSettingsStore((state) => state.initSettings);
+  const initialized  = useSettingsStore((state) => state.initialized);
 
   useEffect(() => {
     initTheme();
     initSettings();
   }, [initTheme, initSettings]);
+
+  if (!initialized) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0a0a0a] text-white">
+        <div className="text-lg font-medium opacity-50 animate-pulse">Initializing Gtaurus...</div>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

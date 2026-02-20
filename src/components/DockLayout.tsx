@@ -57,7 +57,7 @@ const PlaceholderPanel = ({ title }: { title: string }) => (
 );
 
 export function DockLayout(props: DockLayoutProps) {
-  const { settings, setDashboardPanelEnabled } = useSettingsStore();
+  const { settings, setDashboardPanelEnabled, setDashboardLayout, initialized } = useSettingsStore();
   const [api, setApi] = useState<any>(null);
   const prevOrderRef = useRef<string>('');
   const isRebuildingRef = useRef<boolean>(false);
@@ -126,16 +126,15 @@ export function DockLayout(props: DockLayoutProps) {
       const apiInstance = event.api;
       setApi(apiInstance);
 
-      // Restore layout or Default (Bumped to v6 to force reset and apply new default sizes)
-      const saved = localStorage.getItem('dockview-layout-v9');
+      // Restore layout from settings store
       let loaded = false;
-      if (saved) {
+      if (settings.dashboardLayout) {
           try {
-              console.log("Loading saved layout...");
-              apiInstance.fromJSON(JSON.parse(saved));
+              console.log("Loading saved layout from store...");
+              apiInstance.fromJSON(JSON.parse(settings.dashboardLayout));
               loaded = true;
           } catch(e) {
-              console.error("Failed to load dockview layout", e);
+              console.error("Failed to load saved dockview layout", e);
           }
       }
 
@@ -146,7 +145,7 @@ export function DockLayout(props: DockLayoutProps) {
       // Save on change
       apiInstance.onDidLayoutChange(() => {
           if (isRebuildingRef.current) return;
-          localStorage.setItem('dockview-layout-v9', JSON.stringify(apiInstance.toJSON()));
+          setDashboardLayout(JSON.stringify(apiInstance.toJSON()));
       });
 
       // Sync close events to store

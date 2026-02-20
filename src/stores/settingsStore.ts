@@ -45,6 +45,8 @@ export interface ConnectionSettings {
 export interface Settings {
   // Dashboard section
   dashboardPanels: DashboardPanel[];
+  /** JSON string for the DockView layout. */
+  dashboardLayout?: string;
   // Connection
   connection: ConnectionSettings;
   showAutolevelMesh: boolean;
@@ -143,6 +145,7 @@ interface SettingsStore {
   // Dashboard helpers
   setDashboardPanelEnabled: (id: string, enabled: boolean) => void;
   setDashboardPanelDimensions: (id: string, dims: { defaultWidth?: number; defaultHeight?: number }) => void;
+  setDashboardLayout: (layout: string) => void;
   moveDashboardPanelUp: (id: string) => void;
   moveDashboardPanelDown: (id: string) => void;
   // Connection helpers
@@ -170,7 +173,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         }
       });
       set({
-        settings: { ...saved, dashboardPanels: merged },
+        settings: { ...DEFAULT_SETTINGS, ...saved, dashboardPanels: merged },
         initialized: true,
       });
     } else {
@@ -198,6 +201,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       p.id === id ? { ...p, ...dims } : p,
     );
     const next = { ...get().settings, dashboardPanels: panels };
+    set({ settings: next });
+    void saveToStorage(next);
+  },
+
+  setDashboardLayout: (layout) => {
+    const next = { ...get().settings, dashboardLayout: layout };
     set({ settings: next });
     void saveToStorage(next);
   },
