@@ -73,6 +73,46 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
+    id: 'layout',
+    title: 'Dashboard Layout',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Dashboard Layout & Panels</h2>
+        <p>Your workspace is fully customizable with dockable panels.</p>
+        
+        <h3 className="text-lg font-semibold mt-4">Drag & Drop</h3>
+        <p>You can <strong>click and drag</strong> any panel's title bar to move it around the screen. Drop it on the edge of another panel to split the view, or drop it in the center to create a tabbed group.</p>
+
+        <h3 className="text-lg font-semibold mt-4">Panel Visibility & Ordering</h3>
+        <ul className="list-disc pl-5 space-y-2">
+            <li>Open the <strong>Settings</strong> (gear icon) and go to the <strong>Dashboard</strong> section.</li>
+            <li>Toggle the visibility of panels using the switch.</li>
+            <li>Use the <strong>Up/Down arrows</strong> next to each panel in the settings to determine their default setup order.</li>
+        </ul>
+      </div>
+    ),
+  },
+  {
+    id: 'visualizer',
+    title: 'Bed Visualizer',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">3D Bed Visualizer</h2>
+        <p>The visualizer provides a 3D view of your CNC bed, toolpaths, and the spindle's position.</p>
+
+        <h3 className="text-lg font-semibold mt-4">Camera Controls</h3>
+        <ul className="list-disc pl-5 space-y-2 text-sm">
+            <li><strong>Rotate / Orbit:</strong> Left-click and drag on the 3D scene.</li>
+            <li><strong>Pan:</strong> Right-click and drag to slide the camera's position.</li>
+            <li><strong>Zoom:</strong> Use the mouse scroll wheel.</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-4">Autolevel Mesh</h3>
+        <p>You can view the heightmap overlay directly on the 3D bed. Enable it in <strong>Settings &gt; Bed Visualizer</strong>.</p>
+      </div>
+    ),
+  },
+  {
     id: 'fluidnc',
     title: 'FluidNC Manager',
     content: (
