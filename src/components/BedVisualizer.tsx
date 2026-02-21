@@ -17,7 +17,6 @@ const BED_SIZE_Y = 300;
 
 function Spindle() {
   const spindleRef = useRef<THREE.Group>(null);
-  const { machine } = useMachineStatusStore();
   
   // Note: In CNC coordinate systems usually Z is up. 
   // In Three.js: Y is up. We map CNC Z -> Three Y, CNC Y -> Three -Z
@@ -26,7 +25,9 @@ function Spindle() {
   useFrame(() => {
     if (!spindleRef.current) return;
     
-    // Use Machine Position (Absolute)
+    // Direct store access inside useFrame for the most up-to-date state
+    const machine = useMachineStatusStore.getState().machine;
+    
     // CNC X -> Three X
     // CNC Z -> Three Y (Up)
     // CNC Y -> Three -Z (Depth)
@@ -196,8 +197,6 @@ function AutolevelMesh() {
     return geo;
   }, [mapData]);
 
-  if (!settings.showAutolevelMesh) return null;
-
   return (
     <mesh geometry={geometry} position={[0, -0.1, 0]}>
       <meshStandardMaterial 
@@ -210,6 +209,31 @@ function AutolevelMesh() {
   );
 }
 
+function SceneContent() {
+  const { settings } = useSettingsStore();
+
+  return (
+    <>
+      <Spindle />
+      <Toolpath />
+      {settings.showAutolevelMesh && <AutolevelMesh />}
+      
+      {/* Machine Origin (0,0,0) Marker */}
+      <group position={[0, 0, 0]}>
+        <mesh>
+          <sphereGeometry args={[2, 16, 16]} />
+          <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.5} />
+        </mesh>
+        <Line 
+          points={[[0, 0, 0], [0, 20, 0]]} 
+          color="#f59e0b" 
+          lineWidth={1}
+        />
+      </group>
+    </>
+  );
+}
+
 // ─── Main Visualizer ───────────────────────────────────────────────────────
 
 export function BedVisualizer() {
@@ -217,12 +241,21 @@ export function BedVisualizer() {
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas 
-        camera={{ position: [200, 150, 200], fov: 45 }}
+        shadows 
+        camera={{ position: [200, 200, 200], fov: 45 }}
+        gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
-        {/* Environment setup */}
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[100, 200, 100]} intensity={1} castShadow />
+        <color attach="background" args={['#0f172a']} />
+        
+        <ambientLight intensity={0.6} />
+        <directionalLight 
+          position={[100, 100, 100]} 
+          intensity={1.2} 
+          castShadow 
+          shadow-mapSize={[1024, 1024]}
+        />
+        <pointLight position={[-100, 50, -100]} intensity={0.5} />
         
         {/* Interactive Controls */}
         <OrbitControls 
@@ -249,10 +282,7 @@ export function BedVisualizer() {
           fadeDistance={400} 
         />
 
-        {/* Dynamic elements */}
-        <Toolpath />
-        <AutolevelMesh />
-        <Spindle />
+        <SceneContent />
       </Canvas>
       
       {/* Quick HUD overlay for context */}

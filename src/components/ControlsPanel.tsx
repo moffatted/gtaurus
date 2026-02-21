@@ -16,7 +16,7 @@ import { AlarmIndicator } from './AlarmIndicator';
 export function ControlsPanel() {
   const { settings } = useSettingsStore();
   const { hasHomed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
-  const { machine: state, updateMachine } = useMachineStatusStore();
+  const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
 
   // Jog State
   const [stepSize, setStepSize] = useState<number>(10);
@@ -24,7 +24,9 @@ export function ControlsPanel() {
   const stepSizes = [0.1, 1, 10, 100];
 
   useEffect(() => {
+      let isMounted = true;
       const unlisten = listen<string>('fluidnc://rx', (event) => {
+          if (!isMounted) return;
           const line = event.payload;
 
           if (line.startsWith('[VER:')) {
@@ -40,7 +42,7 @@ export function ControlsPanel() {
           const content = line.slice(1, -1);
           const parts = content.split('|');
           
-          const next: any = { status: parts[0] };
+          const nextUpdate: any = { status: parts[0] };
 
           if (parts[0] === 'Home') setHasHomed(true);
           if (parts[0] === 'Alarm') resetPrerequisites();
@@ -51,33 +53,38 @@ export function ControlsPanel() {
 
               if (key === 'MPos') {
                   const [x, y, z] = val.split(',').map(Number);
-                  next.x = { ...state.x, mpos: x || 0 };
-                  next.y = { ...state.y, mpos: y || 0 };
-                  next.z = { ...state.z, mpos: z || 0 };
+                  updateAxis('x', { mpos: x || 0 });
+                  updateAxis('y', { mpos: y || 0 });
+                  updateAxis('z', { mpos: z || 0 });
               } else if (key === 'WCO') {
                   const [x, y, z] = val.split(',').map(Number);
-                  next.x = { ...(next.x || state.x), wco: x || 0 };
-                  next.y = { ...(next.y || state.y), wco: y || 0 };
-                  next.z = { ...(next.z || state.z), wco: z || 0 };
+                  updateAxis('x', { wco: x || 0 });
+                  updateAxis('y', { wco: y || 0 });
+                  updateAxis('z', { wco: z || 0 });
               } else if (key === 'FS') {
                   const [f, s] = val.split(',').map(Number);
-                  next.feed = f || 0;
-                  next.spindle = s || 0;
+                  nextUpdate.feed = f || 0;
+                  nextUpdate.spindle = s || 0;
               }
           });
           
-          updateMachine(next);
+          updateMachine(nextUpdate);
       });
 
+      return () => {
+          isMounted = false;
+          unlisten.then(f => f());
+      };
+  }, [updateMachine, updateAxis, setHasHomed, resetPrerequisites]);
+
+  // Status Polling Effect
+  useEffect(() => {
       const interval = setInterval(() => {
          invoke('send_realtime', { byte: 0x3F }).catch(() => {});
       }, settings.connection.statusPollInterval || 2000);
 
-      return () => {
-          unlisten.then(f => f());
-          clearInterval(interval);
-      };
-  }, [settings.connection.statusPollInterval, state, updateMachine, setHasHomed, resetPrerequisites]);
+      return () => clearInterval(interval);
+  }, [settings.connection.statusPollInterval]);
 
   const getStatusColor = (s: string) => {
       if (s.startsWith('Idle')) return 'bg-green-500/20 text-green-400 border-green-500/30';
