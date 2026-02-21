@@ -5,6 +5,8 @@ import { RefreshCw, PlugZap, Usb, Wifi, Power } from "lucide-react";
 import clsx from "clsx";
 import { isTauriApp } from "../utils/platform";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useMachineStore } from "../stores/machineStore";
+import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { Tooltip } from "./ui/Tooltip";
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
@@ -46,6 +48,9 @@ function ConnectionPanel() {
     const [selectedPort, setSelectedPort] = useState(conn.serialPort);
     const [baudRate, setBaudRate]          = useState(conn.baudRate);
 
+    const { resetPrerequisites } = useMachineStore();
+    const { resetMachine } = useMachineStatusStore();
+
     // Shared state
     const [status, setStatus]       = useState("Disconnected");
     const [connecting, setConn]     = useState(false);
@@ -63,15 +68,24 @@ function ConnectionPanel() {
         if (!isTauriApp()) return;
         const tick = async () => {
             try {
-                setStatus(await invoke<string>("get_connection_status"));
+                const s = await invoke<string>("get_connection_status");
+                if (s === "Disconnected" && status !== "Disconnected") {
+                    resetPrerequisites();
+                    resetMachine();
+                }
+                setStatus(s);
             } catch {
-                setStatus("Disconnected");
+                if (status !== "Disconnected") {
+                    resetPrerequisites();
+                    resetMachine();
+                    setStatus("Disconnected");
+                }
             }
         };
         void tick();
         const id = setInterval(tick, 2000);
         return () => clearInterval(id);
-    }, []);
+    }, [status, resetPrerequisites]);
 
     const connected = status !== "Disconnected";
 
@@ -104,6 +118,8 @@ function ConnectionPanel() {
         try {
             await invoke("disconnect");
             setStatus("Disconnected");
+            resetPrerequisites();
+            resetMachine();
         } catch {
             // ignore
         } finally {

@@ -21,6 +21,7 @@ interface MachineStatusState {
     machine: MachineStatus;
     updateMachine: (partial: Partial<MachineStatus>) => void;
     updateAxis: (axis: 'x' | 'y' | 'z', partial: Partial<AxisState>) => void;
+    resetMachine: () => void;
 }
 
 export const useMachineStatusStore = create<MachineStatusState>((set) => ({
@@ -44,4 +45,17 @@ export const useMachineStatusStore = create<MachineStatusState>((set) => ({
             [axis]: { ...state.machine[axis], ...partial }
         }
     })),
+    resetMachine: () => set({
+        machine: {
+            status: 'Disconnected',
+            x: { mpos: 0, wco: 0 },
+            y: { mpos: 0, wco: 0 },
+            z: { mpos: 0, wco: 0 },
+            feed: 0,
+            spindle: 0,
+            firmware: 'Unknown',
+            buildInfo: 'Unknown',
+            board: 'Unknown',
+        }
+    }),
 }));
