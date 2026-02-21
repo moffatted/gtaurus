@@ -48,6 +48,9 @@ export interface GeneralSettings {
   carvingUnits: "mm" | "inches";
   firmwareFallback: "Grbl" | "GrblHAL";
   safeHeight: number;
+  bedSizeX: number;
+  bedSizeY: number;
+  bedSizeZ: number;
 }
 
 export interface ProbeSettings {
@@ -205,6 +208,9 @@ export const DEFAULT_SETTINGS: Settings = {
     carvingUnits: "mm",
     firmwareFallback: "Grbl",
     safeHeight: 5,
+    bedSizeX: 300,
+    bedSizeY: 180,
+    bedSizeZ: 45,
   },
   probe: {
     fastFeedrate: 500,

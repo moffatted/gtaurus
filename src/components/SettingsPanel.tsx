@@ -155,6 +155,48 @@ function GeneralContent() {
           The distance the Z-axis retracts before making XY rapid moves.
         </p>
       </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Machine Limits (Bed Size) */}
+      <div className="space-y-4">
+        <label className={labelCls}>Machine Limits (Bed Size)</label>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">X Width (mm)</label>
+            <input
+              type="number"
+              value={gen.bedSizeX}
+              onChange={(e) => setGeneralSettings({ bedSizeX: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              min={1}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Y Depth (mm)</label>
+            <input
+              type="number"
+              value={gen.bedSizeY}
+              onChange={(e) => setGeneralSettings({ bedSizeY: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              min={1}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Z Height (mm)</label>
+            <input
+              type="number"
+              value={gen.bedSizeZ}
+              onChange={(e) => setGeneralSettings({ bedSizeZ: parseFloat(e.target.value) || 0 })}
+              className={inputCls}
+              min={1}
+            />
+          </div>
+        </div>
+        <p className="text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+          Define the physical travel limits of your machine. This used by the 3D Visualizer and for Soft Limit checks.
+        </p>
+      </div>
     </div>
   );
 }

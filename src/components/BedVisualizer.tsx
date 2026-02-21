@@ -10,8 +10,7 @@ import { listen } from '@tauri-apps/api/event';
 
 // Mock machine dimensions (e.g., mm / 10 for scaling to a decent viewport view)
 // Let's assume a 300x300mm bed
-const BED_SIZE_X = 300;
-const BED_SIZE_Y = 300;
+// No hardcoded constants, we use settings from the store
 
 // ─── Spindle Component ─────────────────────────────────────────────────────
 
@@ -110,7 +109,7 @@ function AutolevelMesh() {
   const geometry = useMemo(() => {
     if (!mapData) {
       // Create a flat dense plane representation
-      const geo = new THREE.PlaneGeometry(BED_SIZE_X, BED_SIZE_Y, 20, 20);
+      const geo = new THREE.PlaneGeometry(settings.general.bedSizeX, settings.general.bedSizeY, 20, 20);
       geo.rotateX(-Math.PI / 2);
       
       const positions = geo.attributes.position;
@@ -238,6 +237,7 @@ function SceneContent() {
 
 export function BedVisualizer() {
   const { machine } = useMachineStatusStore();
+  const { settings } = useSettingsStore();
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas 
@@ -263,16 +263,16 @@ export function BedVisualizer() {
           enableDamping
           dampingFactor={0.05}
           maxPolarAngle={Math.PI / 2 - 0.05}
-          target={[150, 0, -150]} // Focus on the center of the 300x300 bed
+          target={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} 
         />
 
-        {/* Global coordinate axes (length = 50) */}
+        {/* Global coordinate axes (length = 100) */}
         <axesHelper args={[100]} />
 
         {/* Grid representing the bed limits */}
         <Grid 
-          args={[BED_SIZE_X, BED_SIZE_Y]} 
-          position={[150, 0, -150]}
+          args={[settings.general.bedSizeX, settings.general.bedSizeY]} 
+          position={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]}
           cellSize={10} 
           cellThickness={1} 
           cellColor="#6b7280" 
@@ -289,7 +289,7 @@ export function BedVisualizer() {
       <div className="absolute top-4 left-4 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-sm border border-[var(--border-color)] px-3 py-2 rounded-lg shadow-sm">
         <h3 className="text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-1">Live View</h3>
         <div className="flex flex-col gap-0.5 text-xs font-mono text-[var(--text-secondary)]">
-           <span>Bed Size: {BED_SIZE_X}x{BED_SIZE_Y}mm</span>
+           <span>Bed Size: {settings.general.bedSizeX}x{settings.general.bedSizeY}mm</span>
            <div className="mt-2 pt-2 border-t border-[var(--border-color)] space-y-1">
              <div className="flex justify-between gap-4">
                 <span className="text-[var(--text-tertiary)]">MPos X:</span>
