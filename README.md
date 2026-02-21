@@ -150,6 +150,7 @@ Gtaurus is purpose-built for boards running **FluidNC** firmware.
 | FluidNC Web UI (ESP3D-WEBUI) | https://github.com/michmela44/ESP3D-WEBUI |
 | FluidNC Wiki (Commands, Settings, Config) | http://wiki.fluidnc.com |
 | FluidNC Wiki — Commands & Settings | http://wiki.fluidnc.com/en/features/commands_and_settings |
+| Gtaurus FluidNC Alarm Guide | [docs/FLUIDNC_ALARM_GUIDE.md](docs/FLUIDNC_ALARM_GUIDE.md) |
 
 ### Target Hardware
 - **Board**: MKS DLC32 v2.1 running FluidNC
