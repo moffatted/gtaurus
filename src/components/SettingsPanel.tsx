@@ -87,7 +87,7 @@ function ThemeContent() {
 // ─── General section ─────────────────────────────────────────────────────────
 
 function GeneralContent() {
-  const { settings, setGeneralSettings } = useSettingsStore();
+  const { settings, setGeneralSettings, setStockSettings } = useSettingsStore();
   const gen = settings.general;
 
   const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
@@ -196,6 +196,107 @@ function GeneralContent() {
         <p className="text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
           Define the physical travel limits of your machine. This used by the 3D Visualizer and for Soft Limit checks.
         </p>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Workpiece / Stock */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <label className={labelCls}>Workpiece Visualization</label>
+          <button
+            onClick={() => setStockSettings({ enabled: !settings.stock.enabled })}
+            className={`relative h-5 w-9 rounded-full transition-colors ${settings.stock.enabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${settings.stock.enabled ? 'translate-x-4' : ''}`} />
+          </button>
+        </div>
+
+        {settings.stock.enabled && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Width (X)</label>
+                <input
+                  type="number"
+                  value={settings.stock.width}
+                  onChange={(e) => setStockSettings({ width: parseFloat(e.target.value) || 0 })}
+                  className={inputCls}
+                  min={1}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Depth (Y)</label>
+                <input
+                  type="number"
+                  value={settings.stock.height}
+                  onChange={(e) => setStockSettings({ height: parseFloat(e.target.value) || 0 })}
+                  className={inputCls}
+                  min={1}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Thick (Z)</label>
+                <input
+                  type="number"
+                  value={settings.stock.thickness}
+                  onChange={(e) => setStockSettings({ thickness: parseFloat(e.target.value) || 0 })}
+                  className={inputCls}
+                  min={1}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Offset X (mm)</label>
+                <input
+                  type="number"
+                  value={settings.stock.offsetX}
+                  onChange={(e) => setStockSettings({ offsetX: parseFloat(e.target.value) || 0 })}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Offset Y (mm)</label>
+                <input
+                  type="number"
+                  value={settings.stock.offsetY}
+                  onChange={(e) => setStockSettings({ offsetY: parseFloat(e.target.value) || 0 })}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Material</label>
+                <select
+                  value={settings.stock.material}
+                  onChange={(e) => setStockSettings({ material: e.target.value as any })}
+                  className={inputCls + " cursor-pointer uppercase text-[10px] font-bold tracking-widest"}
+                >
+                  <option value="pine">Pine Wood</option>
+                  <option value="mdf">MDF Board</option>
+                  <option value="aluminum">Aluminum</option>
+                  <option value="pvc">PVC / Plastic</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Opacity ({Math.round(settings.stock.opacity * 100)}%)</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={settings.stock.opacity}
+                  onChange={(e) => setStockSettings({ opacity: parseFloat(e.target.value) })}
+                  className="w-full accent-[var(--accent-primary)] mt-1.5"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

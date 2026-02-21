@@ -208,6 +208,47 @@ function AutolevelMesh() {
   );
 }
 
+function StockMesh() {
+  const { settings } = useSettingsStore();
+  const { stock } = settings;
+
+  if (!stock.enabled) return null;
+
+  // Map material name to color
+  const materialColors = {
+    pine: "#e5c08e",
+    mdf: "#c19a6b",
+    aluminum: "#94a3b8",
+    pvc: "#f1f5f9"
+  };
+
+  const color = materialColors[stock.material] || materialColors.pine;
+
+  // The stock box origin in Three.js is its center.
+  // We want the bottom-left corner of the stock to align with (offsetX, offsetY) machine coordinates.
+  const posX = stock.offsetX + stock.width / 2;
+  const posZ = -(stock.offsetY + stock.height / 2); // Depth is negative Z in our Three.js mapping
+  const posY = stock.thickness / 2; // Flat on the bed (Y=0), so height/2 moves it up
+
+  return (
+    <mesh position={[posX, posY, posZ]}>
+      <boxGeometry args={[stock.width, stock.thickness, stock.height]} />
+      <meshStandardMaterial 
+        color={color} 
+        transparent 
+        opacity={stock.opacity} 
+        roughness={0.7}
+        metalness={stock.material === 'aluminum' ? 0.6 : 0.2}
+      />
+      {/* Wireframe overlay for better definition */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[stock.width + 0.1, stock.thickness + 0.1, stock.height + 0.1]} />
+        <meshBasicMaterial color={color} wireframe transparent opacity={0.2} />
+      </mesh>
+    </mesh>
+  );
+}
+
 function SceneContent() {
   const { settings } = useSettingsStore();
 
@@ -215,6 +256,7 @@ function SceneContent() {
     <>
       <Spindle />
       <Toolpath />
+      <StockMesh />
       {settings.showAutolevelMesh && <AutolevelMesh />}
       
       {/* Machine Origin (0,0,0) Marker */}

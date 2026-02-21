@@ -147,6 +147,17 @@ export interface AiSettings {
   conciseMode: boolean;
 }
 
+export interface StockSettings {
+  enabled: boolean;
+  width: number;
+  height: number;
+  thickness: number;
+  offsetX: number;
+  offsetY: number;
+  material: 'pine' | 'mdf' | 'aluminum' | 'pvc';
+  opacity: number;
+}
+
 export interface Settings {
   // Dashboard section
   dashboardPanels: DashboardPanel[];
@@ -167,6 +178,8 @@ export interface Settings {
   gcodeStoragePath: string;
   // AI
   ai: AiSettings;
+  // Stock / Workpiece
+  stock: StockSettings;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -277,6 +290,16 @@ export const DEFAULT_SETTINGS: Settings = {
     proModel: "gemini-1.5-pro",
     conciseMode: true,
   },
+  stock: {
+    enabled: false,
+    width: 100,
+    height: 100,
+    thickness: 15,
+    offsetX: 0,
+    offsetY: 0,
+    material: 'pine',
+    opacity: 0.6,
+  },
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -353,6 +376,8 @@ interface SettingsStore {
   setStatsSettings: (patch: Partial<StatsSettings>) => void;
   // AI
   setAiSettings: (patch: Partial<AiSettings>) => void;
+  // Stock
+  setStockSettings: (patch: Partial<StockSettings>) => void;
   // General
   resetSettings: () => void;
 }
@@ -444,6 +469,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
           ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai },
+          stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -593,6 +619,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         ai: { ...state.settings.ai, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setStockSettings: (patch: Partial<StockSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        stock: { ...state.settings.stock, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };
