@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Tech Stack
 
 This project uses the T3 Stack extended with Tauri for desktop support.
@@ -31,3 +35,6 @@ This project uses the T3 Stack extended with Tauri for desktop support.
 
 ## Icons
 - **Lucide React**: Icon library.
+
+## Tauri V2
+"Always refer to Tauri V2 documentation at https://v2.tauri.app/ and avoid using v1 'tauri::Command' patterns."

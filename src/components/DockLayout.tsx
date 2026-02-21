@@ -8,12 +8,12 @@ import "./DockLayout.css";
 
 interface DockLayoutProps {
   consolePanel: ReactNode;
-  droPanel: ReactNode;
+  controlsPanel: ReactNode;
   managerPanel: ReactNode;
-  jogPanel: ReactNode;
   fileManagerPanel: ReactNode;
   statsPanel: ReactNode;
   probePanel: ReactNode;
+  aiPanel: ReactNode;
 }
 
 // Context to provide panel content to wrapper components
@@ -28,13 +28,13 @@ const ConsolePanel = () => {
     }
     return <div className="h-full w-full overflow-hidden">{ctx.consolePanel}</div>;
 }
-const DROPanel = () => {
+const ControlsPanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) {
-        console.error("DockLayoutContext is missing in DROPanel!");
+        console.error("DockLayoutContext is missing in ControlsPanel!");
         return <div className="text-red-500 p-4">Error: Context Missing</div>;
     }
-    return <div className="h-full w-full overflow-hidden">{ctx.droPanel}</div>;
+    return <div className="h-full w-full overflow-hidden">{ctx.controlsPanel}</div>;
 }
 const ManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
@@ -43,14 +43,6 @@ const ManagerPanel = () => {
         return <div className="text-red-500 p-4">Error: Context Missing</div>;
     }
     return <div className="h-full w-full overflow-hidden">{ctx.managerPanel}</div>;
-}
-const JogPanel = () => {
-    const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in JogPanel!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
-    return <div className="h-full w-full overflow-hidden">{ctx.jogPanel}</div>;
 }
 const FileManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
@@ -75,6 +67,14 @@ const ProbePanelWrapper = () => {
         return <div className="text-red-500 p-4">Error: Context Missing</div>;
     }
     return <div className="h-full w-full overflow-hidden">{ctx.probePanel}</div>;
+}
+const AIPanelWrapper = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in AIPanelWrapper!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full overflow-hidden">{ctx.aiPanel}</div>;
 }
 
 // Placeholder Panel wrapper for unimplemented features
@@ -115,9 +115,9 @@ export function DockLayout(props: DockLayoutProps) {
           };
 
           // Special constraints (relaxed)
-          if (panelData.id === 'jog') {
-              panelConfig.minimumWidth = 200;
-              panelConfig.minimumHeight = 350;
+          if (panelData.id === 'controls') {
+              panelConfig.minimumWidth = 300;
+              panelConfig.minimumHeight = 500;
           }
 
           if (index === 0) {
@@ -138,12 +138,14 @@ export function DockLayout(props: DockLayoutProps) {
   // Stable map of components
   const components = useMemo(() => ({
       console: ConsolePanel,
-      dro: DROPanel,
+      controls: ControlsPanel,
+      dro: ControlsPanel, // Fallback for old layouts
+      jog: ControlsPanel, // Fallback for old layouts
       manager: ManagerPanel,
-      jog: JogPanel,
       fileManager: FileManagerPanel,
       stats: StatsPanelWrapper,
       probe: ProbePanelWrapper,
+      ai: AIPanelWrapper,
       macros: () => <PlaceholderPanel title="Macros" />,
       toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
       visualizer: BedVisualizer,
@@ -218,8 +220,8 @@ export function DockLayout(props: DockLayoutProps) {
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
             // Re-open panel
-            const minH = id === 'jog' ? 350 : 100;
-            const minW = id === 'jog' ? 200 : 100;
+            const minH = id === 'controls' ? 500 : 100;
+            const minW = id === 'controls' ? 300 : 100;
 
             api.addPanel({
                 id: id,

@@ -4,9 +4,8 @@ import { persist } from 'zustand/middleware';
 interface LayoutState {
   panels: {
     console: boolean;
-    dro: boolean;
+    controls: boolean;
     manager: boolean;
-    jog: boolean;
   };
   togglePanel: (panel: keyof LayoutState['panels']) => void;
   setPanelVisibility: (panel: keyof LayoutState['panels'], visible: boolean) => void;
@@ -19,9 +18,8 @@ export const useLayoutStore = create<LayoutState>()(
     (set) => ({
       panels: {
         console: true,
-        dro: false,
+        controls: false,
         manager: false,
-        jog: false,
       },
       togglePanel: (panel) =>
         set((state) => {

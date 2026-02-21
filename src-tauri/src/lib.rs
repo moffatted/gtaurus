@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
+pub mod ai;
 pub mod autolevel;
 mod driver;
 mod driver_tests;
@@ -434,6 +435,8 @@ pub fn run() {
             validate_gcode_file,
             warp_gcode,
             stream_local_gcode,
+            ai::ask_gemini,
+            ai::list_gemini_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,6 @@
-use super::driver::{CNCController, ConnectionStatus, FluidNCDriver};
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::driver::*;
 
     #[test]
     fn test_connection_status_display() {

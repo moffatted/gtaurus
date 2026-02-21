@@ -48,18 +48,23 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
-    id: 'dro',
-    title: 'Digital Readout (DRO)',
+    id: 'controls',
+    title: 'Machine Controls',
     content: (
       <div className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Digital Readout</h2>
-        <p>Monitor your machine's position and status in real-time.</p>
+        <h2 className="text-xl font-bold mb-4">Machine Controls</h2>
+        <p>The Controls panel combines real-time monitoring with manual machine movement.</p>
         
-        <h3 className="text-lg font-semibold mt-4">Coordinates</h3>
-        <p>The display shows both <strong>Work Position (WPos)</strong> and <strong>Machine Position (MPos)</strong>.</p>
+        <h3 className="text-lg font-semibold mt-4">1. Digital Readout (DRO)</h3>
+        <p>Monitor your machine's position and status in real-time.</p>
+        <p className="text-sm mt-1">The display shows both <strong>Work Position (WPos)</strong> and <strong>Machine Position (MPos)</strong>.</p>
+
+        <h3 className="text-lg font-semibold mt-4">2. Jogging Controls</h3>
+        <p>Manual machine movement using the cardinal direction buttons or XY/Z pads.</p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
-            <li><strong>MPos:</strong> Absolute coordinates from the machine's home switches.</li>
-            <li><strong>WPos:</strong> Relative coordinates based on your work offset (G54, etc.).</li>
+            <li><strong>Directional Buttons:</strong> Move the tool in XY and Z axes.</li>
+            <li><strong>Step Size:</strong> Adjust how far the machine moves per click.</li>
+            <li><strong>Feed Rate:</strong> Set the speed of movement.</li>
         </ul>
 
         <h3 className="text-lg font-semibold mt-4">Status Modifiers</h3>

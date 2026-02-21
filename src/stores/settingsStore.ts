@@ -136,6 +136,14 @@ export interface StatsSettings {
   targetQuality: number;
 }
 
+export interface AiSettings {
+  tier: "free" | "pro";
+  apiKey: string;
+  freeModel: string;
+  proModel: string;
+  conciseMode: boolean;
+}
+
 export interface Settings {
   // Dashboard section
   dashboardPanels: DashboardPanel[];
@@ -154,7 +162,8 @@ export interface Settings {
   showAutolevelMesh: boolean;
   // File Manager
   gcodeStoragePath: string;
-  // Future sections add their keys here
+  // AI
+  ai: AiSettings;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -164,9 +173,8 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "dro", label: "Digital Readout (DRO)", enabled: true, defaultWidth: 350 },
+  { id: "controls", label: "Controls", enabled: true, defaultWidth: 350 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
-  { id: "jog", label: "Jog Controls", enabled: false, defaultWidth: 280 },
   { id: "manager", label: "FluidNC Manager", enabled: false, defaultWidth: 450 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
@@ -175,6 +183,7 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "macros", label: "Macros", enabled: false },
   { id: "toolchanger", label: "Tool Changer", enabled: false },
   { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
+  { id: "ai", label: "AI Assistant", enabled: false, defaultWidth: 350 },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -255,6 +264,13 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   showAutolevelMesh: false,
   gcodeStoragePath: "", // Will be initialized to home/gcode_files
+  ai: {
+    tier: "free",
+    apiKey: "",
+    freeModel: "gemini-1.5-flash",
+    proModel: "gemini-1.5-pro",
+    conciseMode: true,
+  },
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -329,6 +345,8 @@ interface SettingsStore {
   setSpindleSettings: (patch: Partial<SpindleSettings>) => void;
   // Stats
   setStatsSettings: (patch: Partial<StatsSettings>) => void;
+  // AI
+  setAiSettings: (patch: Partial<AiSettings>) => void;
   // General
   resetSettings: () => void;
 }
@@ -363,20 +381,63 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
 
     if (saved) {
-      // Merge saved panels with any newly added default panels
-      // so new panel types appear after an app update.
-      const savedIds = new Set(saved.dashboardPanels.map((p) => p.id));
-      const merged = [...saved.dashboardPanels];
+      // 1. Migrate old "dro" or "jog" to "controls"
+      const hasOldPanels = saved.dashboardPanels.some(p => p.id === 'dro' || p.id === 'jog');
+      let migratedPanels = [...saved.dashboardPanels];
+      
+      if (hasOldPanels) {
+          const dro = migratedPanels.find(p => p.id === 'dro');
+          const jog = migratedPanels.find(p => p.id === 'jog');
+          const wasEnabled = (dro?.enabled || jog?.enabled) ?? true;
+          
+          // Remove old ones
+          migratedPanels = migratedPanels.filter(p => p.id !== 'dro' && p.id !== 'jog');
+          
+          // Ensure "controls" is present and inherits enabled state
+          if (!migratedPanels.find(p => p.id === 'controls')) {
+              migratedPanels.push({ 
+                  id: "controls", 
+                  label: "Controls", 
+                  enabled: wasEnabled, 
+                  order: 0,
+                  defaultWidth: 350
+              });
+          } else {
+              migratedPanels = migratedPanels.map(p => 
+                  p.id === 'controls' ? { ...p, enabled: wasEnabled } : p
+              );
+          }
+      }
+
+      // 2. Filter out any panels that are no longer supported
+      const validIds = new Set(AVAILABLE_DASHBOARD_PANELS.map(p => p.id));
+      let merged = migratedPanels.filter(p => validIds.has(p.id));
+
+      // 3. Add any newly introduced panels
+      const currentIds = new Set(merged.map((p) => p.id));
       AVAILABLE_DASHBOARD_PANELS.forEach((p) => {
-        if (!savedIds.has(p.id)) {
+        if (!currentIds.has(p.id)) {
           merged.push({ ...p, order: merged.length });
         }
       });
+
+      // 4. Force labels to match definitions (handles renames)
+      const labelMap = new Map(AVAILABLE_DASHBOARD_PANELS.map(p => [p.id, p.label]));
+      merged = merged.map(p => ({
+          ...p,
+          label: labelMap.get(p.id) || p.label
+      }));
+
       set({
         settings: { 
           ...DEFAULT_SETTINGS, 
           ...saved, 
-          connection: { ...DEFAULT_SETTINGS.connection, ...saved.connection },
+          connection: { ...DEFAULT_SETTINGS.connection, ...saved?.connection },
+          general: { ...DEFAULT_SETTINGS.general, ...saved?.general },
+          probe: { ...DEFAULT_SETTINGS.probe, ...saved?.probe },
+          spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
+          stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
+          ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -517,6 +578,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         stats: { ...state.settings.stats, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setAiSettings: (patch: Partial<AiSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        ai: { ...state.settings.ai, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };

@@ -281,6 +281,12 @@ export function GcodeConsole() {
       const text = event.payload.trim();
       if (!text) return;
       appendLine(text);
+
+      // Auto-detect connection from traffic
+      if (text.startsWith('<') && text.endsWith('>')) {
+        setConnected(true);
+      }
+
       // Detect connection-closed messages
       if (text.includes('connection closed') || text.includes('read error')) {
         setConnected(false);
@@ -291,15 +297,22 @@ export function GcodeConsole() {
     return () => { unlisten?.(); };
   }, [appendLine]);
 
-  // Sync connection status from backend on mount
+  // Sync connection status from backend regularly
   useEffect(() => {
     if (!isTauriApp()) return;
-    invoke<string>('get_connection_status')
-      .then((s) => {
-        setStatusLabel(s);
-        setConnected(s !== 'Disconnected');
-      })
-      .catch(() => {});
+
+    const syncStatus = () => {
+        invoke<string>('get_connection_status')
+          .then((s) => {
+            setStatusLabel(s);
+            setConnected(s !== 'Disconnected');
+          })
+          .catch(() => {});
+    };
+
+    syncStatus();
+    const interval = setInterval(syncStatus, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   // Send a command

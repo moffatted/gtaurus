@@ -3,9 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Sidebar } from "./components/Sidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { GcodeConsole } from "./components/GcodeConsole";
-import { DRO } from "./components/DRO";
+import { ControlsPanel } from "./components/ControlsPanel";
 import { FluidNCManager } from "./components/FluidNCManager";
-import { JogPanel } from "./components/JogPanel";
 import { useThemeStore } from "./stores/themeStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { HelpMenu } from "./components/Help/HelpMenu";
@@ -16,7 +15,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import FileManager from "./components/FileManager";
 import { StatsPanel } from "./components/StatsPanel";
 import { ProbePanel } from "./components/ProbePanel";
+import { AIPanel } from "./components/AIPanel";
 import { useStatsTracker } from "./hooks/useStatsTracker";
+import { AlarmIndicator } from "./components/AlarmIndicator";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +28,14 @@ function App() {
 
   useEffect(() => {
     initTheme();
-    initSettings();
+    initSettings().then(() => {
+      // Small delay to ensure serial is ready if it's auto-connecting
+      setTimeout(() => {
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+          invoke('send_gcode', { cmd: '$I' }).catch(() => {});
+        });
+      }, 1000);
+    });
   }, [initTheme, initSettings]);
 
   useStatsTracker();
@@ -52,6 +60,7 @@ function App() {
             <div></div>
 
             <div className="flex items-center gap-3">
+                <AlarmIndicator />
                 <EStopButton />
                 <div className="w-px h-6 bg-[var(--border-color)]" />
                 <HelpMenu />
@@ -64,12 +73,12 @@ function App() {
             <ErrorBoundary>
               <DockLayout 
                  consolePanel={<GcodeConsole />}
-                 droPanel={<DRO />}
-                 jogPanel={<JogPanel />}
-                 managerPanel={<FluidNCManager />}
+                  controlsPanel={<ControlsPanel />}
+                  managerPanel={<FluidNCManager />}
                  fileManagerPanel={<FileManager />}
                  statsPanel={<StatsPanel />}
                  probePanel={<ProbePanel />}
+                 aiPanel={<AIPanel />}
               />
             </ErrorBoundary>
           </div>

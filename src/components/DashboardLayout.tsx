@@ -3,23 +3,21 @@ import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'reac
 // useDefaultLayout is not exported from the main index? d.ts showed it export declare function useDefaultLayout.
 // Let's assume it is exported. If not, I'll remove it for now.
 import { useLayoutStore } from '../stores/layoutStore';
-import { Terminal, Activity, Settings2, Move } from 'lucide-react';
+import { Terminal, Activity, Settings2 } from 'lucide-react';
 
 interface DashboardLayoutProps {
   console: ReactNode;
-  dro: ReactNode;
+  controls: ReactNode;
   manager: ReactNode;
-  jog: ReactNode;
 }
 
-export function DashboardLayout({ console, dro, manager, jog }: DashboardLayoutProps) {
+export function DashboardLayout({ console, controls, manager }: DashboardLayoutProps) {
   const { panels } = useLayoutStore();
 
   // Determine active panels to calculate default sizes or render logic
   const activePanels = [
     panels.console && { id: 'console', content: console, icon: <Terminal className="w-4 h-4" />, title: 'Console' },
-    panels.dro && { id: 'dro', content: dro, icon: <Activity className="w-4 h-4" />, title: 'DRO' },
-    panels.jog && { id: 'jog', content: jog, icon: <Move className="w-4 h-4" />, title: 'Jog Control' },
+    panels.controls && { id: 'controls', content: controls, icon: <Activity className="w-4 h-4" />, title: 'Controls' },
     panels.manager && { id: 'manager', content: manager, icon: <Settings2 className="w-4 h-4" />, title: 'FluidNC' },
   ].filter(Boolean) as { id: string; content: ReactNode; icon: ReactNode; title: string }[];
 
