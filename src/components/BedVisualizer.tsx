@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { listen } from '@tauri-apps/api/event';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -15,37 +16,40 @@ const BED_SIZE_Y = 300;
 // ─── Spindle Component ─────────────────────────────────────────────────────
 
 function Spindle() {
-  const spindleRef = useRef<THREE.Mesh>(null);
+  const spindleRef = useRef<THREE.Group>(null);
+  const { machine } = useMachineStatusStore();
   
-  // Simulate movement using useFrame
-  useFrame(({ clock }) => {
+  // Note: In CNC coordinate systems usually Z is up. 
+  // In Three.js: Y is up. We map CNC Z -> Three Y, CNC Y -> Three -Z
+  // CNC X -> Three X
+
+  useFrame(() => {
     if (!spindleRef.current) return;
-    const t = clock.getElapsedTime() * 0.5; // Speed multiplier
     
-    // Simulate drawing a circle-ish path overlapping the bed
-    const x = Math.sin(t) * 100; // Radius 100
-    const y = Math.max(10, Math.sin(t * 3) * 20 + 20); // Bounce Z height (mapped to Y in ThreeJS)
-    const z = Math.cos(t) * 100;
-    
-    // Note: In CNC coordinate systems usually Z is up. 
-    // In Three.js: Y is up. We map CNC Z -> Three Y, CNC Y -> Three -Z
-    spindleRef.current.position.set(x, y, z);
+    // Use Machine Position (Absolute)
+    // CNC X -> Three X
+    // CNC Z -> Three Y (Up)
+    // CNC Y -> Three -Z (Depth)
+    spindleRef.current.position.set(
+      machine.x.mpos, 
+      machine.z.mpos, 
+      -machine.y.mpos
+    );
   });
 
   return (
-    <mesh ref={spindleRef}>
+    <group ref={spindleRef}>
       {/* A simple cone pointing downwards to represent the tool */}
-      <coneGeometry args={[5, 15, 16]} />
-      {/* Shift cone geometry up so its tip is exactly at the position coordinate */}
-      <meshStandardMaterial color="#3b82f6" roughness={0.4} metalness={0.8} />
-      {/* Center offset */}
-      <group position={[0, 7.5, 0]}> 
-        <mesh>
-          <coneGeometry args={[5, 15, 16]} />
-          <meshStandardMaterial color="#3b82f6" roughness={0.4} metalness={0.8} />
-        </mesh>
-      </group>
-    </mesh>
+      <mesh position={[0, 7.5, 0]}>
+        <coneGeometry args={[5, 15, 16]} />
+        <meshStandardMaterial color="#3b82f6" roughness={0.4} metalness={0.8} />
+      </mesh>
+      {/* Visual Indicator of the tip */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+      </mesh>
+    </group>
   );
 }
 
@@ -132,7 +136,7 @@ function AutolevelMesh() {
     
     // Shift it so its bottom-left is at (min_x, min_y) instead of (-width/2, -height/2)
     const offsetX = mapData.min_x + width / 2;
-    const offsetZ = mapData.min_y + height / 2; // Z in Three.js corresponds to Y on the CNC table
+    const offsetZ = -(mapData.min_y + height / 2); // Invert Y for depth
 
     geo.translate(offsetX, 0, offsetZ);
 
@@ -209,6 +213,7 @@ function AutolevelMesh() {
 // ─── Main Visualizer ───────────────────────────────────────────────────────
 
 export function BedVisualizer() {
+  const { machine } = useMachineStatusStore();
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas 
@@ -224,16 +229,17 @@ export function BedVisualizer() {
           makeDefault 
           enableDamping
           dampingFactor={0.05}
-          maxPolarAngle={Math.PI / 2 - 0.05} // Prevent camera from going completely under the bed
+          maxPolarAngle={Math.PI / 2 - 0.05}
+          target={[150, 0, -150]} // Focus on the center of the 300x300 bed
         />
 
         {/* Global coordinate axes (length = 50) */}
-        <axesHelper args={[50]} />
+        <axesHelper args={[100]} />
 
         {/* Grid representing the bed limits */}
         <Grid 
           args={[BED_SIZE_X, BED_SIZE_Y]} 
-          position={[0, 0, 0]}
+          position={[150, 0, -150]}
           cellSize={10} 
           cellThickness={1} 
           cellColor="#6b7280" 
@@ -254,13 +260,27 @@ export function BedVisualizer() {
         <h3 className="text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-1">Live View</h3>
         <div className="flex flex-col gap-0.5 text-xs font-mono text-[var(--text-secondary)]">
            <span>Bed Size: {BED_SIZE_X}x{BED_SIZE_Y}mm</span>
-           <div className="flex items-center gap-1.5 mt-1">
+           <div className="mt-2 pt-2 border-t border-[var(--border-color)] space-y-1">
+             <div className="flex justify-between gap-4">
+                <span className="text-[var(--text-tertiary)]">MPos X:</span>
+                <span className="text-[var(--accent-primary)]">{machine.x.mpos.toFixed(2)}</span>
+             </div>
+             <div className="flex justify-between gap-4">
+                <span className="text-[var(--text-tertiary)]">MPos Y:</span>
+                <span className="text-[var(--accent-primary)]">{machine.y.mpos.toFixed(2)}</span>
+             </div>
+             <div className="flex justify-between gap-4">
+                <span className="text-[var(--text-tertiary)]">MPos Z:</span>
+                <span className="text-[var(--accent-primary)]">{machine.z.mpos.toFixed(2)}</span>
+             </div>
+           </div>
+           <div className="flex items-center gap-1.5 mt-2 opacity-50">
              <div className="w-2 h-2 rounded-full bg-red-400" /> X Axis
            </div>
-           <div className="flex items-center gap-1.5">
+           <div className="flex items-center gap-1.5 opacity-50">
              <div className="w-2 h-2 rounded-full bg-green-400" /> Y Axis
            </div>
-           <div className="flex items-center gap-1.5">
+           <div className="flex items-center gap-1.5 opacity-50">
              <div className="w-2 h-2 rounded-full bg-blue-400" /> Z Axis
            </div>
         </div>

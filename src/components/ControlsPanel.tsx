@@ -15,7 +15,7 @@ import { AlarmIndicator } from './AlarmIndicator';
 
 export function ControlsPanel() {
   const { settings } = useSettingsStore();
-  const { setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
+  const { hasHomed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine } = useMachineStatusStore();
 
   // Jog State
@@ -142,7 +142,7 @@ export function ControlsPanel() {
     <div className="h-full flex flex-col gap-5 p-4 max-w-4xl mx-auto w-full min-w-[350px] overflow-y-auto custom-scrollbar">
         {/* Connection & Status Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <AlarmIndicator />
                 <Tooltip content="Current Machine State" position="bottom">
                     <div className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-base tracking-wide shadow-sm flex items-center gap-2 shrink-0 ${getStatusColor(state.status)}`}>
@@ -150,16 +150,20 @@ export function ControlsPanel() {
                         {state.status}
                     </div>
                 </Tooltip>
-                <Tooltip content="Home All Axis ($H)" position="bottom">
+                <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
                     <button 
                         onClick={() => sendGcode('$H')}
-                        className="p-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
+                        className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
+                            hasHomed 
+                            ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                            : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
+                        }`}
                     >
                         <Home className="w-4 h-4" />
-                        Home
+                        {hasHomed ? "Homed" : "Home"}
                     </button>
                 </Tooltip>
-             </div>
+              </div>
  
              <div className="flex gap-4 text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] ml-auto shrink-0 shadow-sm">
                  <Tooltip content="Feed Rate (mm/min)" position="bottom">
