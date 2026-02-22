@@ -1,12 +1,15 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Line } from '@react-three/drei';
+import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';
+import { Plus, Minus } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { listen } from '@tauri-apps/api/event';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { useToolStore } from '../stores/toolStore';
+import { useThemeStore } from '../stores/themeStore';
+import { Tooltip } from './ui/Tooltip';
 
 // ─── Spindle Component ─────────────────────────────────────────────────────
 
@@ -444,6 +447,27 @@ function SceneContent() {
 export function BedVisualizer() {
   const { machine } = useMachineStatusStore();
   const { settings } = useSettingsStore();
+  const theme = useThemeStore(state => state.theme);
+  const controlsRef = useRef<any>(null);
+
+  const handleZoom = (direction: 'in' | 'out') => {
+    if (controlsRef.current) {
+      const scale = direction === 'in' ? 0.8 : 1.2;
+      const camera = controlsRef.current.object;
+      const target = controlsRef.current.target;
+
+      if (camera.isPerspectiveCamera) {
+        // Move camera closer/further along the vector to the target
+        const offset = new THREE.Vector3().subVectors(camera.position, target);
+        offset.multiplyScalar(scale);
+        camera.position.addVectors(target, offset);
+      } else {
+        // For orthographic camera
+        camera.zoom /= scale;
+        camera.updateProjectionMatrix();
+      }
+    }
+  };
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas 
@@ -465,6 +489,7 @@ export function BedVisualizer() {
         <pointLight position={[-100, 100, -100]} intensity={0.6} />
         
         <OrbitControls 
+          ref={controlsRef}
           makeDefault 
           enableDamping
           dampingFactor={0.05}
@@ -472,36 +497,77 @@ export function BedVisualizer() {
           target={[settings.general.bedSizeX / 4, 0, -settings.general.bedSizeY / 4]} 
         />
 
+        <GizmoHelper
+          alignment="bottom-right"
+          margin={[60, 140]}
+        >
+          <GizmoViewcube 
+            opacity={1}
+            color={theme === 'dark' ? "#1e293b" : "#f1f5f9"}
+            strokeColor={theme === 'dark' ? "#334155" : "#cbd5e1"}
+            textColor={theme === 'dark' ? "#f8fafc" : "#0f172a"}
+            hoverColor="rgba(59, 130, 246, 0.5)"
+            font="bold 24px Inter, sans-serif"
+          />
+        </GizmoHelper>
+
         <SceneContent />
       </Canvas>
+
+      {/* Zoom Controls */}
+      <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 z-10">
+        <Tooltip content="Zoom In" position="right">
+          <button 
+            onClick={() => handleZoom('in')}
+            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Zoom Out" position="right">
+          <button 
+            onClick={() => handleZoom('out')}
+            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+      </div>
       
-      {/* Quick HUD overlay for context */}
-      <div className="absolute top-4 left-4 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-sm border border-[var(--border-color)] px-3 py-2 rounded-lg shadow-sm">
-        <h3 className="text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-1">Live View</h3>
-        <div className="flex flex-col gap-0.5 text-xs font-mono text-[var(--text-secondary)]">
-           <span>Bed Size: {settings.general.bedSizeX}x{settings.general.bedSizeY}mm</span>
-           <div className="mt-2 pt-2 border-t border-[var(--border-color)] space-y-1">
-             <div className="flex justify-between gap-4">
-                <span className="text-[var(--text-tertiary)]">MPos X:</span>
-                <span className="text-[var(--accent-primary)]">{machine.x.mpos.toFixed(2)}</span>
-             </div>
-             <div className="flex justify-between gap-4">
-                <span className="text-[var(--text-tertiary)]">MPos Y:</span>
-                <span className="text-[var(--accent-primary)]">{machine.y.mpos.toFixed(2)}</span>
-             </div>
-             <div className="flex justify-between gap-4">
-                <span className="text-[var(--text-tertiary)]">MPos Z:</span>
-                <span className="text-[var(--accent-primary)]">{machine.z.mpos.toFixed(2)}</span>
-             </div>
+      {/* Quick HUD overlay - Now moved to the bottom horizontal bar */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-xl shadow-lg flex items-center gap-6 z-10 transition-all">
+        <div className="flex flex-col border-r border-[var(--border-color)]/30 pr-4">
+          <h3 className="text-[9px] font-bold text-[var(--accent-primary)] uppercase tracking-widest leading-tight">Live View</h3>
+          <span className="text-[9px] font-mono text-[var(--text-tertiary)] whitespace-nowrap">{settings.general.bedSizeX}×{settings.general.bedSizeY}mm</span>
+        </div>
+
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">X</span>
+            <span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.x.mpos.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Y</span>
+            <span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.y.mpos.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Z</span>
+            <span className="text-xs font-mono font-bold text-[var(--accent-primary)] min-w-[50px]">{machine.z.mpos.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-l border-[var(--border-color)]/30 pl-4">
+           <div className="flex items-center gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
+             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span>
            </div>
-           <div className="flex items-center gap-1.5 mt-2 opacity-80">
-             <div className="w-2 h-2 rounded-full bg-red-500" /> X Axis (Right)
+           <div className="flex items-center gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-blue-500/80" />
+             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Y</span>
            </div>
-           <div className="flex items-center gap-1.5 opacity-80">
-             <div className="w-2 h-2 rounded-full bg-blue-500" /> Y Axis (Rear)
-           </div>
-           <div className="flex items-center gap-1.5 opacity-80">
-             <div className="w-2 h-2 rounded-full bg-green-500" /> Z Axis (Up)
+           <div className="flex items-center gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
+             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Z</span>
            </div>
         </div>
       </div>
