@@ -173,6 +173,7 @@ function ConfigEditor() {
         try {
             await invoke('upload_fluidnc_file', { 
                 url: uploadUrl, 
+                target_path: "/",
                 filename: activeFilename, 
                 content: config 
             });

@@ -4,6 +4,7 @@ import 'dockview/dist/styles/dockview.css';
 import { BedVisualizer } from './BedVisualizer';
 import { useSettingsStore } from '../stores/settingsStore';
 import { AutoLevelPanel } from './AutoLevelPanel';
+import { MacrosPanel } from './MacrosPanel';
 import "./DockLayout.css"; 
 
 interface DockLayoutProps {
@@ -14,6 +15,8 @@ interface DockLayoutProps {
   statsPanel: ReactNode;
   probePanel: ReactNode;
   aiPanel: ReactNode;
+  workpiecePanel: ReactNode;
+  toolsPanel: ReactNode;
 }
 
 // Context to provide panel content to wrapper components
@@ -76,6 +79,22 @@ const AIPanelWrapper = () => {
     }
     return <div className="h-full w-full overflow-hidden">{ctx.aiPanel}</div>;
 }
+const WorkpiecePanelWrapper = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in WorkpiecePanelWrapper!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full overflow-hidden">{ctx.workpiecePanel}</div>;
+}
+const ToolsPanelWrapper = () => {
+    const ctx = useContext(DockLayoutContext);
+    if (!ctx) {
+        console.error("DockLayoutContext is missing in ToolsPanelWrapper!");
+        return <div className="text-red-500 p-4">Error: Context Missing</div>;
+    }
+    return <div className="h-full w-full overflow-hidden">{ctx.toolsPanel}</div>;
+}
 
 // Placeholder Panel wrapper for unimplemented features
 const PlaceholderPanel = ({ title }: { title: string }) => (
@@ -116,8 +135,8 @@ export function DockLayout(props: DockLayoutProps) {
 
           // Special constraints (relaxed)
           if (panelData.id === 'controls') {
-              panelConfig.minimumWidth = 300;
-              panelConfig.minimumHeight = 500;
+              panelConfig.minimumWidth = 420;
+              panelConfig.minimumHeight = 600;
           }
 
           if (index === 0) {
@@ -146,7 +165,9 @@ export function DockLayout(props: DockLayoutProps) {
       stats: StatsPanelWrapper,
       probe: ProbePanelWrapper,
       ai: AIPanelWrapper,
-      macros: () => <PlaceholderPanel title="Macros" />,
+      workpiece: WorkpiecePanelWrapper,
+      tools: ToolsPanelWrapper,
+      macros: MacrosPanel,
       toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
       visualizer: BedVisualizer,
       autolevel: AutoLevelPanel,
@@ -220,8 +241,8 @@ export function DockLayout(props: DockLayoutProps) {
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
             // Re-open panel
-            const minH = id === 'controls' ? 500 : 100;
-            const minW = id === 'controls' ? 300 : 100;
+            const minH = id === 'controls' ? 600 : 100;
+            const minW = id === 'controls' ? 420 : 100;
 
             api.addPanel({
                 id: id,

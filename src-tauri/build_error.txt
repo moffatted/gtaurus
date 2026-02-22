@@ -1,0 +1,15 @@
+    Checking gtaurus v0.1.0 (C:\Users\moffa\projects\gtaurus-app\src-tauri)
+error[E0599]: no method named `delete_password` found for struct `keyring::Entry` in the current scope
+  --> src\ai\mod.rs:98:27
+   |
+98 |             let _ = entry.delete_password(); // Cleanup
+   |                           ^^^^^^^^^^^^^^^
+   |
+help: there is a method `get_password` with a similar name
+   |
+98 -             let _ = entry.delete_password(); // Cleanup
+98 +             let _ = entry.get_password(); // Cleanup
+   |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `gtaurus` (lib) due to 1 previous error

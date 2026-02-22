@@ -5,18 +5,68 @@ import {
   Activity, Move, Zap, Home, Play, Pause, XCircle, Target,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  RotateCcw
+  RotateCcw, Eye, Trash2, FileCode, AlertTriangle
 } from 'lucide-react';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStore } from '../stores/machineStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
+import { useGcodeStore } from '../stores/gcodeStore';
+import { useToolStore } from '../stores/toolStore';
 import { Tooltip } from './ui/Tooltip';
 import { AlarmIndicator } from './AlarmIndicator';
 
 export function ControlsPanel() {
   const { settings } = useSettingsStore();
-  const { hasHomed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
+  const { hasHomed, hasZeroed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
+  const { 
+    gcode, activeFileName, activeFilePath, fileToolNumber,
+    simulate, cancelSimulation, isSimulating, simulationSpeed, setSimulationSpeed,
+    clearSimulation, clearActualPath 
+  } = useGcodeStore();
+  const { tools, activeToolId } = useToolStore();
+
+  // No longer resetting gcode/prerequisites on Disconnected status to allow 
+  // persistence through transient connection drops. Interaction remains restricted
+  // via isIdle/isRun/isHold derived from status.
+
+  const isIdle = state.status.startsWith('Idle');
+  const isHold = state.status.startsWith('Hold');
+  const isRun = state.status.startsWith('Run');
+
+  const activeTool = tools.find(t => t.id === activeToolId);
+  const toolMismatch = fileToolNumber !== null && (!activeTool || activeTool.number !== fileToolNumber);
+
+  const handleStart = async () => {
+    if (isHold) {
+       invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
+    } else if (isIdle && activeFilePath) {
+        // 1. Tool Safety Check
+        if (fileToolNumber !== null) {
+            const activeTool = tools.find(t => t.id === activeToolId);
+            if (!activeTool || activeTool.number !== fileToolNumber) {
+                const confirmed = await ask(
+                    `The G-code file requests Tool T${fileToolNumber}, but the active tool in Gtaurus is ${activeTool ? `T${activeTool.number} (${activeTool.name})` : 'None'}.\n\nAre you sure you want to proceed with the WRONG tool?`,
+                    { 
+                        title: 'Tool Mismatch Warning',
+                        kind: 'warning',
+                        okLabel: 'Proceed Anyway',
+                        cancelLabel: 'Cancel Job'
+                    }
+                );
+                if (!confirmed) return;
+            }
+        }
+
+        try {
+            await invoke('stream_local_gcode', { path: activeFilePath });
+        } catch (err) {
+            console.error("Failed to start stream:", err);
+            alert("Streaming failed to start.");
+        }
+    }
+  };
 
   // Jog State
   const [stepSize, setStepSize] = useState<number>(10);
@@ -44,8 +94,8 @@ export function ControlsPanel() {
           
           const nextUpdate: any = { status: parts[0] };
 
-          if (parts[0] === 'Home') setHasHomed(true);
-          if (parts[0] === 'Alarm') resetPrerequisites();
+          if (parts[0].startsWith('Home')) setHasHomed(true);
+          if (parts[0].startsWith('Alarm')) resetPrerequisites();
           
           parts.slice(1).forEach((part) => {
               const [key, val] = part.split(':');
@@ -103,6 +153,7 @@ export function ControlsPanel() {
   };
 
   const handleJog = (x: number, y: number, z: number) => {
+    if (!isIdle) return;
     let cmd = `$J=G91 G21 F${jogFeedRate}`;
     if (x !== 0) cmd += ` X${(x * stepSize).toFixed(3)}`;
     if (y !== 0) cmd += ` Y${(y * stepSize).toFixed(3)}`;
@@ -113,27 +164,32 @@ export function ControlsPanel() {
   const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
       const wpos = mpos - wco;
       return (
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-3 flex flex-col gap-1 shadow-sm min-w-0">
-            <div className="flex justify-between items-baseline mb-0.5">
-                <span className="text-xl font-bold font-mono text-[var(--accent-primary)] shrink-0">{label}</span>
-                <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Axis</span>
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-2.5 flex flex-col gap-0.5 shadow-sm min-w-0">
+            <div className="flex justify-between items-baseline mb-0">
+                <span className="text-lg font-bold font-mono text-[var(--accent-primary)] shrink-0">{label}</span>
+                <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Axis</span>
             </div>
             
-            <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-1.5 mb-1.5 min-w-0 gap-2">
-                 <span className="text-2xl font-mono text-[var(--text-primary)] tracking-tight truncate flex-1">
+            <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-1 mb-1 min-w-0 gap-2">
+                 <span className="text-xl font-mono text-[var(--text-primary)] tracking-tight truncate flex-1">
                     {wpos.toFixed(3)}
                  </span>
-                 <Tooltip content={`Zero ${label} Axis`} position="left">
+                 <Tooltip content={isIdle ? `Zero ${label} Axis` : "Cannot zero while machine is busy"} position="left">
                     <button 
                         onClick={() => { sendGcode(`G10 L20 P1 ${label}0`); setHasZeroed(true); }}
-                        className="p-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white rounded-lg transition-all shadow-sm shrink-0"
+                        disabled={!isIdle}
+                        className={`p-1 border rounded-lg transition-all shadow-sm shrink-0 ${
+                            isIdle 
+                            ? "bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white" 
+                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                        }`}
                     >
-                        <Target className="w-4 h-4" />
+                        <Target className="w-3.5 h-3.5" />
                     </button>
                  </Tooltip>
             </div>
 
-             <div className="flex justify-between items-center text-xs text-[var(--text-secondary)] font-mono">
+             <div className="flex justify-between items-center text-[10px] text-[var(--text-secondary)] font-mono">
                  <span>{mpos.toFixed(3)}</span>
                  <Tooltip content="Machine Position (Absolute)" position="left">
                     <span className="text-[var(--text-tertiary)] cursor-help border-b border-dotted border-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">MPos</span>
@@ -146,7 +202,7 @@ export function ControlsPanel() {
   const jogBtnClass = "p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--accent-primary)] active:bg-[var(--accent-primary)] active:text-white transition-all duration-150 flex items-center justify-center shadow-sm";
 
   return (
-    <div className="h-full flex flex-col gap-5 p-4 max-w-4xl mx-auto w-full min-w-[350px] overflow-y-auto custom-scrollbar">
+    <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[420px] overflow-y-auto custom-scrollbar">
         {/* Connection & Status Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3">
@@ -157,19 +213,29 @@ export function ControlsPanel() {
                         {state.status}
                     </div>
                 </Tooltip>
-                <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
-                    <button 
-                        onClick={() => sendGcode('$H')}
-                        className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
-                            hasHomed 
-                            ? "bg-green-500/10 text-green-400 border-green-500/30" 
-                            : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
-                        }`}
-                    >
-                        <Home className="w-4 h-4" />
-                        {hasHomed ? "Homed" : "Home"}
-                    </button>
-                </Tooltip>
+                <div className="flex flex-col">
+                    {activeFileName && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-t border-x border-t border-[var(--accent-primary)]/20 truncate max-w-[140px]">
+                            <FileCode className="w-3 h-3" />
+                            {activeFileName}
+                        </div>
+                    )}
+                    <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
+                        <button 
+                            onClick={() => sendGcode('$H')}
+                            className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
+                                activeFileName ? "rounded-t-none border-t-0" : ""
+                            } ${
+                                hasHomed 
+                                ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                                : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
+                            }`}
+                        >
+                            <Home className="w-4 h-4" />
+                            {hasHomed ? "Homed" : "Home"}
+                        </button>
+                    </Tooltip>
+                </div>
               </div>
  
              <div className="flex gap-4 text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] ml-auto shrink-0 shadow-sm">
@@ -190,54 +256,138 @@ export function ControlsPanel() {
         </div>
 
         {/* Axis Display */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 shrink-0">
             <AxisCard label="X" mpos={state.x.mpos} wco={state.x.wco} />
             <AxisCard label="Y" mpos={state.y.mpos} wco={state.y.wco} />
             <AxisCard label="Z" mpos={state.z.mpos} wco={state.z.wco} />
         </div>
 
         {/* Control Groups */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 shrink-0">
             {/* Job Controls */}
             <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
-                <button 
-                    onClick={() => sendRealtime(0x7E)} 
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30 rounded-lg transition-colors font-bold text-xs"
-                    title="Cycle Start (~)"
+                <Tooltip 
+                    content={
+                        !activeFileName ? "Load a file first" :
+                        !hasHomed ? "Machine must be Homed ($H)" :
+                        !hasZeroed ? "Set Work Zero first (Zero All/XY)" :
+                        !isIdle && !isHold ? `Machine is ${state.status}` :
+                        isHold ? "Resume Job (~)" : "Start Job"
+                    } 
+                    position="top"
                 >
-                    <Play className="w-4 h-4" />
-                    Start
-                </button>
-                <button 
-                    onClick={() => sendRealtime(0x21)} 
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg transition-colors font-bold text-xs"
-                    title="Feed Hold (!)"
+                    <button 
+                        onClick={handleStart} 
+                        disabled={!activeFileName || (!isIdle && !isHold) || !hasHomed || !hasZeroed}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-bold text-xs ${
+                            activeFileName && (isIdle || isHold) && hasHomed && hasZeroed
+                            ? "bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/30" 
+                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                        }`}
+                    >
+                        <Play className="w-4 h-4" />
+                        {isHold ? "Resume" : "Start"}
+                    </button>
+                </Tooltip>
+                
+                <Tooltip content={!isRun ? "Machine is not running" : "Pause Job (!)"} position="top">
+                    <button 
+                        onClick={() => sendRealtime(0x21)} 
+                        disabled={!isRun}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-bold text-xs ${
+                            isRun
+                            ? "bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border-yellow-500/30" 
+                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                        }`}
+                    >
+                        <Pause className="w-4 h-4" />
+                        Pause
+                    </button>
+                </Tooltip>
+
+                <Tooltip content={!isRun && !isHold ? "Nothing to stop" : "Terminate Job / Reset (CTRL-X)"} position="top">
+                    <button 
+                        onClick={() => sendRealtime(0x18)} 
+                        disabled={!isRun && !isHold}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-bold text-xs ${
+                            isRun || isHold
+                            ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/30" 
+                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                        }`}
+                    >
+                        <XCircle className="w-4 h-4" />
+                        Stop
+                    </button>
+                </Tooltip>
+                <div className="w-px h-6 bg-[var(--border-color)] mx-1" />
+                
+                <Tooltip 
+                    content={
+                        !activeFileName ? "Load a file first" :
+                        !gcode ? "File content is empty" :
+                        !isIdle && !isSimulating ? "Cannot simulate while machine is busy" :
+                        isSimulating ? "Stop simulation" :
+                        "Pre-calculate 3D toolpath"
+                    } 
+                    position="top"
                 >
-                    <Pause className="w-4 h-4" />
-                    Pause
-                </button>
-                <button 
-                    onClick={() => sendRealtime(0x18)} 
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors font-bold text-xs"
-                    title="Reset (CTRL-X)"
-                >
-                    <XCircle className="w-4 h-4" />
-                    Stop
-                </button>
+                    <button 
+                        onClick={() => isSimulating ? cancelSimulation() : simulate()} 
+                        disabled={!gcode || !activeFileName || (!isIdle && !isSimulating)}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 border rounded-lg transition-colors font-bold text-xs ${
+                            isSimulating
+                            ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-400/30 animate-pulse"
+                            : gcode && activeFileName && isIdle
+                            ? "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/30" 
+                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                        }`}
+                    >
+                        {isSimulating ? (
+                            <>
+                                <XCircle className="w-4 h-4" />
+                                Stop Sim
+                            </>
+                        ) : (
+                            <>
+                                <Eye className="w-4 h-4" />
+                                Sim
+                            </>
+                        )}
+                    </button>
+                </Tooltip>
+                
+                <Tooltip content="Clear visualized paths" position="top">
+                    <button 
+                        onClick={() => { clearSimulation(); clearActualPath(); }} 
+                        className="p-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-red-400 border border-[var(--border-color)] rounded-lg transition-all"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </Tooltip>
             </div>
 
             {/* Zero Controls */}
             <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
                 <button 
                     onClick={() => { sendGcode('G10 L20 P1 X0 Y0 Z0'); setHasZeroed(true); }}
-                    className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
+                    disabled={!isIdle}
+                    className={`flex-1 py-2 border rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2 ${
+                        isIdle 
+                        ? "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border-[var(--border-color)]" 
+                        : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                    }`}
                 >
                     <Target className="w-4 h-4" />
                     Zero All
                 </button>
                 <button 
                     onClick={() => { sendGcode('G10 L20 P1 X0 Y0'); setHasZeroed(true); }}
-                    className="flex-1 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border border-[var(--border-color)] rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2"
+                    disabled={!isIdle}
+                    className={`flex-1 py-2 border rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2 ${
+                        isIdle 
+                        ? "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] border-[var(--border-color)]" 
+                        : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
+                    }`}
                 >
                     <Target className="w-4 h-4" />
                     Zero XY
@@ -248,8 +398,8 @@ export function ControlsPanel() {
         <div className="border-t border-[var(--border-color)] w-full opacity-50 my-1" />
 
         {/* Jog Controls */}
-        <div className="flex flex-col gap-6 select-none bg-[var(--bg-secondary)]/30 p-4 rounded-2xl border border-[var(--border-color)]">
-            <div className="flex flex-wrap gap-6 items-start justify-between">
+        <div className="flex flex-col gap-4 select-none bg-[var(--bg-secondary)]/30 p-3 rounded-2xl border border-[var(--border-color)]">
+            <div className="flex flex-wrap gap-4 items-start justify-between">
                 {/* Left: Step & Feed */}
                 <div className="flex flex-col gap-4 flex-1 min-w-[200px]">
                     <div className="space-y-2">
@@ -296,31 +446,81 @@ export function ControlsPanel() {
                 {/* Right: The Pads */}
                 <div className="flex flex-col md:flex-row gap-8 items-center justify-center flex-shrink-0">
                     {/* XY Pad */}
-                    <div className="grid grid-cols-3 gap-2 w-40 h-40">
-                        <button className={jogBtnClass} onClick={() => handleJog(-1, 1, 0)}><ArrowUpLeft className="w-4 h-4" /></button>
-                        <button className={jogBtnClass} onClick={() => handleJog(0, 1, 0)}><ArrowUp className="w-4 h-4" /></button>
-                        <button className={jogBtnClass} onClick={() => handleJog(1, 1, 0)}><ArrowUpRight className="w-4 h-4" /></button>
+                     <div className="grid grid-cols-3 gap-2 w-40 h-40">
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, 1, 0)}><ArrowUpLeft className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 1, 0)}><ArrowUp className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, 1, 0)}><ArrowUpRight className="w-4 h-4" /></button>
                         
-                        <button className={jogBtnClass} onClick={() => handleJog(-1, 0, 0)}><ArrowLeft className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, 0, 0)}><ArrowLeft className="w-4 h-4" /></button>
                         <div className="flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full border-2 border-[var(--border-color)] opacity-20" />
                         </div>
-                        <button className={jogBtnClass} onClick={() => handleJog(1, 0, 0)}><ArrowRight className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, 0, 0)}><ArrowRight className="w-4 h-4" /></button>
                         
-                        <button className={jogBtnClass} onClick={() => handleJog(-1, -1, 0)}><ArrowDownLeft className="w-4 h-4" /></button>
-                        <button className={jogBtnClass} onClick={() => handleJog(0, -1, 0)}><ArrowDown className="w-4 h-4" /></button>
-                        <button className={jogBtnClass} onClick={() => handleJog(1, -1, 0)}><ArrowDownRight className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, -1, 0)}><ArrowDownLeft className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, -1, 0)}><ArrowDown className="w-4 h-4" /></button>
+                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, -1, 0)}><ArrowDownRight className="w-4 h-4" /></button>
                     </div>
 
                     {/* Z Pad */}
                     <div className="flex flex-col gap-2 w-12 h-40 justify-between">
                         <Tooltip content="Z+" position="left">
-                            <button className={`${jogBtnClass} flex-1`} onClick={() => handleJog(0, 0, 1)}><ArrowUp className="w-5 h-5" /></button>
+                            <button disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 0, 1)}><ArrowUp className="w-5 h-5" /></button>
                         </Tooltip>
                         <div className="text-[10px] font-bold text-center text-[var(--accent-primary)] uppercase">Z</div>
                         <Tooltip content="Z-" position="left">
-                            <button className={`${jogBtnClass} flex-1`} onClick={() => handleJog(0, 0, -1)}><ArrowDown className="w-5 h-5" /></button>
+                            <button disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 0, -1)}><ArrowDown className="w-5 h-5" /></button>
                         </Tooltip>
+                    </div>
+                </div>
+            </div>
+
+            {/* Sim Speed & Status Bar */}
+            <div className="mt-1 pt-3 border-t border-[var(--border-color)]/30 flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    {/* Sim Speed Control */}
+                    <div className="flex-1 min-w-[200px] group">
+                        <div className="flex justify-between items-center mb-1.5 px-0.5">
+                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider group-hover:text-[var(--accent-primary)] transition-colors">Simulation Speed</label>
+                            <span className="text-[10px] font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded">{simulationSpeed} <span className="text-[var(--text-tertiary)]">pts/sec</span></span>
+                        </div>
+                        <input 
+                            type="range" min="10" max="500" step="10" 
+                            value={simulationSpeed}
+                            onChange={(e) => setSimulationSpeed(parseInt(e.target.value))}
+                            className="accent-cyan-400 flex-1 w-full h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
+                        />
+                    </div>
+
+                    {/* Active File Status Bar */}
+                    <div className="flex-1 min-w-[250px] bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 flex items-center justify-between shadow-inner">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className={`p-1.5 rounded-lg ${activeFileName ? 'bg-cyan-500/10 text-cyan-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'}`}>
+                                <FileCode className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Active G-Code File</span>
+                                <span className="text-xs font-mono text-[var(--text-primary)] truncate">
+                                    {activeFileName || "No file selected"}
+                                </span>
+                            </div>
+                        </div>
+                        {activeFileName && (
+                            <div className="flex items-center gap-2 shrink-0">
+                                {toolMismatch && (
+                                    <Tooltip content={`Tool Mismatch: File requests T${fileToolNumber}, machine has ${activeTool ? 'T'+activeTool.number : 'None'}`}>
+                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/30 animate-pulse">
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                            Tool T{fileToolNumber}?
+                                        </div>
+                                    </Tooltip>
+                                )}
+                                <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Ready
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

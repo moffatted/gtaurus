@@ -147,6 +147,12 @@ export interface AiSettings {
   conciseMode: boolean;
 }
 
+export interface Macro {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export interface StockSettings {
   enabled: boolean;
   width: number;
@@ -180,6 +186,8 @@ export interface Settings {
   ai: AiSettings;
   // Stock / Workpiece
   stock: StockSettings;
+  // Macros
+  macros: Macro[];
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -189,7 +197,7 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "controls", label: "Controls", enabled: true, defaultWidth: 350 },
+  { id: "controls", label: "Controls", enabled: true, defaultWidth: 450 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
   { id: "manager", label: "FluidNC Manager", enabled: false, defaultWidth: 450 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
@@ -198,6 +206,8 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320 },
   { id: "macros", label: "Macros", enabled: false },
   { id: "toolchanger", label: "Tool Changer", enabled: false },
+  { id: "workpiece", label: "Workpiece", enabled: false },
+  { id: "tools", label: "Bit Library", enabled: false, defaultWidth: 400 },
   { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
   { id: "ai", label: "AI Assistant", enabled: false, defaultWidth: 350 },
 ];
@@ -300,6 +310,12 @@ export const DEFAULT_SETTINGS: Settings = {
     material: 'pine',
     opacity: 0.6,
   },
+  macros: [
+    { id: '1', name: 'Probe Z', content: 'G38.2 Z-50 F100\nG10 L20 P1 Z0\nG0 Z5' },
+    { id: '2', name: 'Start Spindle', content: 'M3 S12000' },
+    { id: '3', name: 'Stop Spindle', content: 'M5' },
+    { id: '4', name: 'Park Position', content: 'G0 G53 Z0\nG0 G53 X0 Y0' },
+  ],
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -378,6 +394,10 @@ interface SettingsStore {
   setAiSettings: (patch: Partial<AiSettings>) => void;
   // Stock
   setStockSettings: (patch: Partial<StockSettings>) => void;
+  // Macros
+  addMacro: (macro: Omit<Macro, 'id'>) => void;
+  updateMacro: (id: string, patch: Partial<Macro>) => void;
+  deleteMacro: (id: string) => void;
   // General
   resetSettings: () => void;
 }
@@ -431,7 +451,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
                   label: "Controls", 
                   enabled: wasEnabled, 
                   order: 0,
-                  defaultWidth: 350
+                  defaultWidth: 420 // Updated defaultWidth
               });
           } else {
               migratedPanels = migratedPanels.map(p => 
@@ -632,6 +652,31 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       void saveToStorage(next);
       return { settings: next };
     }),
+  addMacro: (m) => set((state) => {
+    const macro: Macro = { ...m, id: crypto.randomUUID() };
+    const next = {
+      ...state.settings,
+      macros: [...state.settings.macros, macro]
+    };
+    void saveToStorage(next);
+    return { settings: next };
+  }),
+  updateMacro: (id, patch) => set((state) => {
+    const next = {
+      ...state.settings,
+      macros: state.settings.macros.map(m => m.id === id ? { ...m, ...patch } : m)
+    };
+    void saveToStorage(next);
+    return { settings: next };
+  }),
+  deleteMacro: (id) => set((state) => {
+    const next = {
+      ...state.settings,
+      macros: state.settings.macros.filter(m => m.id !== id)
+    };
+    void saveToStorage(next);
+    return { settings: next };
+  }),
   resetSettings: () => {
     set({ settings: DEFAULT_SETTINGS });
     void saveToStorage(DEFAULT_SETTINGS);

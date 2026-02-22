@@ -1,0 +1,114 @@
+import { Play, FileCode, Zap } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { useSettingsStore, Macro } from "../stores/settingsStore";
+import { useMachineStatusStore } from "../stores/machineStatusStore";
+import clsx from "clsx";
+
+export function MacrosPanel() {
+    const { settings } = useSettingsStore();
+    const { machine } = useMachineStatusStore();
+    const connected = machine.status !== "Disconnected";
+
+    const runMacro = async (macro: Macro) => {
+        if (!connected) return;
+        
+        console.log(`[Macros] Running macro: ${macro.name}`);
+        const lines = macro.content.split('\n');
+        
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(';') || trimmed.startsWith('(')) continue;
+            
+            try {
+                // We await each line to ensure sequential execution and buffer safety
+                await invoke('send_gcode', { cmd: trimmed });
+            } catch (e) {
+                console.error(`[Macros] Error sending command "${trimmed}":`, e);
+                // We continue with other commands unless it's a critical error
+            }
+        }
+    };
+
+    return (
+        <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
+            <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Quick Macros</h2>
+                </div>
+                <div className={clsx(
+                    "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                    connected 
+                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" 
+                        : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)]"
+                )}>
+                    {connected ? "Ready" : "Offline"}
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-2">
+                {settings.macros.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-2.5">
+                        {settings.macros.map((macro) => (
+                            <button
+                                key={macro.id}
+                                onClick={() => runMacro(macro)}
+                                disabled={!connected}
+                                className={clsx(
+                                    "group w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200",
+                                    connected
+                                        ? "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-tertiary)] cursor-pointer"
+                                        : "bg-[var(--bg-secondary)]/50 border-[var(--border-color)] opacity-50 cursor-not-allowed"
+                                )}
+                            >
+                                <div className="flex items-center gap-3 text-left">
+                                    <div className={clsx(
+                                        "p-2 rounded-lg transition-colors",
+                                        connected 
+                                            ? "bg-[var(--bg-tertiary)] text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)] group-hover:text-white"
+                                            : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
+                                    )}>
+                                        <FileCode className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-[var(--text-primary)] leading-tight">{macro.name}</div>
+                                        <div className="text-[10px] text-[var(--text-tertiary)] font-mono mt-0.5 opacity-70">
+                                            {macro.content.split('\n').filter(l => l.trim() && !l.trim().startsWith(';') && !l.trim().startsWith('(')).length} commands
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className={clsx(
+                                    "p-2 rounded-full transition-all flex item-center justify-center",
+                                    connected 
+                                        ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)] group-hover:text-white"
+                                        : "bg-transparent text-[var(--text-tertiary)]"
+                                )}>
+                                    <Play className="w-3.5 h-3.5" />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 py-12">
+                        <div className="p-4 rounded-full bg-[var(--bg-tertiary)] mb-4">
+                            <Zap className="w-8 h-8 text-[var(--text-tertiary)] opacity-30" />
+                        </div>
+                        <p className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide">No Macros</p>
+                        <p className="text-xs text-[var(--text-tertiary)] mt-2 max-w-[180px] leading-relaxed">
+                            Configure your favorite G-code snippets in Settings to run them with one click.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <div className="p-3 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex-shrink-0">
+                <div className="flex items-start gap-2">
+                    <div className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
+                    <p className="text-[9px] text-[var(--text-tertiary)] italic leading-tight">
+                        Macros execute immediately. Inspect G-code in Settings before running to ensure machine safety.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}

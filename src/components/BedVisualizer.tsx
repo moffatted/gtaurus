@@ -5,78 +5,180 @@ import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { listen } from '@tauri-apps/api/event';
-
-// ─── Constants ─────────────────────────────────────────────────────────────
-
-// Mock machine dimensions (e.g., mm / 10 for scaling to a decent viewport view)
-// Let's assume a 300x300mm bed
-// No hardcoded constants, we use settings from the store
+import { useGcodeStore } from '../stores/gcodeStore';
+import { useToolStore } from '../stores/toolStore';
 
 // ─── Spindle Component ─────────────────────────────────────────────────────
 
 function Spindle() {
   const spindleRef = useRef<THREE.Group>(null);
+  const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
   
-  // Note: In CNC coordinate systems usually Z is up. 
-  // In Three.js: Y is up. We map CNC Z -> Three Y, CNC Y -> Three -Z
-  // CNC X -> Three X
+  // Get tool diameter
+  const activeToolId = useToolStore(state => state.activeToolId);
+  const tools = useToolStore(state => state.tools);
+  const activeTool = useMemo(() => tools.find(t => t.id === activeToolId), [tools, activeToolId]);
+  const toolRadius = (activeTool?.diameter || 3.175) / 2;
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!spindleRef.current) return;
     
-    // Direct store access inside useFrame for the most up-to-date state
-    const machine = useMachineStatusStore.getState().machine;
+    const { isSimulating, simPos } = useGcodeStore.getState();
+    const { machine } = useMachineStatusStore.getState();
     
-    // CNC X -> Three X
-    // CNC Z -> Three Y (Up)
-    // CNC Y -> Three -Z (Depth)
-    spindleRef.current.position.set(
-      machine.x.mpos, 
-      machine.z.mpos, 
-      -machine.y.mpos
-    );
+    let tx = machine.x.mpos;
+    let ty = machine.y.mpos;
+    let tz = machine.z.mpos;
+
+    if (isSimulating && simPos) {
+      tx = simPos.x;
+      ty = simPos.y;
+      tz = simPos.z;
+    }
+
+    const targetX = tx;
+    const targetY = tz + bedSizeZ; 
+    const targetZ = -ty;
+
+    const lerpSpeed = isSimulating ? 25 : 15;
+    const t = 1 - Math.exp(-lerpSpeed * delta);
+    
+    spindleRef.current.position.x = THREE.MathUtils.lerp(spindleRef.current.position.x, targetX, t);
+    spindleRef.current.position.y = THREE.MathUtils.lerp(spindleRef.current.position.y, targetY, t);
+    spindleRef.current.position.z = THREE.MathUtils.lerp(spindleRef.current.position.z, targetZ, t);
   });
 
   return (
     <group ref={spindleRef}>
-      {/* A simple cone pointing downwards to represent the tool */}
-      <mesh position={[0, 7.5, 0]}>
-        <coneGeometry args={[5, 15, 16]} />
-        <meshStandardMaterial color="#3b82f6" roughness={0.4} metalness={0.8} />
+      {/* Spindle Body - Sleek Metallic Silver */}
+      <group rotation={[Math.PI, 0, 0]}>
+        <mesh position={[0, -15, 0]} castShadow>
+          <cylinderGeometry args={[12, 11, 25, 32]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.6} />
+        </mesh>
+      </group>
+      
+      {/* Collet / Nut - Polished Steel */}
+      <mesh position={[0, 4, 0]} castShadow>
+        <cylinderGeometry args={[5, 6, 4, 6]} />
+        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.8} />
       </mesh>
-      {/* Visual Indicator of the tip */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[1, 16, 16]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+
+      {/* "Tool Bit" Cylinder - Tungsten/Carbide Metal */}
+      <mesh position={[0, 1.5, 0]} castShadow>
+        <cylinderGeometry args={[toolRadius, toolRadius, 10, 16]} />
+        <meshStandardMaterial color="#94a3b8" roughness={0.4} metalness={0.5} />
+      </mesh>
+
+      {/* Tool Tip Glow */}
+      <mesh position={[0, -3.5, 0]}>
+        <sphereGeometry args={[toolRadius + 0.2, 16, 16]} />
+        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1} transparent opacity={0.6} />
       </mesh>
     </group>
   );
 }
 
-// ─── Mock Toolpath ─────────────────────────────────────────────────────────
+// ─── Toolpath Components ───────────────────────────────────────────────────
+
 
 function Toolpath() {
-  // Generate a mock spiral toolpath array of Vector3 points
-  const points = useMemo(() => {
-    const pts = [];
-    for (let i = 0; i < 100; i++) {
-      const angle = 0.2 * i;
-      const x = (1 + angle) * Math.cos(angle);
-      const z = (1 + angle) * Math.sin(angle);
-      // Let's leave Y (Z-axis in CNC) at 0 for the cut path
-      pts.push(new THREE.Vector3(x, 0.5, z));
-    }
-    return pts;
-  }, []);
+  const simulatedPath = useGcodeStore(state => state.simulatedPath);
+  const actualPath = useGcodeStore(state => state.actualPath);
+
+  const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
+
+  // Convert GcodePoint to THREE.Vector3 array for Drei Line
+  // CNC X -> Three X
+  // CNC Y -> Three -Z
+  // CNC Z -> Three Y (Offset)
+  const simPoints = useMemo(() => 
+    simulatedPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
+  [simulatedPath, bedSizeZ]);
+
+  const actPoints = useMemo(() => 
+    actualPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
+  [actualPath, bedSizeZ]);
 
   return (
-    <Line
-      points={points}
-      color="#ef4444" 
-      lineWidth={2}
-      dashed={false}
-    />
+    <group>
+      {/* Simulation Path (Dashed) */}
+      {simPoints.length > 1 && (
+        <Line
+          points={simPoints}
+          color="#ef4444" // Red
+          lineWidth={1.5}
+          dashed
+          dashSize={5}
+          gapSize={3}
+          opacity={0.5}
+          transparent
+        />
+      )}
+
+      {/* Actual Cut Path (Solid) */}
+      {actPoints.length > 1 && (
+        <Line
+          points={actPoints}
+          color="#10b981" // Emerald Green
+          lineWidth={2.5}
+        />
+      )}
+    </group>
   );
+}
+
+/**
+ * Monitors machine position and adds to the actual path in the store
+ */
+function RealtimePathTracker() {
+  const addActualPoint = useGcodeStore(state => state.addActualPoint);
+  const recordUsage = useToolStore(state => state.recordUsage);
+  const activeToolId = useToolStore(state => state.activeToolId);
+  
+  const lastPosRef = useRef<{x: number, y: number, z: number} | null>(null);
+  const accumulatedTimeRef = useRef(0);
+  const accumulatedDistRef = useRef(0);
+
+  useFrame((_, delta) => {
+    const machine = useMachineStatusStore.getState().machine;
+    const isRunning = machine.status === 'Run' || machine.status === 'Jog' || machine.status === 'Home';
+    
+    if (isRunning) {
+      const curPos = { x: machine.x.mpos, y: machine.y.mpos, z: machine.z.mpos };
+      
+      // 1. Path Tracking
+      addActualPoint({
+        ...curPos,
+        isRapid: false
+      });
+
+      // 2. Usage Tracking (only if there's an active tool)
+      if (activeToolId) {
+          accumulatedTimeRef.current += delta;
+          
+          if (lastPosRef.current) {
+              const dx = curPos.x - lastPosRef.current.x;
+              const dy = curPos.y - lastPosRef.current.y;
+              const dz = curPos.z - lastPosRef.current.z;
+              const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+              accumulatedDistRef.current += dist;
+          }
+
+          // Commit to store periodically (every 2 seconds) to avoid overhead
+          if (accumulatedTimeRef.current >= 2) {
+              recordUsage(activeToolId, accumulatedTimeRef.current, accumulatedDistRef.current);
+              accumulatedTimeRef.current = 0;
+              accumulatedDistRef.current = 0;
+          }
+      }
+      lastPosRef.current = curPos;
+    } else {
+        lastPosRef.current = null;
+    }
+  });
+
+  return null;
 }
 
 // ─── Mock Autolevel Mesh ───────────────────────────────────────────────────
@@ -209,43 +311,108 @@ function AutolevelMesh() {
 }
 
 function StockMesh() {
-  const { settings } = useSettingsStore();
-  const { stock } = settings;
+  const stock = useSettingsStore(state => state.settings.stock);
 
   if (!stock.enabled) return null;
 
-  // Map material name to color
-  const materialColors = {
-    pine: "#e5c08e",
-    mdf: "#c19a6b",
-    aluminum: "#94a3b8",
-    pvc: "#f1f5f9"
+  // Material property mapping for a more premium feel
+  const materialProfiles: Record<string, { color: string; metalness: number; roughness: number; emissive?: string }> = {
+    pine:     { color: "#f3d299", metalness: 0.0, roughness: 0.8 },
+    mdf:      { color: "#b58d5a", metalness: 0.0, roughness: 0.9 },
+    aluminum: { color: "#cbd5e1", metalness: 0.8, roughness: 0.2, emissive: "#1e293b" },
+    pvc:      { color: "#f8fafc", metalness: 0.1, roughness: 0.5 }
   };
 
-  const color = materialColors[stock.material] || materialColors.pine;
+  const profile = materialProfiles[stock.material] || materialProfiles.pine;
 
-  // The stock box origin in Three.js is its center.
-  // We want the bottom-left corner of the stock to align with (offsetX, offsetY) machine coordinates.
-  const posX = stock.offsetX + stock.width / 2;
-  const posZ = -(stock.offsetY + stock.height / 2); // Depth is negative Z in our Three.js mapping
-  const posY = stock.thickness / 2; // Flat on the bed (Y=0), so height/2 moves it up
+  // CNC -> Three.js Mapping
+  // CNC X -> Three X
+  // CNC Y -> Three -Z
+  // CNC Z -> Three Y (Up)
+  
+  const width = Math.max(stock.width, 1);
+  const thickness = Math.max(stock.thickness, 1);
+  const depth = Math.max(stock.height, 1);
+
+  const posX = stock.offsetX + width / 2;
+  const posY = thickness / 2; 
+  const posZ = -(stock.offsetY + depth / 2);
 
   return (
-    <mesh position={[posX, posY, posZ]}>
-      <boxGeometry args={[stock.width, stock.thickness, stock.height]} />
-      <meshStandardMaterial 
-        color={color} 
-        transparent 
-        opacity={stock.opacity} 
-        roughness={0.7}
-        metalness={stock.material === 'aluminum' ? 0.6 : 0.2}
-      />
-      {/* Wireframe overlay for better definition */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[stock.width + 0.1, stock.thickness + 0.1, stock.height + 0.1]} />
-        <meshBasicMaterial color={color} wireframe transparent opacity={0.2} />
+    <group position={[posX, posY, posZ]}>
+      {/* Main Volume */}
+      <mesh receiveShadow castShadow>
+        <boxGeometry args={[width, thickness, depth]} />
+        <meshStandardMaterial 
+          color={profile.color}
+          transparent
+          opacity={stock.opacity}
+          roughness={profile.roughness}
+          metalness={profile.metalness}
+          emissive={profile.emissive}
+          emissiveIntensity={profile.emissive ? 0.2 : 0}
+        />
       </mesh>
-    </mesh>
+      
+      {/* Edges / Wireframe (Always slightly more opaque for definition) */}
+      <mesh>
+        <boxGeometry args={[width + 0.2, thickness + 0.2, depth + 0.2]} />
+        <meshStandardMaterial 
+          color={profile.color} 
+          wireframe 
+          transparent 
+          opacity={Math.min(stock.opacity + 0.2, 1.0)} 
+          depthWrite={false}
+        />
+      </mesh>
+      
+      {/* Corner indicator (bottom left of stock) */}
+      <mesh position={[-width / 2, -thickness / 2, depth / 2]}>
+        <sphereGeometry args={[2, 8, 8]} />
+        <meshBasicMaterial color="#10b981" />
+      </mesh>
+    </group>
+  );
+}
+
+// ─── Machine Bed & Limits ──────────────────────────────────────────────────
+
+function MachineBed() {
+  const bedX = useSettingsStore(state => state.settings.general.bedSizeX);
+  const bedY = useSettingsStore(state => state.settings.general.bedSizeY);
+
+  return (
+    <group>
+      {/* Physical Bed Plate */}
+      <mesh position={[bedX / 2, -1, -bedY / 2]} receiveShadow>
+        <boxGeometry args={[bedX, 2, bedY]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.9} metalness={0.1} />
+      </mesh>
+
+      {/* Grid on top of the plate */}
+      <Grid 
+        args={[bedX, bedY]} 
+        position={[bedX / 2, 0.05, -bedY / 2]}
+        cellSize={10} 
+        cellThickness={1} 
+        cellColor="#334155" 
+        sectionSize={50} 
+        sectionThickness={1.5} 
+        sectionColor="#475569" 
+        fadeDistance={500}
+        infiniteGrid={false}
+      />
+
+      {/* Origin Axis Labels */}
+      <group position={[0, 0, 0]}>
+        {/* X Axis Label */}
+        <Line points={[[0, 0, 0], [50, 0, 0]]} color="#ef4444" lineWidth={2} />
+        {/* Y Axis Label (mapped to -Z) */}
+        <Line points={[[0, 0, 0], [0, 0, -50]]} color="#3b82f6" lineWidth={2} />
+        {/* Z Axis Label */}
+        <Line points={[[0, 0, 0], [0, 50, 0]]} color="#10b981" lineWidth={2} />
+      </group>
+    </group>
   );
 }
 
@@ -257,6 +424,8 @@ function SceneContent() {
       <Spindle />
       <Toolpath />
       <StockMesh />
+      <MachineBed />
+      <RealtimePathTracker />
       {settings.showAutolevelMesh && <AutolevelMesh />}
       
       {/* Machine Origin (0,0,0) Marker */}
@@ -265,11 +434,6 @@ function SceneContent() {
           <sphereGeometry args={[2, 16, 16]} />
           <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.5} />
         </mesh>
-        <Line 
-          points={[[0, 0, 0], [0, 20, 0]]} 
-          color="#f59e0b" 
-          lineWidth={1}
-        />
       </group>
     </>
   );
@@ -290,38 +454,22 @@ export function BedVisualizer() {
       >
         <color attach="background" args={['#0f172a']} />
         
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={0.4} />
+        <hemisphereLight intensity={0.5} groundColor="#000000" />
         <directionalLight 
-          position={[100, 100, 100]} 
-          intensity={1.2} 
+          position={[100, 150, 100]} 
+          intensity={1.5} 
           castShadow 
           shadow-mapSize={[1024, 1024]}
         />
-        <pointLight position={[-100, 50, -100]} intensity={0.5} />
+        <pointLight position={[-100, 100, -100]} intensity={0.6} />
         
-        {/* Interactive Controls */}
         <OrbitControls 
           makeDefault 
           enableDamping
           dampingFactor={0.05}
           maxPolarAngle={Math.PI / 2 - 0.05}
-          target={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} 
-        />
-
-        {/* Global coordinate axes (length = 100) */}
-        <axesHelper args={[100]} />
-
-        {/* Grid representing the bed limits */}
-        <Grid 
-          args={[settings.general.bedSizeX, settings.general.bedSizeY]} 
-          position={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]}
-          cellSize={10} 
-          cellThickness={1} 
-          cellColor="#6b7280" 
-          sectionSize={50} 
-          sectionThickness={1.5} 
-          sectionColor="#9ca3af" 
-          fadeDistance={400} 
+          target={[settings.general.bedSizeX / 4, 0, -settings.general.bedSizeY / 4]} 
         />
 
         <SceneContent />
@@ -346,14 +494,14 @@ export function BedVisualizer() {
                 <span className="text-[var(--accent-primary)]">{machine.z.mpos.toFixed(2)}</span>
              </div>
            </div>
-           <div className="flex items-center gap-1.5 mt-2 opacity-50">
-             <div className="w-2 h-2 rounded-full bg-red-400" /> X Axis
+           <div className="flex items-center gap-1.5 mt-2 opacity-80">
+             <div className="w-2 h-2 rounded-full bg-red-500" /> X Axis (Right)
            </div>
-           <div className="flex items-center gap-1.5 opacity-50">
-             <div className="w-2 h-2 rounded-full bg-green-400" /> Y Axis
+           <div className="flex items-center gap-1.5 opacity-80">
+             <div className="w-2 h-2 rounded-full bg-blue-500" /> Y Axis (Rear)
            </div>
-           <div className="flex items-center gap-1.5 opacity-50">
-             <div className="w-2 h-2 rounded-full bg-blue-400" /> Z Axis
+           <div className="flex items-center gap-1.5 opacity-80">
+             <div className="w-2 h-2 rounded-full bg-green-500" /> Z Axis (Up)
            </div>
         </div>
       </div>

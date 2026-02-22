@@ -2,11 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { 
   FileText, Upload, Trash2, Play, Search, 
   RefreshCw, HardDrive, FileCode, MoreVertical,
-  Clock, Database
+  Clock, Database, Eye
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useGcodeStore } from '../stores/gcodeStore';
 import { formatDistanceToNow } from 'date-fns';
 
 interface LocalFile {
@@ -73,6 +74,11 @@ export default function FileManager() {
     }
   };
 
+  const activeFileName = useGcodeStore(state => state.activeFileName);
+  const resetGcode = useGcodeStore(state => state.reset);
+  const setGcode = useGcodeStore(state => state.setGcode);
+  const simulate = useGcodeStore(state => state.simulate);
+
   const handleDelete = async (filename: string) => {
     if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
     try {
@@ -80,6 +86,9 @@ export default function FileManager() {
         path: settings.gcodeStoragePath,
         filename 
       });
+      if (activeFileName === filename) {
+        resetGcode();
+      }
       refreshFiles();
     } catch (err) {
       console.error("[FileManager] Delete failed:", err);
@@ -87,17 +96,47 @@ export default function FileManager() {
     }
   };
 
-  const handlePlay = async (filename: string) => {
-    if (!confirm(`Are you sure you want to stream ${filename} to the CNC? Ensure the machine is homed and zeroed.`)) return;
+
+  const handlePreview = async (filename: string) => {
     try {
       const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
-      await invoke('stream_local_gcode', { path: fullPath });
-      alert(`Started streaming ${filename}`);
+      const content = await invoke<string>('read_local_file', { 
+        path: settings.gcodeStoragePath,
+        filename 
+      });
+      setGcode(content, filename, fullPath);
+      simulate();
     } catch (err) {
-      console.error("[FileManager] Streaming failed:", err);
-      alert("Failed to start streaming.");
+      console.error("[FileManager] Preview failed:", err);
+      alert("Failed to load file for preview.");
     }
   };
+
+  const handleSelect = async (filename: string) => {
+    // Selection now also previews for better UX
+    await handlePreview(filename);
+  };
+
+  const handleUploadToSD = async (filename: string) => {
+    try {
+      const content = await invoke<string>('read_local_file', { 
+        path: settings.gcodeStoragePath,
+        filename 
+      });
+      const uploadUrl = `http://${settings.connection.wsHost}/upload`;
+      await invoke('upload_fluidnc_file', {
+        url: uploadUrl,
+        target_path: "/sd/",
+        filename,
+        content
+      });
+      alert(`Synchronized ${filename} to machine SD card.`);
+    } catch (err) {
+      console.error("[FileManager] SD Upload failed:", err);
+      alert("Failed to upload to machine. Check connection.");
+    }
+  };
+
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -200,7 +239,12 @@ export default function FileManager() {
             {filteredFiles.map((file) => (
               <div 
                 key={file.name}
-                className="group flex items-center justify-between p-3 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl transition-all duration-200"
+                onClick={() => handlePreview(file.name)}
+                className={`group flex items-center justify-between p-3 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border rounded-xl transition-all duration-200 cursor-pointer ${
+                  activeFileName === file.name 
+                  ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]" 
+                  : "border-[var(--border-color)]"
+                }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
@@ -222,13 +266,31 @@ export default function FileManager() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => handlePlay(file.name)}
+                    onClick={() => handlePreview(file.name)}
                     className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-all"
-                    title="Send to CNC"
+                    title="Preview Path"
                   >
-                    <Play className="w-4 h-4 fill-current" />
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleSelect(file.name)}
+                    className={`p-2 rounded-lg transition-all ${
+                        activeFileName === file.name 
+                        ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10" 
+                        : "text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10"
+                    }`}
+                    title={activeFileName === file.name ? "File Loaded" : "Select for Carving"}
+                  >
+                    <Play className={`w-4 h-4 ${activeFileName === file.name ? 'fill-current' : ''}`} />
+                  </button>
+                  <button 
+                    onClick={() => handleUploadToSD(file.name)}
+                    className="p-2 text-[var(--text-secondary)] hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+                    title="Send to Machine SD Card"
+                  >
+                    <HardDrive className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleDelete(file.name)}

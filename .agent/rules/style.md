@@ -1,17 +1,20 @@
 # Style & Conventions
 
 ## File Naming
+
 - **React Components/Pages**: `kebab-case.tsx` (e.g., `simulator-view.tsx`, `page.tsx`). *Note: While file names are kebab-case, the default export is often PascalCase.*
 - **Utilities/Logic**: `kebab-case.ts` (e.g., `utils.ts`, `validation-schema.ts`).
 - **Directories**: `kebab-case` (e.g., `_components`, `api`).
 
 ## Code Styling
+
 - **Components**: Use **PascalCase** for component names (e.g., `function LatestPost()`).
 - **Hooks**: Use **camelCase** prefixed with `use` (e.g., `useSimulation`).
 - **Variables/Functions**: Use **camelCase**.
 - **Types/Interfaces**: Use **PascalCase**.
 
 ## Imports
+
 - **Alias**: Always use the `~` alias for internal imports to avoid relative path hell.
   - `~/trpc/...`
   - `~/server/...`
@@ -22,11 +25,23 @@
   3. Relative imports (`./...`).
 
 ## Component Structure
+
 - **Client Components**: Explicitly add `"use client";` at the top of the file if hooks or interactivity are used.
 - **Exports**: Named exports are preferred for components (`export function MyComponent() {}`).
 
 ## Styling
+
 - **Framework**: Use **Tailwind CSS**.
 - **Practices**:
   - Avoid large `style={{}}` blocks; use Tailwind utility classes.
   - Use `clsx` or `tailwind-merge` for conditional class names.
+
+## Markdown
+
+- **Standards**: Always adhere to `markdownlint` standards (CommonMark/GFM).
+- **Structure**:
+  - Headings must be surrounded by blank lines (MD022).
+  - Lists must be surrounded by blank lines (MD032).
+  - Fenced code blocks must be surrounded by blank lines (MD031).
+- **Indentation**: Use a single space after list markers (e.g., `"- "` or `"1. "`) (MD030).
+- **Formatting**: Do not use triple backticks for single paragraphs or links; reserved for code/config.

@@ -70,13 +70,11 @@ function ConnectionPanel() {
             try {
                 const s = await invoke<string>("get_connection_status");
                 if (s === "Disconnected" && status !== "Disconnected") {
-                    resetPrerequisites();
                     resetMachine();
                 }
                 setStatus(s);
             } catch {
                 if (status !== "Disconnected") {
-                    resetPrerequisites();
                     resetMachine();
                     setStatus("Disconnected");
                 }

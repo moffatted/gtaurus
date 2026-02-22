@@ -115,12 +115,19 @@ async fn restart_fluidnc(url: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn upload_fluidnc_file(url: String, filename: String, content: String) -> Result<(), String> {
+async fn upload_fluidnc_file(
+    url: String,
+    target_path: String,
+    filename: String,
+    content: String,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let form = reqwest::multipart::Form::new().text("path", "/").part(
-        "myfile",
-        reqwest::multipart::Part::text(content).file_name(filename),
-    );
+    let form = reqwest::multipart::Form::new()
+        .text("path", target_path)
+        .part(
+            "myfile",
+            reqwest::multipart::Part::text(content).file_name(filename),
+        );
 
     let res = client
         .post(url)
@@ -175,6 +182,13 @@ fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
         }
     }
     Ok(files)
+}
+
+#[tauri::command]
+fn read_local_file(path: String, filename: String) -> Result<String, String> {
+    let mut full_path = std::path::PathBuf::from(path);
+    full_path.push(filename);
+    std::fs::read_to_string(full_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -429,6 +443,7 @@ pub fn run() {
             get_home_dir,
             ensure_dir_exists,
             list_local_files,
+            read_local_file,
             save_local_file,
             delete_local_file,
             copy_to_storage,

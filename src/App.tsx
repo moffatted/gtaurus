@@ -18,16 +18,21 @@ import { ProbePanel } from "./components/ProbePanel";
 import { AIPanel } from "./components/AIPanel";
 import { useStatsTracker } from "./hooks/useStatsTracker";
 import { AlarmIndicator } from "./components/AlarmIndicator";
+import { WorkpiecePanel } from "./components/WorkpiecePanel";
+import { useToolStore } from "./stores/toolStore";
+import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
 
 const queryClient = new QueryClient();
 
 function App() {
   const initTheme    = useThemeStore((state) => state.initTheme);
   const initSettings = useSettingsStore((state) => state.initSettings);
+  const initTools    = useToolStore((state) => state.initTools);
   const initialized  = useSettingsStore((state) => state.initialized);
 
   useEffect(() => {
     initTheme();
+    void initTools();
     initSettings().then(() => {
       // Small delay to ensure serial is ready if it's auto-connecting
       setTimeout(() => {
@@ -36,7 +41,7 @@ function App() {
         });
       }, 1000);
     });
-  }, [initTheme, initSettings]);
+  }, [initTheme, initSettings, initTools]);
 
   useStatsTracker();
 
@@ -79,6 +84,8 @@ function App() {
                  statsPanel={<StatsPanel />}
                  probePanel={<ProbePanel />}
                  aiPanel={<AIPanel />}
+                 workpiecePanel={<WorkpiecePanel />}
+                 toolsPanel={<ToolLibraryPanel />}
               />
             </ErrorBoundary>
           </div>
