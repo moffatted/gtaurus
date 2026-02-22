@@ -12,6 +12,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useUIStore } from '../stores/uiStore';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -1753,21 +1754,21 @@ function MacrosContent() {
 // ─── Section definitions ─────────────────────────────────────────────────────
 
 const SECTIONS = [
-  { id: 'dashboard',   title: 'Dashboard',      icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'theme',       title: 'Theme',          icon: <Palette className="w-4 h-4" /> },
-  { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" /> },
-  { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" /> },
-  { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" /> },
-  { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" /> },
-  { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" /> },
-  { id: 'visualizer',  title: 'Bed Visualizer',     icon: <Box className="w-4 h-4" /> },
-  { id: 'history',     title: 'History',        icon: <History className="w-4 h-4" /> },
-  { id: 'stats',       title: 'Stats',          icon: <BarChart2 className="w-4 h-4" /> },
-  { id: 'ai',          title: 'AI Assistant',   icon: <Bot className="w-4 h-4" /> },
-  { id: 'macros',      title: 'Macros',         icon: <FileCode className="w-4 h-4" /> },
-  { id: 'toolchanger', title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" /> },
-  { id: 'rotary',      title: 'Rotary Config',  icon: <RotateCw className="w-4 h-4" /> },
-  { id: 'widgets',     title: 'Widgets',        icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: 'dashboard',   title: 'Dashboard',      icon: <LayoutGrid className="w-4 h-4" />, tab: 'dashboard' },
+  { id: 'widgets',     title: 'Widgets',        icon: <LayoutDashboard className="w-4 h-4" />, tab: 'dashboard' },
+  { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" />, tab: 'machine' },
+  { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" />, tab: 'machine' },
+  { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" />, tab: 'machine' },
+  { id: 'macros',      title: 'Macros',         icon: <FileCode className="w-4 h-4" />, tab: 'machine' },
+  { id: 'toolchanger', title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" />, tab: 'machine' },
+  { id: 'rotary',      title: 'Rotary Config',  icon: <RotateCw className="w-4 h-4" />, tab: 'machine' },
+  { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" />, tab: 'machine' },
+  { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" />, tab: 'machine' },
+  { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'machine' },
+  { id: 'stats',       title: 'Stats',          icon: <BarChart2 className="w-4 h-4" />, tab: 'machine' },
+  { id: 'ai',          title: 'AI Assistant',   icon: <Bot className="w-4 h-4" />, tab: 'machine' },
+  { id: 'theme',       title: 'Theme',          icon: <Palette className="w-4 h-4" />, tab: 'machine' },
+  { id: 'history',     title: 'History',        icon: <History className="w-4 h-4" />, tab: 'machine' },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -1790,27 +1791,44 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
 // ─── SettingsPanel ───────────────────────────────────────────────────────────
 
 export function SettingsPanel() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { settingsOpen, settingsTab, settingsSection, closeSettings, setSettingsTab } = useUIStore();
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (settingsOpen) {
       setTimeout(() => searchRef.current?.focus(), 50);
+      
+      // Auto-scroll to section if provided
+      if (settingsSection) {
+        setTimeout(() => {
+          const el = document.getElementById(`settings-section-${settingsSection}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
+      }
     } else {
       setSearch('');
     }
-  }, [isOpen]);
+  }, [settingsOpen, settingsSection]);
 
   const query = search.trim().toLowerCase();
-  const visibleSections = SECTIONS.filter((s) => s.title.toLowerCase().includes(query));
+  
+  // If searching, show all matches. Otherwise, filter by active tab.
+  const visibleSections = SECTIONS.filter((s) => {
+    const matchesSearch = s.title.toLowerCase().includes(query);
+    if (query) return matchesSearch;
+    return s.tab === settingsTab;
+  });
 
   return (
     <>
       {/* Trigger */}
       <Tooltip content="Settings & Preferences" position="bottom">
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => useUIStore.getState().openSettings()}
           className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer"
           aria-label="Open settings"
         >
@@ -1819,13 +1837,13 @@ export function SettingsPanel() {
       </Tooltip>
 
       {/* Modal */}
-      {isOpen && (
+      {settingsOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4"
-          onClick={() => setIsOpen(false)}
+          onClick={closeSettings}
         >
           <div
-            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl w-full max-w-lg border border-[var(--border-color)] overflow-hidden flex flex-col"
+            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl w-full max-w-2xl border border-[var(--border-color)] overflow-hidden flex flex-col"
             style={{ maxHeight: '85vh' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1833,7 +1851,7 @@ export function SettingsPanel() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] bg-[var(--bg-header)] flex-shrink-0">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">Settings</h2>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={closeSettings}
                 className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer"
                 aria-label="Close settings"
               >
@@ -1841,8 +1859,8 @@ export function SettingsPanel() {
               </button>
             </div>
 
-            {/* Search */}
-            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)] flex-shrink-0">
+            {/* Search and Tabs Container */}
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)] flex-shrink-0 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)] pointer-events-none" />
                 <input
@@ -1854,10 +1872,37 @@ export function SettingsPanel() {
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all duration-200"
                 />
               </div>
+
+              {!query && (
+                <div className="flex p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
+                    <button
+                        onClick={() => setSettingsTab('dashboard')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                            settingsTab === 'dashboard'
+                                ? 'bg-[var(--bg-secondary)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-color)]'
+                                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        Dashboard
+                    </button>
+                    <button
+                        onClick={() => setSettingsTab('machine')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                            settingsTab === 'machine'
+                                ? 'bg-[var(--bg-secondary)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-color)]'
+                                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <Settings className="w-3.5 h-3.5" />
+                        Machine & System
+                    </button>
+                </div>
+              )}
             </div>
 
             {/* Scrollable sections */}
-            <div className="overflow-y-auto flex-1 px-4 py-4 space-y-3">
+            <div ref={scrollContainerRef} className="overflow-y-auto flex-1 px-4 py-4 space-y-3 custom-scrollbar">
               {visibleSections.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Search className="w-8 h-8 text-[var(--text-tertiary)] mb-3" />
@@ -1870,9 +1915,11 @@ export function SettingsPanel() {
                 </div>
               ) : (
                 visibleSections.map((section) => (
-                  <SettingsSection key={section.id} title={section.title} icon={section.icon}>
-                    {getSectionContent(section.id)}
-                  </SettingsSection>
+                  <div key={section.id} id={`settings-section-${section.id}`}>
+                    <SettingsSection title={section.title} icon={section.icon}>
+                      {getSectionContent(section.id)}
+                    </SettingsSection>
+                  </div>
                 ))
               )}
             </div>
@@ -1880,7 +1927,7 @@ export function SettingsPanel() {
             {/* Footer */}
             <div className="px-4 py-3 border-t border-[var(--border-color)] bg-[var(--bg-header)] flex justify-end flex-shrink-0">
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={closeSettings}
                 className="px-5 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer shadow-sm hover:shadow-md"
               >
                 Done

@@ -5,7 +5,7 @@ import {
   Activity, Move, Zap, Home, Play, Pause, XCircle, Target,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  RotateCcw, Eye, Trash2, FileCode, AlertTriangle
+  RotateCcw, Eye, Trash2, FileCode, AlertTriangle, Power
 } from 'lucide-react';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -71,6 +71,7 @@ export function ControlsPanel() {
   // Jog State
   const [stepSize, setStepSize] = useState<number>(10);
   const [jogFeedRate, setJogFeedRate] = useState<number>(1000);
+  const [spindleRPM, setSpindleRPM] = useState<number>(10000);
   const stepSizes = [0.1, 1, 10, 100];
 
   useEffect(() => {
@@ -159,6 +160,38 @@ export function ControlsPanel() {
     if (y !== 0) cmd += ` Y${(y * stepSize).toFixed(3)}`;
     if (z !== 0) cmd += ` Z${(z * stepSize).toFixed(3)}`;
     sendGcode(cmd);
+  };
+
+  const isSpindleOn = state.spindle > 0;
+
+  const handleSpindleToggle = async () => {
+    if (isSpindleOn) {
+        sendGcode('M5');
+    } else {
+        if (!hasHomed) {
+            alert("Machine must be Homed before starting the spindle for safety.");
+            return;
+        }
+        const confirmed = await ask(
+            `Are you sure you want to start the spindle motor at ${spindleRPM} RPM?`,
+            { 
+                title: 'Spindle Safety Warning',
+                kind: 'warning',
+                okLabel: 'Start Motor',
+                cancelLabel: 'Cancel'
+            }
+        );
+        if (confirmed) {
+            sendGcode(`M3 S${spindleRPM}`);
+        }
+    }
+  };
+
+  const handleRPMChange = (newRPM: number) => {
+    setSpindleRPM(newRPM);
+    if (isSpindleOn) {
+        sendGcode(`S${newRPM}`);
+    }
   };
 
   const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
@@ -472,6 +505,58 @@ export function ControlsPanel() {
                             <button disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 0, -1)}><ArrowDown className="w-5 h-5" /></button>
                         </Tooltip>
                     </div>
+
+                    {/* Spindle Control Pad */}
+                    <div className="flex flex-col gap-2 w-28 h-40 justify-between items-center bg-[var(--bg-tertiary)]/50 p-2.5 rounded-2xl border border-[var(--border-color)] shadow-inner">
+                        <div className="flex justify-between items-center w-full px-1">
+                            <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Spindle</span>
+                            <button 
+                                onClick={() => handleRPMChange(settings.spindle.maxRPM)}
+                                className="text-[9px] font-bold text-[var(--accent-primary)] hover:underline uppercase"
+                            >
+                                Max
+                            </button>
+                        </div>
+
+                        <Tooltip 
+                            content={
+                                isSpindleOn ? "Stop Spindle (M5)" : 
+                                !hasHomed ? "Home machine before starting spindle" :
+                                "Start Spindle (M3)"
+                            } 
+                            position="left"
+                        >
+                            <button 
+                                onClick={handleSpindleToggle}
+                                disabled={!isSpindleOn && !hasHomed}
+                                className={`p-4 rounded-full transition-all duration-300 shadow-lg flex items-center justify-center ${
+                                    isSpindleOn 
+                                        ? "bg-red-500 text-white animate-pulse shadow-red-500/30 scale-110" 
+                                        : !hasHomed
+                                        ? "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-color)] opacity-50 cursor-not-allowed"
+                                        : "bg-[var(--bg-secondary)] text-amber-500 border border-[var(--border-color)] hover:border-amber-500 hover:bg-amber-500/10 cursor-pointer"
+                                }`}
+                            >
+                                <Power className="w-6 h-6" />
+                            </button>
+                        </Tooltip>
+
+                        <div className="w-full space-y-1.5 px-0.5">
+                            <div className="flex justify-between items-center text-[10px] font-mono">
+                                <span className={`${isSpindleOn ? 'text-amber-400' : 'text-[var(--text-secondary)]'} font-bold`}>{spindleRPM}</span>
+                                <span className="text-[var(--text-tertiary)] text-[8px]">RPM</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min={settings.spindle.minRPM} 
+                                max={settings.spindle.maxRPM} 
+                                step="500"
+                                value={spindleRPM}
+                                onChange={(e) => handleRPMChange(parseInt(e.target.value))}
+                                className="w-full accent-amber-500 h-1.5 bg-[var(--bg-secondary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -481,8 +566,8 @@ export function ControlsPanel() {
                     {/* Sim Speed Control */}
                     <div className="flex-1 min-w-[200px] group">
                         <div className="flex justify-between items-center mb-1.5 px-0.5">
-                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider group-hover:text-[var(--accent-primary)] transition-colors">Simulation Speed</label>
-                            <span className="text-[10px] font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded">{simulationSpeed} <span className="text-[var(--text-tertiary)]">pts/sec</span></span>
+                            <label className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider group-hover:text-[var(--accent-primary)] transition-colors">Simulation Speed</label>
+                            <span className="text-xs font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded">{simulationSpeed} <span className="text-[var(--text-tertiary)]">pts/sec</span></span>
                         </div>
                         <input 
                             type="range" min="10" max="500" step="10" 
@@ -499,8 +584,8 @@ export function ControlsPanel() {
                                 <FileCode className="w-4 h-4" />
                             </div>
                             <div className="flex flex-col overflow-hidden">
-                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Active G-Code File</span>
-                                <span className="text-xs font-mono text-[var(--text-primary)] truncate">
+                                <span className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Active G-Code File</span>
+                                <span className="text-sm font-mono text-[var(--text-primary)] truncate">
                                     {activeFileName || "No file selected"}
                                 </span>
                             </div>
@@ -527,8 +612,8 @@ export function ControlsPanel() {
         </div>
 
         {/* Info / Footer */}
-        <div className="text-center text-[10px] text-[var(--text-tertiary)] font-mono italic shrink-0 py-2">
-             Work Pos = Machine Pos - Work Offset | Active Modal: G21 G91
+        <div className="text-center text-sm text-[var(--text-tertiary)] font-mono italic shrink-0 py-4 border-t border-[var(--border-color)]/30 mt-2">
+             Work Pos = Machine Pos - Work Offset | Active Modal: G21 (Metric) G91 (Incremental)
         </div>
     </div>
   );

@@ -1,22 +1,85 @@
-/* Dockview Dark Theme Customization */
+/* Dockview Theme Customization */
 
+.dockview-theme-dark,
+.dockview-theme-light {
+    height: 100%;
+    width: 100%;
+
+    /* Interaction Sashes */
+    --dv-sash-size: 8px;
+    
+    /* Separators: The high-contrast visual line between panels */
+    --dv-separator-border: 2px solid var(--border-color);
+    
+    /* Tab Header Customization */
+    --dv-tabs-and-actions-container-font-size: 11px;
+    --dv-tabs-and-actions-container-height: 34px;
+}
+
+/* Dark Theme Specifics */
 .dockview-theme-dark {
-  /* Ensure it takes full height */
-  height: 100%;
-  width: 100%;
-
-  /* Make the invisible grab area around the borders wider/easier to click */
-  --dv-sash-size: 8px;
-
-  /* Make the visual border line a bit softer or thicker if desired */
-  --dv-separator-border: 1px solid rgba(255, 255, 255, 0.1);
+    --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
+    --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
+    --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
+    
+    /* Use a slightly brighter border for separators in dark mode to make them POP */
+    --dv-separator-border: 2px solid #3f4451; 
 }
 
-/* Make the handle light up slightly when you hover over it */
-.dockview-theme-dark .dv-sash:hover {
-  background-color: var(--accent-primary, rgba(59, 130, 246, 0.5));
-  transition: background-color 0.2s ease;
+/* Light Theme Specifics */
+.dockview-theme-light {
+    --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
+    --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
+    --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
+    
+    /* High-contrast separator for light mode */
+    --dv-separator-border: 2px solid #cbd5e1;
 }
 
-/* Optional: Customize tabs/headers to match App theme if needed. 
-   Dockview variables are customizable. */
+/* 
+   The 'Sash' is the interactive grab area.
+   We make it light up with a subtle track background on hover.
+*/
+.dockview-theme-dark .dv-sash:hover,
+.dockview-theme-light .dv-sash:hover {
+    background-color: var(--accent-primary);
+    opacity: 0.2;
+}
+
+.dockview-theme-dark .dv-sash.active,
+.dockview-theme-light .dv-sash.active {
+    background-color: var(--accent-primary);
+    opacity: 1;
+}
+
+/* 
+   Tab Bar Borders:
+   Fixes the 'invisible junction' by adding explicit borders at the top 
+   and bottom of the tab header area.
+*/
+.dockview-theme-dark .dv-tabs-and-actions-container,
+.dockview-theme-light .dv-tabs-and-actions-container {
+    /* Transparent top border allows the separator to show through correctly,
+       but provides structure. */
+    border-top: 1px solid rgba(255,255,255,0.05) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+}
+
+/* Active Tab indicator (VS Code Style) */
+.dockview-theme-dark .dv-tab.active,
+.dockview-theme-light .dv-tab.active {
+    border-top: 2px solid var(--accent-primary) !important;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.dockview-theme-dark .dv-tab:not(.active),
+.dockview-theme-light .dv-tab:not(.active) {
+    color: var(--text-tertiary);
+}
+
+/* Ensure child panels fill the space without weird internal rounding gaps */
+.dockview-theme-dark .dv-render-container,
+.dockview-theme-light .dv-render-container {
+    background-color: var(--bg-primary);
+}

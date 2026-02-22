@@ -5,6 +5,7 @@ import { BedVisualizer } from './BedVisualizer';
 import { useSettingsStore } from '../stores/settingsStore';
 import { AutoLevelPanel } from './AutoLevelPanel';
 import { MacrosPanel } from './MacrosPanel';
+import { useThemeStore } from '../stores/themeStore';
 import "./DockLayout.css"; 
 
 interface DockLayoutProps {
@@ -105,6 +106,7 @@ const PlaceholderPanel = ({ title }: { title: string }) => (
 
 export function DockLayout(props: DockLayoutProps) {
   const { settings, setDashboardPanelEnabled, setDashboardLayout } = useSettingsStore();
+  const { theme } = useThemeStore();
   const [api, setApi] = useState<any>(null);
   const prevOrderRef = useRef<string>('');
   const isRebuildingRef = useRef<boolean>(false);
@@ -281,7 +283,7 @@ export function DockLayout(props: DockLayoutProps) {
             <DockviewReact
                 components={components}
                 onReady={onReady}
-                className="dockview-theme-dark flex-1"
+                className={theme === 'dark' ? "dockview-theme-dark flex-1" : "dockview-theme-light flex-1"}
             />
         </div>
     </DockLayoutContext.Provider>

@@ -1,12 +1,15 @@
-import { Play, FileCode, Zap } from "lucide-react";
+import { Play, FileCode, Zap, Settings, Plus, Edit, Trash } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, Macro } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
+import { useUIStore } from "../stores/uiStore";
+import { Tooltip } from "./ui/Tooltip";
 import clsx from "clsx";
 
 export function MacrosPanel() {
-    const { settings } = useSettingsStore();
+    const { settings, deleteMacro } = useSettingsStore();
     const { machine } = useMachineStatusStore();
+    const { openSettings } = useUIStore();
     const connected = machine.status !== "Disconnected";
 
     const runMacro = async (macro: Macro) => {
@@ -36,13 +39,23 @@ export function MacrosPanel() {
                     <Zap className="w-4 h-4 text-amber-400" />
                     <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Quick Macros</h2>
                 </div>
-                <div className={clsx(
-                    "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
-                    connected 
-                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" 
-                        : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)]"
-                )}>
-                    {connected ? "Ready" : "Offline"}
+                <div className="flex items-center gap-1">
+                    <Tooltip content="Add New Macro" position="bottom">
+                        <button 
+                            onClick={() => openSettings('machine', 'macros')}
+                            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Manage Macros" position="bottom">
+                        <button 
+                            onClick={() => openSettings('machine', 'macros')}
+                            className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
+                        >
+                            <Settings className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -77,13 +90,37 @@ export function MacrosPanel() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className={clsx(
-                                    "p-2 rounded-full transition-all flex item-center justify-center",
-                                    connected 
-                                        ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)] group-hover:text-white"
-                                        : "bg-transparent text-[var(--text-tertiary)]"
-                                )}>
-                                    <Play className="w-3.5 h-3.5" />
+                                <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openSettings('machine', 'macros');
+                                            }}
+                                            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-all cursor-pointer"
+                                        >
+                                            <Edit className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(`Delete macro "${macro.name}"?`)) {
+                                                    deleteMacro(macro.id);
+                                                }
+                                            }}
+                                            className="p-1.5 text-[var(--text-tertiary)] hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all cursor-pointer"
+                                        >
+                                            <Trash className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                    <div className={clsx(
+                                        "p-2 rounded-full transition-all flex item-center justify-center",
+                                        connected 
+                                            ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)] group-hover:text-white"
+                                            : "bg-transparent text-[var(--text-tertiary)]"
+                                    )}>
+                                        <Play className="w-3.5 h-3.5" />
+                                    </div>
                                 </div>
                             </button>
                         ))}

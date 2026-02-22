@@ -535,13 +535,13 @@ export function BedVisualizer() {
       </div>
       
       {/* Quick HUD overlay - Now moved to the bottom horizontal bar */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-xl shadow-lg flex items-center gap-6 z-10 transition-all">
-        <div className="flex flex-col border-r border-[var(--border-color)]/30 pr-4">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-xl shadow-lg flex items-center gap-6 z-10 transition-all max-w-[calc(100%-140px)] overflow-hidden">
+        <div className="flex flex-col border-r border-[var(--border-color)]/30 pr-4 shrink-0">
           <h3 className="text-[9px] font-bold text-[var(--accent-primary)] uppercase tracking-widest leading-tight">Live View</h3>
           <span className="text-[9px] font-mono text-[var(--text-tertiary)] whitespace-nowrap">{settings.general.bedSizeX}×{settings.general.bedSizeY}mm</span>
         </div>
 
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-5 overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">X</span>
             <span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.x.mpos.toFixed(2)}</span>
@@ -556,7 +556,7 @@ export function BedVisualizer() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-l border-[var(--border-color)]/30 pl-4">
+        <div className="hidden sm:flex items-center gap-3 border-l border-[var(--border-color)]/30 pl-4 shrink-0">
            <div className="flex items-center gap-1.5">
              <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
              <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span>

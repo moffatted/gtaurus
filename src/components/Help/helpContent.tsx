@@ -23,6 +23,13 @@ export const HELP_TOPICS: HelpTopic[] = [
         <p className="text-sm text-[var(--text-secondary)] mt-2">
           Use the <strong>Connection Panel</strong> in the sidebar to manage connections.
         </p>
+
+        <h3 className="text-lg font-semibold mt-4">Safety Checklist</h3>
+        <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--text-secondary)]">
+          <li>Ensure your machine is properly <strong>Homed</strong> ($H) before starting any job.</li>
+          <li>Verify the <strong>Active Tool</strong> matches the tool required by your G-code.</li>
+          <li>Set your <strong>Work Zero</strong> (G10 L20) coordinates carefully.</li>
+        </ul>
       </div>
     ),
   },
@@ -40,9 +47,10 @@ export const HELP_TOPICS: HelpTopic[] = [
             <li><strong>Ctrl+L</strong> clears the console log.</li>
         </ul>
         <div className="bg-[var(--bg-tertiary)] p-3 rounded text-sm font-mono mt-4">
-            $H  - Homing Cycle<br/>
-            $X  - Unlock Alarm<br/>
-            ?   - Status Report
+            $H  - Homing Cycle (Required for soft limits)<br/>
+            $X  - Unlock Alarm (Use with caution)<br/>
+            ?   - Real-time Status Report<br/>
+            $I  - Build Info
         </div>
       </div>
     ),
@@ -53,47 +61,166 @@ export const HELP_TOPICS: HelpTopic[] = [
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Machine Controls</h2>
-        <p>The Controls panel combines real-time monitoring with manual machine movement.</p>
+        <p>The <strong>Controls</strong> panel is the unified hub of your machine operations, integrating the Digital Readout (DRO) and manual Jogging controls into a single workspace.</p>
         
-        <h3 className="text-lg font-semibold mt-4">1. Digital Readout (DRO)</h3>
-        <p>Monitor your machine's position and status in real-time.</p>
-        <p className="text-sm mt-1">The display shows both <strong>Work Position (WPos)</strong> and <strong>Machine Position (MPos)</strong>.</p>
-
-        <h3 className="text-lg font-semibold mt-4">2. Jogging Controls</h3>
-        <p>Manual machine movement using the cardinal direction buttons or XY/Z pads.</p>
+        <h3 className="text-lg font-semibold mt-4">1. Digital Readout (DRO) & Zeroing</h3>
+        <p className="text-sm">The display shows <strong>Work Position (WPos)</strong> as the primary value and <strong>Machine Position (MPos)</strong> below it.</p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
-            <li><strong>Directional Buttons:</strong> Move the tool in XY and Z axes.</li>
-            <li><strong>Step Size:</strong> Adjust how far the machine moves per click.</li>
-            <li><strong>Feed Rate:</strong> Set the speed of movement.</li>
+          <li><strong>Zeroing:</strong> Click the <strong>Target</strong> icon next to an axis to set its Work Zero ($G10 L20$).</li>
+          <li><strong>Zero All:</strong> Use the global zero button in the header (if enabled) to zero X, Y, and Z simultaneously.</li>
         </ul>
 
-        <h3 className="text-lg font-semibold mt-4">Status Modifiers</h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="p-2 border rounded"><strong>Idle:</strong> Machine is ready.</div>
-            <div className="p-2 border rounded"><strong>Run:</strong> Moving or executing G-code.</div>
-            <div className="p-2 border rounded"><strong>Hold:</strong> Paused locally.</div>
-            <div className="p-2 border rounded border-red-500/30 text-red-400"><strong>Alarm:</strong> Locked due to error/limit.</div>
+        <h3 className="text-lg font-semibold mt-4">2. Jogging & Speed</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+            <li><strong>XY Pad & Z Column:</strong> Intuitive directional controls for manual tool positioning.</li>
+            <li><strong>Step Size:</strong> Distance the machine moves per click (e.g., 0.1mm, 1mm, 10mm).</li>
+            <li><strong>Jog Feed:</strong> The velocity of manual movement (mm/min or in/min).</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-4">3. File Selection & Job Status</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+            <li><strong>File Selection:</strong> Click the file name or "Load" icon to choose a G-code file from your local system.</li>
+            <li><strong>Safety Check:</strong> Gtaurus automatically scans the file for tool numbers and warns you of any mismatches with your active bit.</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-4">4. Execution Controls</h3>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="p-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">
+            <strong>Start / Resume:</strong> Begins streaming G-code or resumes from a pause.
+          </div>
+          <div className="p-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">
+            <strong>Pause:</strong> Pauses movement immediately (Feed Hold).
+          </div>
+          <div className="p-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">
+            <strong>Stop:</strong> Halts the current job and clears the buffer.
+          </div>
+          <div className="p-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">
+            <strong>Sim (Simulation):</strong> Draws the toolpath in the 3D visualizer without moving the machine.
+          </div>
+        </div>
+        <p className="text-sm">
+          <strong>Simulation Speed:</strong> Use the slider to adjust how quickly the toolpath is rendered during simulation.
+        </p>
+      </div>
+    ),
+  },
+  {
+    id: 'workflow',
+    title: 'Getting Ready to Carve',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Workflow: Getting Ready to Carve</h2>
+        <p className="text-sm">Follow these steps in order to ensure a safe and accurate carve.</p>
+        
+        <div className="space-y-6 mt-4">
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center shrink-0 font-bold">1</div>
+            <div>
+              <h4 className="font-bold">Homing ($H$)</h4>
+              <p className="text-sm text-[var(--text-secondary)]">Start by homing your machine. This establishes the machine coordinate system and enables soft limits.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center shrink-0 font-bold">2</div>
+            <div>
+              <h4 className="font-bold">Load G-code & Bit</h4>
+              <p className="text-sm text-[var(--text-secondary)]">Select your file and ensure the correct bit is physically installed and set as "Active" in the Bit Library.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center shrink-0 font-bold">3</div>
+            <div>
+              <h4 className="font-bold">Jogging to Origin</h4>
+              <p className="text-sm text-[var(--text-secondary)]">Use the <strong>Jogging Controls</strong> to move the spindle to your workpiece's intended starting position (usually the bottom-left corner or center).</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center shrink-0 font-bold">4</div>
+            <div>
+              <h4 className="font-bold">Setting Zero or Probing</h4>
+              <p className="text-sm text-[var(--text-secondary)]">Click the <strong>Zero</strong> icons in the DRO to set Work Zero, or use the <strong>Probe</strong> panel to automatically locate the surface of your material.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center shrink-0 font-bold">5</div>
+            <div>
+              <h4 className="font-bold">Verify & Run</h4>
+              <p className="text-sm text-[var(--text-secondary)]">Run a <strong>Sim</strong> if you're unsure of the path, then click <strong>Start</strong> to begin your carve.</p>
+            </div>
+          </div>
         </div>
       </div>
     ),
   },
   {
-    id: 'layout',
-    title: 'Dashboard Layout',
+    id: 'bit-management',
+    title: 'Bit Library',
     content: (
       <div className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Dashboard Layout & Panels</h2>
-        <p>Your workspace is fully customizable with dockable panels.</p>
+        <h2 className="text-xl font-bold mb-4">Bit Management System</h2>
+        <p>Maintain a catalog of your CNC bits and track their usage over time.</p>
         
-        <h3 className="text-lg font-semibold mt-4">Drag & Drop</h3>
-        <p>You can <strong>click and drag</strong> any panel's title bar to move it around the screen. Drop it on the edge of another panel to split the view, or drop it in the center to create a tabbed group.</p>
+        <h3 className="text-lg font-semibold mt-4">Tool Catalog</h3>
+        <p className="text-sm">Store details like bit type (Endmill, V-Bit, etc.), diameter, flute count, and tool number (T#).</p>
 
-        <h3 className="text-lg font-semibold mt-4">Panel Visibility & Ordering</h3>
-        <ul className="list-disc pl-5 space-y-2">
-            <li>Open the <strong>Settings</strong> (gear icon) and go to the <strong>Dashboard</strong> section.</li>
-            <li>Toggle the visibility of panels using the switch.</li>
-            <li>Use the <strong>Up/Down arrows</strong> next to each panel in the settings to determine their default setup order.</li>
+        <h3 className="text-lg font-semibold mt-4">Active Tool</h3>
+        <p className="text-sm">Click <strong>"Set Active"</strong> on a bit to mark it as the currently loaded tool. This affects:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li><strong>3D Spindle:</strong> The visualizer will scale the spindle model to match the active bit's diameter.</li>
+          <li><strong>Safety Checks:</strong> Gtaurus will warn you if you start a job that requests a different Tool Number.</li>
         </ul>
+
+        <h3 className="text-lg font-semibold mt-4">Usage Tracking</h3>
+        <p className="text-sm">Gtaurus automatically records total <strong>Usage Time</strong> and <strong>Cutting Distance</strong> for each bit, helping you plan maintenance or replacement.</p>
+      </div>
+    ),
+  },
+  {
+    id: 'macros',
+    title: 'Quick Macros',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Macro Management</h2>
+        <p>Macros are snippets of G-code that you can run with a single click.</p>
+        
+        <h3 className="text-lg font-semibold mt-4">Running Macros</h3>
+        <p className="text-sm">Open the Macros panel to see your list. Click the Play icon to execute a macro sequence line-by-line.</p>
+
+        <h3 className="text-lg font-semibold mt-4">Creating Macros</h3>
+        <p className="text-sm">Go to <strong>Settings &gt; Macros</strong> to add or edit your snippets. Use them for common tasks like:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li>Tool change positions.</li>
+          <li>Special probing routines.</li>
+          <li>Spindle warmup cycles.</li>
+        </ul>
+
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-200 italic">
+          <strong>Caution:</strong> Macros execute immediately. Ensure your machine state (position, tool) is safe for the specific macro being run.
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'probing',
+    title: 'Probing & Workpiece',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Probing & Setup</h2>
+        <p>Accurately locate your workpiece and set your zeroes.</p>
+        
+        <h3 className="text-lg font-semibold mt-4">Automated Probing</h3>
+        <p className="text-sm">The Probe panel allows for axis-aligned probing (G38.2).</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Operation:</strong> Select between Z, X, Y, or multi-axis probing.</li>
+          <li><strong>Max Travel:</strong> Set the maximum distance the probe should move before alarming if no contact is made.</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-4">Workpiece Management</h3>
+        <p className="text-sm">The Workpiece panel summarizes your current setup, including stock dimensions and work offsets.</p>
       </div>
     ),
   },
@@ -103,40 +230,40 @@ export const HELP_TOPICS: HelpTopic[] = [
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">3D Bed Visualizer</h2>
-        <p>The visualizer provides a 3D view of your CNC bed, toolpaths, and the spindle's position.</p>
+        <p>The visualizer provides a real-time 3D representation of your CNC environment.</p>
 
-        <h3 className="text-lg font-semibold mt-4">Camera Controls</h3>
+        <h3 className="text-lg font-semibold mt-4">Navigation & View</h3>
         <ul className="list-disc pl-5 space-y-2 text-sm">
-            <li><strong>Rotate / Orbit:</strong> Left-click and drag on the 3D scene.</li>
-            <li><strong>Pan:</strong> Right-click and drag to slide the camera's position.</li>
-            <li><strong>Zoom:</strong> Use the mouse scroll wheel.</li>
+            <li><strong>Navigation Cube:</strong> Click the faces of the cube (TOP, FRONT, etc.) to snap the camera to specific views.</li>
+            <li><strong>Zoom Controls:</strong> Use the + and - buttons or the scroll wheel to adjust your view distance.</li>
+            <li><strong>MPos HUD:</strong> A horizontal bar at the bottom displays real-time machine coordinates and axis orientation.</li>
         </ul>
 
-        <h3 className="text-lg font-semibold mt-4">Autolevel Mesh</h3>
-        <p>You can view the heightmap overlay directly on the 3D bed. Enable it in <strong>Settings &gt; Bed Visualizer</strong>.</p>
+        <h3 className="text-lg font-semibold mt-4">Interactions</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+            <li><strong>Rotate:</strong> Left-click and drag.</li>
+            <li><strong>Pan:</strong> Right-click and drag.</li>
+        </ul>
       </div>
     ),
   },
   {
-    id: 'fluidnc',
-    title: 'FluidNC Manager',
+    id: 'stats',
+    title: 'Machine Stats',
     content: (
       <div className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">FluidNC Manager</h2>
-        <p>Advanced tools for configuring FluidNC controllers.</p>
+        <h2 className="text-xl font-bold mb-4">Machine Statistics</h2>
+        <p>Track your production efficiency and machine history over time.</p>
+        
+        <h3 className="text-lg font-semibold mt-4">OEE Metrics</h3>
+        <p className="text-sm">Gtaurus calculates <strong>Overall Equipment Effectiveness</strong> based on Availability, Performance, and Quality targets set in your settings.</p>
 
-        <h3 className="text-lg font-semibold mt-4">Quick Commands</h3>
-        <p>One-click access to common system commands like sending <code>$Config/List</code> or checking firmware info.</p>
-
-        <h3 className="text-lg font-semibold mt-4">Config Editor</h3>
-        <p>View and edit the <code>config.yaml</code> file directly on the controller.</p>
-        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-sm">
-            <strong>Warning:</strong> Editing the configuration incorrectly can make your machine unresponsive. 
-            Always backup your config before making changes.
-        </div>
-        <p className="mt-2 text-sm">
-            After saving changes, you must restart the controller for them to take effect.
-        </p>
+        <h3 className="text-lg font-semibold mt-4">Utilization Tracking</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Machine On Time:</strong> Total time the software has been connected.</li>
+          <li><strong>Spindle Hours:</strong> Cumulative time the spindle has been active.</li>
+          <li><strong>Job History:</strong> A rolling log of the last 10 jobs with start/end times and status.</li>
+        </ul>
       </div>
     ),
   },
@@ -149,7 +276,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         <table className="w-full text-left text-sm border-collapse">
             <thead>
                 <tr className="border-b border-[var(--border-color)]">
-                    <th className="py-2">Shortcut</th>
+                    < th className="py-2">Shortcut</th>
                     <th className="py-2">Action</th>
                 </tr>
             </thead>
@@ -159,6 +286,7 @@ export const HELP_TOPICS: HelpTopic[] = [
                 <tr><td className="py-2 font-mono">~</td><td className="py-2">Resume / Cycle Start</td></tr>
                 <tr><td className="py-2 font-mono">Ctrl+X</td><td className="py-2">Soft Reset (0x18)</td></tr>
                 <tr><td className="py-2 font-mono">Up / Down</td><td className="py-2">Cycle Command History</td></tr>
+                <tr><td className="py-2 font-mono">Ctrl+L</td><td className="py-2">Clear Console Log</td></tr>
             </tbody>
         </table>
       </div>
@@ -171,7 +299,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       <div className="space-y-4 text-center">
         <h2 className="text-2xl font-bold mb-2">Gtaurus</h2>
         <p className="text-[var(--text-secondary)]">v0.1.0-alpha</p>
-        <div className="w-16 h-1 w-full bg-[var(--border-color)] my-4" />
+        <div className="w-16 h-1 w-full bg-[var(--border-color)] my-4 mx-auto" />
         <p className="text-sm">
             A modern CNC dashboard for FluidNC.
         </p>
