@@ -7,6 +7,8 @@ interface LayoutState {
     controls: boolean;
     manager: boolean;
   };
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
   togglePanel: (panel: keyof LayoutState['panels']) => void;
   setPanelVisibility: (panel: keyof LayoutState['panels'], visible: boolean) => void;
   // Initialize with at least one panel visible if all are closed?
@@ -21,6 +23,9 @@ export const useLayoutStore = create<LayoutState>()(
         controls: false,
         manager: false,
       },
+      sidebarCollapsed: false,
+      toggleSidebarCollapsed: () =>
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       togglePanel: (panel) =>
         set((state) => {
           const newPanels = { ...state.panels, [panel]: !state.panels[panel] };

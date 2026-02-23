@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, PlugZap, Usb, Wifi, Power } from "lucide-react";
+import { RefreshCw, PlugZap, Usb, Wifi, Power, ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { isTauriApp } from "../utils/platform";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useLayoutStore } from "../stores/layoutStore";
 import { useMachineStore } from "../stores/machineStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { Tooltip } from "./ui/Tooltip";
@@ -286,33 +287,115 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className }: SidebarProps) {
+    const collapsed = useLayoutStore((state) => state.sidebarCollapsed);
+    const toggle    = useLayoutStore((state) => state.toggleSidebarCollapsed);
+    const [status, setStatus] = useState("Disconnected");
+
+    // Poll connection status for collapsed indicator
+    useEffect(() => {
+        if (!isTauriApp()) return;
+        const tick = async () => {
+            try {
+                const s = await invoke<string>("get_connection_status");
+                setStatus(s);
+            } catch {
+                setStatus("Disconnected");
+            }
+        };
+        void tick();
+        const id = setInterval(tick, 2000);
+        return () => clearInterval(id);
+    }, []);
+
+    const connected = status !== "Disconnected";
+
     return (
-        <aside className={clsx("w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col h-full shadow-lg", className)}>
-            <div className="p-4 border-b border-[var(--border-color)] flex items-center gap-2">
-                <TaurusLogo className="w-7 h-7 text-blue-500" />
-                <h1 className="font-bold text-lg text-[var(--text-primary)]">Gtaurus</h1>
+        <aside 
+            className={clsx(
+                "bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col h-full shadow-lg transition-all duration-300 ease-in-out relative z-30", 
+                collapsed ? "w-16" : "w-72",
+                className
+            )}
+        >
+            {/* Collapse Toggle Button - Floating style when collapsed */}
+            <button
+                onClick={toggle}
+                className={clsx(
+                    "absolute top-6 -right-3 w-6 h-6 rounded-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] shadow-sm flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] transition-all cursor-pointer z-40 hover:scale-110",
+                    collapsed ? "rotate-0" : "rotate-0"
+                )}
+                title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+                {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            </button>
+
+            <div className={clsx(
+                "p-4 border-b border-[var(--border-color)] flex items-center h-14 overflow-hidden",
+                collapsed ? "justify-center" : "justify-start gap-3"
+            )}>
+                <TaurusLogo className="w-8 h-8 text-blue-500 flex-shrink-0" />
+                {!collapsed && (
+                    <h1 className="font-bold text-lg text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-300">
+                        Gtaurus
+                    </h1>
+                )}
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto">
-                <label className="text-xs font-semibold text-[var(--text-tertiary)] uppercase mb-3 block">Connection</label>
-
-                {isTauriApp() ? (
-                    <ConnectionPanel />
+            <div className={clsx(
+                "p-4 flex-1 overflow-y-auto overflow-x-hidden",
+                collapsed && "flex flex-col items-center"
+            )}>
+                {!collapsed ? (
+                    <>
+                        <label className="text-xs font-semibold text-[var(--text-tertiary)] uppercase mb-3 block">
+                            Connection
+                        </label>
+                        {isTauriApp() ? (
+                            <ConnectionPanel />
+                        ) : (
+                            <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg p-4 text-center">
+                                <Usb className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
+                                <p className="text-sm text-[var(--text-secondary)] mb-1">Serial Communication Unavailable</p>
+                                <p className="text-xs text-[var(--text-tertiary)]">Download the desktop app to connect to CNC hardware</p>
+                            </div>
+                        )}
+                    </>
                 ) : (
-                    <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg p-4 text-center">
-                        <Usb className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                        <p className="text-sm text-[var(--text-secondary)] mb-1">Serial Communication Unavailable</p>
-                        <p className="text-xs text-[var(--text-tertiary)]">Download the desktop app to connect to CNC hardware</p>
+                    <div className="flex flex-col items-center gap-6 mt-2">
+                         <Tooltip content={`Status: ${status}`} position="right">
+                             <div className="relative">
+                                <div className={clsx(
+                                    "p-2.5 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)] shadow-sm",
+                                    connected && "text-[var(--accent-primary)] border-[var(--accent-primary)]/30"
+                                )}>
+                                    <Usb className="w-5 h-5" />
+                                </div>
+                                <span className={clsx(
+                                    "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[var(--bg-sidebar)]",
+                                    connected ? "bg-green-500" : "bg-gray-400"
+                                )} />
+                             </div>
+                         </Tooltip>
+                         
+                         <Tooltip content="Config Mode" position="right">
+                            <button onClick={toggle} className="p-2.5 rounded-xl hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors cursor-pointer">
+                                <Wifi className="w-5 h-5" />
+                            </button>
+                         </Tooltip>
                     </div>
                 )}
             </div>
 
-            <div className="p-4 border-t border-[var(--border-color)] text-xs text-[var(--text-tertiary)] flex items-center gap-2">
-                <Usb className="w-3 h-3" />
-                v0.1.0-alpha
+            <div className={clsx(
+                "p-4 border-t border-[var(--border-color)] text-[var(--text-tertiary)] flex items-center gap-2 overflow-hidden",
+                collapsed ? "justify-center" : "text-[10px]"
+            )}>
+                <Usb className="w-4 h-4 flex-shrink-0" />
+                {!collapsed && <span className="truncate opacity-60">v0.1.0-alpha</span>}
             </div>
         </aside>
     );
 }
+
 
 
