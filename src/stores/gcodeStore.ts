@@ -18,8 +18,12 @@ interface GcodeStore {
   activeFilePath: string | null;
   /** The tool number requested by the current G-code file (e.g. from T1 M6) */
   fileToolNumber: number | null;
-  
-  // Actions
+  /** Calculated bounds of the current G-code file (in Work Coordinates) */
+  bounds: {
+    minX: number; maxX: number;
+    minY: number; maxY: number;
+    minZ: number; maxZ: number;
+  } | null;
   setGcode: (gcode: string, fileName?: string, filePath?: string) => void;
   simulate: () => Promise<void>;
   cancelSimulation: () => void;
@@ -43,6 +47,7 @@ export const useGcodeStore = create<GcodeStore>((set, get) => ({
   activeFileName: null,
   activeFilePath: null,
   fileToolNumber: null,
+  bounds: null,
   lastActualPoint: null,
 
   setGcode: (gcode, fileName, filePath) => {
@@ -50,11 +55,42 @@ export const useGcodeStore = create<GcodeStore>((set, get) => ({
     const tMatch = gcode.match(/T(\d+)/i);
     const toolNum = tMatch ? parseInt(tMatch[1]) : null;
 
+    // Fast bounds calculation (without animation logic)
+    const lines = gcode.split('\n');
+    let curX = 0, curY = 0, curZ = 0;
+    let isRel = false, isInch = false;
+    let minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
+
+    for (let raw of lines) {
+       let line = raw.split('(')[0].split(';')[0].trim().toUpperCase();
+       if (!line) continue;
+       if (line.includes('G20')) isInch = true;
+       if (line.includes('G21')) isInch = false;
+       if (line.includes('G90')) isRel = false;
+       if (line.includes('G91')) isRel = true;
+
+       if (line.includes('X') || line.includes('Y') || line.includes('Z')) {
+         const scale = isInch ? 25.4 : 1.0;
+         const xm = line.match(/X([-+]?[0-9]*\.?[0-9]+)/);
+         const ym = line.match(/Y([-+]?[0-9]*\.?[0-9]+)/);
+         const zm = line.match(/Z([-+]?[0-9]*\.?[0-9]+)/);
+         
+         if (xm) { const v = parseFloat(xm[1]) * scale; curX = isRel ? curX + v : v; }
+         if (ym) { const v = parseFloat(ym[1]) * scale; curY = isRel ? curY + v : v; }
+         if (zm) { const v = parseFloat(zm[1]) * scale; curZ = isRel ? curZ + v : v; }
+
+         minX = Math.min(minX, curX); maxX = Math.max(maxX, curX);
+         minY = Math.min(minY, curY); maxY = Math.max(maxY, curY);
+         minZ = Math.min(minZ, curZ); maxZ = Math.max(maxZ, curZ);
+       }
+    }
+
     set({ 
       gcode, 
       activeFileName: fileName || null, 
       activeFilePath: filePath || null,
-      fileToolNumber: toolNum
+      fileToolNumber: toolNum,
+      bounds: { minX, maxX, minY, maxY, minZ, maxZ }
     });
   },
 
@@ -183,6 +219,7 @@ export const useGcodeStore = create<GcodeStore>((set, get) => ({
     simPos: null,
     activeFileName: null,
     activeFilePath: null,
+    bounds: null,
     lastActualPoint: null
   })
 }));

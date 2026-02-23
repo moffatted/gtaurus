@@ -17,11 +17,12 @@ import { Tooltip } from './ui/Tooltip';
 import { AlarmIndicator } from './AlarmIndicator';
 
 export function ControlsPanel() {
-  const { settings } = useSettingsStore();
+  const { settings, setGeneralSettings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
+  const [jogLimitWarning, setJogLimitWarning] = useState<string | null>(null);
   const { 
-    gcode, activeFileName, activeFilePath, fileToolNumber,
+    gcode, activeFileName, activeFilePath, fileToolNumber, bounds,
     simulate, cancelSimulation, isSimulating, simulationSpeed, setSimulationSpeed,
     clearSimulation, clearActualPath 
   } = useGcodeStore();
@@ -42,7 +43,41 @@ export function ControlsPanel() {
     if (isHold) {
        invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
     } else if (isIdle && activeFilePath) {
-        // 1. Tool Safety Check
+        // 1. Home Check
+        if (!hasHomed) {
+            alert("Machine must be Homed ($H) before starting a job for safety.");
+            return;
+        }
+
+        // 2. Bounds Check (Safety Limits)
+        if (bounds) {
+            const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
+            const margin = 0.5;
+            
+            const isAxisOut = (min: number, max: number, limit: number, mpos: number) => {
+                if (mpos < -0.1) {
+                    // Negative space [-limit, 0]
+                    return min < -limit + margin || max > 0;
+                } else {
+                    // Positive space [0, limit]
+                    return min < 0 || max > limit - margin;
+                }
+            };
+
+            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, state.x.mpos);
+            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, state.y.mpos);
+            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, state.z.mpos);
+
+            if (outX || outY || outZ) {
+                const confirmed = await ask(
+                    "The current job's toolpath appears to exceed your machine's bed limits based on the current Work Zero. Running it may cause a crash.\n\nAre you sure you want to proceed?",
+                    { title: "Safety Warning: Out of Bounds", kind: "warning", okLabel: "Proceed Anyway", cancelLabel: "Abort" }
+                );
+                if (!confirmed) return;
+            }
+        }
+
+        // 3. Tool Safety Check
         if (fileToolNumber !== null) {
             const activeTool = tools.find(t => t.id === activeToolId);
             if (!activeTool || activeTool.number !== fileToolNumber) {
@@ -69,10 +104,12 @@ export function ControlsPanel() {
   };
 
   // Jog State
-  const [stepSize, setStepSize] = useState<number>(10);
+  const isMetric = settings.general.carvingUnits === 'mm';
+  const unitLabel = isMetric ? 'mm' : 'in';
+  const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
   const [jogFeedRate, setJogFeedRate] = useState<number>(1000);
   const [spindleRPM, setSpindleRPM] = useState<number>(10000);
-  const stepSizes = [0.1, 1, 10, 100];
+  const stepSizes = isMetric ? [0.1, 1, 10, 100] : [0.001, 0.01, 0.1, 1];
 
   useEffect(() => {
       let isMounted = true;
@@ -155,6 +192,45 @@ export function ControlsPanel() {
 
   const handleJog = (x: number, y: number, z: number) => {
     if (!isIdle) return;
+
+    // --- Safety Limits Check ---
+    if (hasHomed) {
+        const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
+        const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
+        
+        const check = (current: number, delta: number, limit: number) => {
+            if (delta === 0) return true;
+            const target = current + delta;
+            
+            // Heuristic detection of coordinate system
+            // Negative space (0 is back/right/top, common in Grbl/FluidNC): range [-limit, 0]
+            if (current < -0.1) {
+                if (target < -limit + margin || target > 0) return false;
+            } 
+            // Positive space (0 is front/left/bottom): range [0, limit]
+            else if (current > 0.1) {
+                if (target < 0 || target > limit - margin) return false;
+            }
+            // If at 0, we allow moving into either negative or positive space as long as range is valid
+            else {
+                if (Math.abs(target) > limit - margin) return false;
+            }
+            return true;
+        };
+
+        const dx = x * stepSize * (isMetric ? 1 : 25.4);
+        const dy = y * stepSize * (isMetric ? 1 : 25.4);
+        const dz = z * stepSize * (isMetric ? 1 : 25.4);
+
+        if (!check(state.x.mpos, dx, bedSizeX) || 
+            !check(state.y.mpos, dy, bedSizeY) || 
+            !check(state.z.mpos, dz, bedSizeZ)) {
+            setJogLimitWarning("Bed Limit");
+            setTimeout(() => setJogLimitWarning(null), 2000);
+            return;
+        }
+    }
+
     let cmd = `$J=G91 G21 F${jogFeedRate}`;
     if (x !== 0) cmd += ` X${(x * stepSize).toFixed(3)}`;
     if (y !== 0) cmd += ` Y${(y * stepSize).toFixed(3)}`;
@@ -196,16 +272,19 @@ export function ControlsPanel() {
 
   const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
       const wpos = mpos - wco;
+      const displayWpos = isMetric ? wpos : wpos / 25.4;
+      const displayMpos = isMetric ? mpos : mpos / 25.4;
+
       return (
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-2.5 flex flex-col gap-0.5 shadow-sm min-w-0">
             <div className="flex justify-between items-baseline mb-0">
                 <span className="text-lg font-bold font-mono text-[var(--accent-primary)] shrink-0">{label}</span>
-                <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Axis</span>
+                <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">{unitLabel} Axis</span>
             </div>
             
             <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-1 mb-1 min-w-0 gap-2">
                  <span className="text-xl font-mono text-[var(--text-primary)] tracking-tight truncate flex-1">
-                    {wpos.toFixed(3)}
+                    {displayWpos.toFixed(isMetric ? 3 : 4)}
                  </span>
                  <Tooltip content={isIdle ? `Zero ${label} Axis` : "Cannot zero while machine is busy"} position="left">
                     <button 
@@ -223,8 +302,8 @@ export function ControlsPanel() {
             </div>
 
              <div className="flex justify-between items-center text-[10px] text-[var(--text-secondary)] font-mono">
-                 <span>{mpos.toFixed(3)}</span>
-                 <Tooltip content="Machine Position (Absolute)" position="left">
+                 <span>{displayMpos.toFixed(isMetric ? 3 : 4)}</span>
+                 <Tooltip content={`Machine Position (${unitLabel})`} position="left">
                     <span className="text-[var(--text-tertiary)] cursor-help border-b border-dotted border-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">MPos</span>
                  </Tooltip>
             </div>
@@ -240,6 +319,11 @@ export function ControlsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3">
                 <AlarmIndicator />
+                {jogLimitWarning && (
+                    <div className="px-2 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-[10px] uppercase animate-in fade-in zoom-in duration-200">
+                        {jogLimitWarning}
+                    </div>
+                )}
                 <Tooltip content="Current Machine State" position="bottom">
                     <div className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-base tracking-wide shadow-sm flex items-center gap-2 shrink-0 ${getStatusColor(state.status)}`}>
                         <Activity className="w-4 h-4" />
@@ -435,29 +519,51 @@ export function ControlsPanel() {
             <div className="flex flex-wrap gap-4 items-start justify-between">
                 {/* Left: Step & Feed */}
                 <div className="flex flex-col gap-4 flex-1 min-w-[200px]">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Step Size (mm)</label>
-                        <div className="flex gap-1.5">
-                            {stepSizes.map(size => (
-                                <button
-                                    key={size}
-                                    onClick={() => setStepSize(size)}
-                                    className={`flex-1 py-1 rounded text-xs font-mono border transition-all ${
-                                        stepSize === size 
-                                        ? "bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-sm" 
-                                        : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)]"
-                                    }`}
-                                >
-                                    {size}
-                                </button>
-                            ))}
+                    {/* Unit & Step Selection */}
+                    <div className="space-y-3">
+                         <div className="flex justify-between items-center px-0.5">
+                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Movement & Feedrate</label>
+                            <div className="flex bg-[var(--bg-tertiary)] p-0.5 rounded border border-[var(--border-color)]">
+                                {(['mm', 'inches'] as const).map(u => (
+                                    <button
+                                        key={u}
+                                        onClick={() => setGeneralSettings({ carvingUnits: u })}
+                                        className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded transition-all cursor-pointer ${
+                                            settings.general.carvingUnits === u 
+                                            ? 'bg-[var(--accent-primary)] text-white' 
+                                            : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                                        }`}
+                                    >
+                                        {u === 'inches' ? 'in' : u}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Step Size ({unitLabel})</label>
+                             <div className="flex gap-1.5">
+                                 {stepSizes.map(size => (
+                                     <button
+                                         key={size}
+                                         onClick={() => setStepSize(size)}
+                                         className={`flex-1 py-1.5 text-xs font-mono rounded border transition-all cursor-pointer ${
+                                             stepSize === size 
+                                             ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] text-[var(--accent-primary)] font-bold' 
+                                             : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]'
+                                         }`}
+                                     >
+                                         {size}
+                                     </button>
+                                 ))}
+                             </div>
                         </div>
                     </div>
                     
                     <div className="space-y-2">
                         <div className="flex justify-between items-center px-0.5">
                             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Jog Feed</label>
-                            <span className="text-[10px] font-mono text-[var(--accent-primary)]">{jogFeedRate} <span className="text-[var(--text-tertiary)]">mm/min</span></span>
+                            <span className="text-[10px] font-mono text-[var(--accent-primary)]">{jogFeedRate} <span className="text-[var(--text-tertiary)]">{unitLabel}/min</span></span>
                         </div>
                         <div className="flex items-center gap-2">
                             <input 
@@ -612,8 +718,8 @@ export function ControlsPanel() {
         </div>
 
         {/* Info / Footer */}
-        <div className="text-center text-sm text-[var(--text-tertiary)] font-mono italic shrink-0 py-4 border-t border-[var(--border-color)]/30 mt-2">
-             Work Pos = Machine Pos - Work Offset | Active Modal: G21 (Metric) G91 (Incremental)
+        <div className="text-center text-[10px] text-[var(--text-tertiary)] font-mono italic shrink-0 py-4 border-t border-[var(--border-color)]/30 mt-2">
+             Work Pos = Machine Pos - Work Offset | Active Modal: {isMetric ? 'G21 (Metric)' : 'G20 (Imperial)'} G91 (Incremental)
         </div>
     </div>
   );
