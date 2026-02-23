@@ -38,6 +38,7 @@
 ### Testing Checklist
 
 Before running `git commit`, verify:
+
 - [ ] Application runs without errors
 - [ ] Changed functionality works as expected
 - [ ] No console errors or warnings
@@ -49,6 +50,7 @@ Before running `git commit`, verify:
 ### When to Skip Testing
 
 Only skip manual testing if:
+
 - Changes are documentation-only (README, comments)
 - Changes are configuration files that don't affect runtime
 - Changes are minor typo fixes in non-critical code
@@ -56,7 +58,8 @@ Only skip manual testing if:
 ### Commit Message Format
 
 After testing, use descriptive commit messages:
-```
+
+```text
 <type>: <short description>
 
 - Detail 1
@@ -65,6 +68,11 @@ After testing, use descriptive commit messages:
 ```
 
 Types: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`
+
+## Git Operations
+
+- **Wait for Instructions**: Never commit code unless specifically instructed by the user to "commit". Do not proactively commit changes after completing a task.
+- **Commit implies Push**: When the user requests to "commit" code, they also mean to "push" it to the remote repository. Always perform both actions (`git commit` followed by `git push`) unless otherwise specified.
 
 ## Example Workflow
 
@@ -90,6 +98,7 @@ git push origin main
 ## Rollback Strategy
 
 If you discover issues after committing:
+
 1. Fix the issue immediately
 2. Test thoroughly
 3. Commit the fix with a clear message
