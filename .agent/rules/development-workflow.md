@@ -73,17 +73,24 @@ Types: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`
 
 - **Wait for Instructions**: Never commit code unless specifically instructed by the user to "commit". Do not proactively commit changes after completing a task.
 - **Commit implies Push**: When the user requests to "commit" code, they also mean to "push" it to the remote repository. Always perform both actions (`git commit` followed by `git push`) unless otherwise specified.
+- **Multi-Machine Sync**: To support development across multiple machines, the agent MUST check for remote changes (`git fetch`) at the beginning of each session. If the local branch is behind `origin`, the agent must notify the user and recommend a `git pull` before starting any work.
 
 ## Example Workflow
 
 ```bash
-# 1. Make changes
-# 2. Ensure dev server is running
+# 1. Start session by checking for remote changes
+git fetch
+git status
+
+# 2. If behind origin, pull the latest changes
+git pull origin main
+
+# 3. Make changes and test
 npm run tauri dev
 
-# 3. Manually test changes in the application
-# 4. Check for errors in terminal and browser console
-# 5. If everything works, commit
+# 4. Manually test changes in the application
+# 5. Check for errors in terminal and browser console
+# 6. If everything works, commit
 git add -A
 git commit -m "fix: resolve dark mode switching issue
 
@@ -91,7 +98,7 @@ git commit -m "fix: resolve dark mode switching issue
 - Added proper await handling
 - Tested both light and dark modes"
 
-# 6. Push to remote
+# 7. Push to remote
 git push origin main
 ```
 
