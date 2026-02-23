@@ -12,6 +12,7 @@ interface MachineStatus {
     z: AxisState;
     feed: number;
     spindle: number;
+    isSpindleActive?: boolean;
     firmware: string;
     buildInfo: string;
     board: string;
@@ -32,6 +33,7 @@ export const useMachineStatusStore = create<MachineStatusState>((set) => ({
         z: { mpos: 0, wco: 0 },
         feed: 0,
         spindle: 0,
+        isSpindleActive: false,
         firmware: 'Unknown',
         buildInfo: 'Unknown',
         board: 'Unknown',

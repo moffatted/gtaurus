@@ -132,6 +132,15 @@ export function ControlsPanel() {
           
           const nextUpdate: any = { status: parts[0] };
 
+          // Logic to protect the manual spindle toggle from being overwritten by 
+          // laggy status reports from the controller.
+          const checkPending = () => {
+              if ((window as any)._spindlePendingUntil && Date.now() < (window as any)._spindlePendingUntil) {
+                  return true;
+              }
+              return false;
+          };
+
           if (parts[0].startsWith('Home')) setHasHomed(true);
           if (parts[0].startsWith('Alarm')) resetPrerequisites();
           
@@ -152,7 +161,13 @@ export function ControlsPanel() {
               } else if (key === 'FS') {
                   const [f, s] = val.split(',').map(Number);
                   nextUpdate.feed = f || 0;
-                  nextUpdate.spindle = s || 0;
+                  if (!checkPending()) nextUpdate.spindle = s || 0;
+              } else if (key === 'S') {
+                  if (!checkPending()) nextUpdate.spindle = Number(val) || 0;
+              } else if (key === 'A') {
+                  if (!checkPending()) {
+                      nextUpdate.isSpindleActive = (val.includes('S') || val.includes('C'));
+                  }
               }
           });
           
@@ -238,27 +253,69 @@ export function ControlsPanel() {
     sendGcode(cmd);
   };
 
-  const isSpindleOn = state.spindle > 0;
+  const isSpindleOn = state.spindle > 0 || state.isSpindleActive;
 
   const handleSpindleToggle = async () => {
-    if (isSpindleOn) {
-        sendGcode('M5');
+    const currentState = state.spindle > 0 || state.isSpindleActive;
+    const isAlarm = state.status.toLowerCase().includes('alarm');
+    
+    // Lock UI state for 5 seconds to outlast deceleration/sync issues
+    (window as any)._spindlePendingUntil = Date.now() + 5000;
+
+    if (currentState) {
+        // --- ACTION: STOP ---
+        console.log("[GTaurus] Spindle STOP initiated...");
+        
+        try {
+            if (isAlarm) {
+                // If in Alarm, buffered M5 will likely fail. Send $X first.
+                await sendGcode('$X');
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            // 1. Send M3 S0 (Preferred for some PWM spindles)
+            await sendGcode('M3 S0');
+            
+            // 2. Send M5 (Universal G-code stop)
+            await sendGcode('M5');
+            
+            // 3. Send REALTIME override (0x85)
+            sendRealtime(0x85);
+            
+            // 4. Force immediate status refresh (?)
+            sendRealtime(0x3F);
+            
+            // Update UI immediately
+            updateMachine({ spindle: 0, isSpindleActive: false });
+            console.log("[GTaurus] Spindle STOP: M3 S0 -> M5 -> 0x85 -> ?");
+        } catch (e) {
+            console.error("[GTaurus] Spindle stop failed:", e);
+        }
     } else {
+        // --- ACTION: START ---
         if (!hasHomed) {
             alert("Machine must be Homed before starting the spindle for safety.");
+            (window as any)._spindlePendingUntil = 0;
             return;
         }
+
         const confirmed = await ask(
-            `Are you sure you want to start the spindle motor at ${spindleRPM} RPM?`,
-            { 
-                title: 'Spindle Safety Warning',
-                kind: 'warning',
-                okLabel: 'Start Motor',
-                cancelLabel: 'Cancel'
-            }
+            `Start spindle motor at ${spindleRPM} RPM?`,
+            { title: 'Spindle Start', kind: 'warning', okLabel: 'Start Motor', cancelLabel: 'Cancel' }
         );
+
         if (confirmed) {
+            console.log(`[GTaurus] Spindle START initiated: ${spindleRPM} RPM`);
+            
+            // If Spindle was stopped via Realtime 0x9E, sending M3 again 
+            // might be ignored if the override is still active.
+            // FluidNC/Grbl requires another 0x9E to release the override, 
+            // OR we just send M3 and see. Usually M3/M4 releases it.
+            
             sendGcode(`M3 S${spindleRPM}`);
+            updateMachine({ spindle: spindleRPM, isSpindleActive: true });
+        } else {
+            (window as any)._spindlePendingUntil = 0;
         }
     }
   };
