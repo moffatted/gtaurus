@@ -35,14 +35,54 @@ The most robust strategy for a T3-Tauri app. You use a small Rust "Agent" (which
 - **Legacy Support**: Works on Firefox and Safari (via local bridge) where WebUSB is blocked.
 - **System Access**: Full access to all Rust crates (serial, GPIO, networking).
 
-### Advanced Implementation: State Synchronization
-
-The Agent should act as a **State Mirror**. Upon connection, the frontend shouldn't wait for updates; the Agent immediately sends the full current state (Position, Alarms, Spindle Speed).
+### Implementation Example: Rust WebSocket Bridge
 
 ```rust
-// Upon new connection, send snapshot
-let state_snapshot = self.machine_state.lock().unwrap().clone();
-ws_stream.send(Message::Text(serde_json::to_string(&state_snapshot)?)).await?;
+use tokio::net::TcpListener;
+use tokio_tungstenite::accept_async;
+use futures_util::{StreamExt, SinkExt};
+
+#[tokio::main]
+async fn main() {
+    let addr = "127.0.0.1:9001";
+    let listener = TcpListener::bind(addr).await.expect("Failed to bind");
+    println!("USB Bridge listening on: {}", addr);
+
+    while let Ok((stream, _)) = listener.accept().await {
+        tokio::spawn(async move {
+            let mut ws_stream = accept_async(stream).await.expect("Error during handshake");
+            
+            // Send initial state snapshot immediately
+            let snapshot = get_machine_snapshot();
+            ws_stream.send(serde_json::to_string(&snapshot).unwrap().into()).await.unwrap();
+
+            while let Some(msg) = ws_stream.next().await {
+                if let Ok(msg) = msg {
+                    if msg.is_text() {
+                        process_command(msg.to_text().unwrap()).await;
+                    }
+                }
+            }
+        });
+    }
+}
+```
+
+### Implementation Example: Browser Frontend (JS/TS)
+
+```typescript
+// Connect to the local Rust agent
+const socket = new WebSocket('ws://127.0.0.1:9001');
+
+socket.onopen = () => {
+  console.log('Connected to Rust USB Bridge');
+  socket.send(JSON.stringify({ cmd: 'HOME_MACHINE' }));
+};
+
+socket.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  updateUI(data.position);
+};
 ```
 
 ---
@@ -56,13 +96,30 @@ For CNC control, the "Network Loop" (handling browser messages) must never block
 1. **The Ingestor**: Receives G-code via WebSocket/Tauri Invoke and pushes it into a `VecDeque`.
 2. **The Worker**: A dedicated thread that polls the queue, handles the "Write -> Wait for OK" flow, and manages the hardware handshake at the maximum baud rate.
 
+### Implementation Example: Thread-Safe Command Queue
+
 ```rust
-// Worker Thread Logic (Simplified)
-loop {
-    if let Some(command) = queue.pop_front() {
-        serial_port.write_all(command.as_bytes())?;
-        wait_for_ok(&mut serial_port)?; // Blocks only the worker thread
-    }
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use tokio::sync::Notify;
+
+type SharedQueue = Arc<Mutex<VecDeque<String>>>;
+
+async fn start_cnc_worker(queue: SharedQueue, notifier: Arc<Notify>) {
+    tokio::spawn(async move {
+        loop {
+            // Wait until the ingestor signals new data
+            notifier.notified().await;
+
+            while let Some(cmd) = {
+                let mut q = queue.lock().unwrap();
+                q.pop_front()
+            } {
+                // Blocks here until the machine responds with "ok"
+                execute_hardware_move(cmd).await; 
+            }
+        }
+    });
 }
 ```
 
@@ -123,6 +180,29 @@ Build the `gtaurus-agent` with `tokio-tungstenite`. Configure Tauri to package t
 ### Phase 3: Unified Frontend Service
 
 Create a `TransportProvider` in React. It attempts to connect to the local Agent; if it fails, it falls back to Tauri Invoke. This allows the UI to stay consistent across platforms.
+
+```typescript
+// Unified service to handle both environments
+const isTauri = !!(window as any).__TAURI_INTERNALS__;
+let socket: WebSocket | null = null;
+
+if (!isTauri) {
+  socket = new WebSocket("ws://localhost:9001");
+}
+
+export async function sendToMachine(command: string) {
+  if (isTauri) {
+    // Desktop Mode: Direct FFI call
+    return await invoke("process_command", { command });
+  } else {
+    // Web Mode: Send via WebSocket agent
+    return new Promise((resolve) => {
+      socket!.send(JSON.stringify({ type: 'GCODE', data: command }));
+      // Logic to resolve when 'ok' is received back...
+    });
+  }
+}
+```
 
 ### Phase 4: Safety & Hardening
 
