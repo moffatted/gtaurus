@@ -437,9 +437,9 @@ export function ControlsPanel() {
         </div>
 
         {/* Control Groups */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 shrink-0">
+        <div className="flex flex-wrap gap-2.5 shrink-0">
             {/* Job Controls */}
-            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
+            <div className="flex-1 min-w-[380px] flex flex-wrap items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
                 <Tooltip 
                     content={
                         !activeFileName ? "Load a file first" :
@@ -541,7 +541,7 @@ export function ControlsPanel() {
             </div>
 
             {/* Zero Controls */}
-            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
+            <div className="flex-[0.4] min-w-[160px] flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
                 <button 
                     onClick={() => { sendGcode('G10 L20 P1 X0 Y0 Z0'); setHasZeroed(true); }}
                     disabled={!isIdle}
