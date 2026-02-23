@@ -39,8 +39,8 @@ impl std::fmt::Display for ConnectionStatus {
 }
 
 // ─── Public trait ─────────────────────────────────────────────────────────────
-
-pub trait CNCController: Send {
+#[cfg_attr(test, mockall::automock)]
+pub trait GCodeConnection: Send {
     fn connect_serial(
         &mut self,
         port_name: &str,
@@ -223,9 +223,9 @@ impl FluidNCDriver {
     }
 }
 
-// ─── CNCController impl ────────────────────────────────────────────────────────
+// ─── GCodeConnection impl ────────────────────────────────────────────────────────
 
-impl CNCController for FluidNCDriver {
+impl GCodeConnection for FluidNCDriver {
     fn connect_serial(
         &mut self,
         port_name: &str,

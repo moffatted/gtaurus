@@ -1,5 +1,5 @@
-import os from 'node:os'
-import path from 'node:path'
+/// <reference types="@wdio/globals/types" />
+import * as path from 'node:path'
 
 export const config: WebdriverIO.Config = {
     runner: 'local',
@@ -8,10 +8,9 @@ export const config: WebdriverIO.Config = {
     ],
     maxInstances: 1,
     capabilities: [{
-        browserName: 'tauri',
-        // @ts-ignore
-        'tauri:options': {
-            application: './src-tauri/target/debug/gtaurus.exe'
+        browserName: 'msedge',
+        'ms:edgeOptions': {
+            binary: path.join(process.cwd(), 'src-tauri/target/debug/gtaurus.exe'),
         },
     }],
     logLevel: 'info',

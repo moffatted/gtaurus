@@ -6,10 +6,10 @@ pub mod autolevel;
 mod driver;
 mod driver_tests;
 
-use driver::{CNCController, FluidNCDriver};
+use driver::{FluidNCDriver, GCodeConnection};
 
 pub struct AppState {
-    pub driver: Arc<Mutex<Box<dyn CNCController>>>,
+    pub driver: Arc<Mutex<Box<dyn GCodeConnection>>>,
     pub height_map: Arc<Mutex<Option<autolevel::height_map::HeightMap>>>,
 }
 

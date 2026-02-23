@@ -99,6 +99,10 @@ npm run preview
 ```
 Creates an optimized web build in the `dist/` directory.
 
+**Important Note on Web Mode:**
+Because Gtaurus uses Tauri's Inter-Process Communication (IPC) to talk to the Rust serial driver, opening the web version in a standard browser means **USB Serial communication is disabled**. The frontend cannot talk to your local USB ports without the Rust backend.
+*(If you need to talk to the CNC without the desktop app, FluidNC has its own built-in web server you can connect to by typing the CNC's IP address into your browser).*
+
 **Features Available:**
 - ✅ Theme switching (persisted via localStorage)
 - ✅ UI preview and testing
@@ -170,10 +174,25 @@ Gtaurus is purpose-built for boards running **FluidNC** firmware.
 - **`$` commands**: FluidNC-specific actions (`$Home`, `$MD`, `$G`, `$I`, etc.). Machine config is in `config.yaml`, not `$$` numbered settings.
 - **Event format**: Tauri backend emits all received lines as `fluidnc://rx` events to the frontend
 
+## 🧪 Testing Infrastructure
 
-Verification Plan
+Gtaurus uses a comprehensive testing strategy covering the frontend, backend, and end-to-end (E2E) integration.
 
-Automated Tests
-Run npm run test:web to ensure Vitest successfully runs a stub React component test.
-Run cargo test inside src-tauri to ensure Rust unit tests pass.
-Run npm run test:e2e to ensure WebdriverIO can successfully build the Tauri app, launch it, and execute a basic UI interaction test without crashing.
+### Frontend Unit & Component Tests
+
+We use **Vitest**, **React Testing Library**, and **JSDOM** to test React components and TypeScript utilities.
+- **Run fast tests in watch mode:** `npm run test:watch`
+- **Run tests once:** `npm run test`
+- **Run tests with UI:** `npm run test:ui`
+
+### Backend Rust Tests
+
+Rust core logic, including the FluidNC driver, buffering, and commands, are tested with cargo's built-in test runner.
+- **Run Rust tests:** `npm run test:rust` (or `cargo test` from the `src-tauri` directory)
+
+### End-to-End (E2E) Desktop Tests
+
+We use **WebdriverIO (WDIO)** to run automated E2E tests against the compiled Tauri desktop application. This ensures all parts of the tech stack (React + Tauri + Rust) communicate correctly in a real operating system environment.
+- **Run E2E tests:** `npm run test:e2e`
+
+*Note: running the E2E tests will automatically build a debug version of the Tauri application before executing the WebDriverIO test suite.*

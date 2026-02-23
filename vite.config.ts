@@ -2,11 +2,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // Detect if running in Tauri environment
-// @ts-expect-error process is a nodejs global
 const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
 
 // https://vite.dev/config/
