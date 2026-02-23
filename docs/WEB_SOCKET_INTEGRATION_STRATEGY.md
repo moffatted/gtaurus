@@ -1,39 +1,129 @@
 # Web & WebSocket Integration Strategy
 
-When running a Tauri app (or any web application) in a standard web browser, the "superpowers" provided by the Tauri Rust backend are restricted. In desktop (native) mode, Tauri acts as a bridge, allowing the frontend to call Rust functions with full system access (e.g., USB ports via `hidapi` or `rusb`). In a browser, this bridge is unavailable due to the security sandbox.
+When running a Tauri app in a standard web browser, the native "superpowers" (direct system access, serial ports, file system) are restricted by the browser sandbox. This document outlines the professional strategies for bridging this gap, specifically for high-performance CNC applications where latency and reliability are critical.
 
-Below are the primary bridging strategies for achieving hardware or system access from a web context.
+---
 
-## 1. The WebUSB / WebHID API (Pure Browser)
+## 1. The Browser-Native Path (WebUSB / WebHID)
 
-If you want your app to work in a browser without any local software installed, you can use the WebUSB or WebHID APIs directly in your JavaScript/TypeScript frontend.
+This is the most "web-pure" approach, allowing direct communication from Chromium-based browsers to hardware without any local installation.
 
-- **How it works**: Modern browsers (Chrome, Edge, Opera) allow websites to request permission to talk to specific USB devices directly.
-- **Limitation**: Only works in Chromium-based browsers. Safari and Firefox do not support WebUSB for security reasons.
-- **Best for**: Web-first apps where you want to avoid local installations.
+- **Capabilities**: Request device access directly via `navigator.usb`.
+- **Primary Use Case**: Simple configuration tools or secondary interfaces that don't require background execution.
+- **CNC Limitation**: Browsers may throttle or pause JavaScript in background tabs, potentially interrupting time-sensitive G-code streaming.
 
-## 2. Sidecar / Local Server Bridge
+### Example: WebUSB Connection
 
-If your app must run in a browser but also needs native Rust capabilities, you can run a local background process (written in Rust) that exposes a WebSocket or HTTP server.
+```typescript
+async function connectUSB() {
+  const device = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x2341 }] });
+  await device.open();
+  await device.selectConfiguration(1);
+  await device.claimInterface(0);
+}
+```
 
-- **How it works**:
-    1. Your Rust backend runs as a standalone "driver" or "agent" on the machine.
-    2. Your browser-based frontend connects to `localhost:port` via WebSockets.
-    3. The frontend sends commands over the socket; the Rust agent executes the USB call and sends data back.
-- **Best for**: Hardware-heavy tools (e.g., 3D printer interfaces) where the UI is in the cloud but the "brain" is local.
+---
 
-## 3. Tauri "Remote" or HTTP Invoke
+## 2. The Agent Model (Local WebSocket Bridge)
 
-Tauri V2 supports patterns (and plugins like `tauri-invoke-http`) designed to bridge the gap during development or specific deployment scenarios.
+The most robust strategy for a T3-Tauri app. You use a small Rust "Agent" (which can be the Tauri backend itself or a specialized sidecar) that runs locally and exposes a WebSocket server.
 
-- **The Concept**: Allows your frontend to send "invokes" over a standard HTTP port that the Tauri backend listens to.
-- **Catch**: This still requires the Tauri Rust application to be running on the host machine to catch those requests.
+### Key Advantages
 
-## Summary Comparison
+- **Persistence**: The machine keeps moving even if the browser tab crashes or is closed.
+- **Legacy Support**: Works on Firefox and Safari (via local bridge) where WebUSB is blocked.
+- **System Access**: Full access to all Rust crates (serial, GPIO, networking).
 
-| Feature | Desktop Tauri (Native) | WebUSB (Browser) | Local Bridge (WebSocket) |
+### Advanced Implementation: State Synchronization
+
+The Agent should act as a **State Mirror**. Upon connection, the frontend shouldn't wait for updates; the Agent immediately sends the full current state (Position, Alarms, Spindle Speed).
+
+```rust
+// Upon new connection, send snapshot
+let state_snapshot = self.machine_state.lock().unwrap().clone();
+ws_stream.send(Message::Text(serde_json::to_string(&state_snapshot)?)).await?;
+```
+
+---
+
+## 3. High-Performance Worker Pattern
+
+For CNC control, the "Network Loop" (handling browser messages) must never block the "Control Loop" (handling physical hardware). Use a **Shared Concurrent Queue**.
+
+### The Worker Architecture
+
+1. **The Ingestor**: Receives G-code via WebSocket/Tauri Invoke and pushes it into a `VecDeque`.
+2. **The Worker**: A dedicated thread that polls the queue, handles the "Write -> Wait for OK" flow, and manages the hardware handshake at the maximum baud rate.
+
+```rust
+// Worker Thread Logic (Simplified)
+loop {
+    if let Some(command) = queue.pop_front() {
+        serial_port.write_all(command.as_bytes())?;
+        wait_for_ok(&mut serial_port)?; // Blocks only the worker thread
+    }
+}
+```
+
+---
+
+## 4. Security & Production Considerations
+
+Exposing a local WebSocket bridge (`localhost:9001`) introduces security risks. Malicious websites could theoretically connect to the bridge and move your machine.
+
+### Required Security Measures
+
+- **Origin Validation**: The Rust backend MUST check the `Origin` header. Only allow connections from `localhost` or your verified production domain.
+- **Localhost Only**: Bind exclusively to `127.0.0.1`, never `0.0.0.0` (which exposes the port to the local network).
+- **Authentication**: For sensitive operations, require a simple token generated by the backend and passed to the frontend upon launch.
+
+---
+
+## 5. Performance Optimization
+
+### Binary Protocol vs. JSON
+
+While JSON is convenient, high-frequency Digital Read Out (DRO) updates (60Hz+) can be chatty. Consider:
+
+- **JSON for Commands**: Low-frequency (e.g., "Start Machine", "Change Tool").
+- **Binary/MsgPack for Telemetry**: Efficiently streaming coordinate data and real-time statuses.
+
+### Watchdog & Safety
+
+Implement a **Communication Watchdog**. If the bridge loses connection with the browser during a manual jog:
+
+1. The Agent detects the socket drop.
+2. The Agent immediately issues an `E-STOP` or `Soft Halt` to the hardware.
+3. This prevents a "runaway" condition if the browser tab crashes while a jog button is held.
+
+---
+
+## 6. Comparison Matrix
+
+| Feature | Tauri Native (Desktop) | WebUSB (Browser) | Agent Bridge (Localhost) |
 | :--- | :--- | :--- | :--- |
-| **USB Access** | Full (via Rust crates) | Limited (Chromium only) | Full (via Rust agent) |
-| **Sandbox** | None (Rust side) | Very Strict | None (Agent side) |
-| **Ease of Use** | High (Integrated) | High (No install) | Medium (Requires 2 parts) |
-| **Browser Support** | N/A | Chrome/Edge only | All |
+| **Hardware Access** | Native / Direct | Limited (Chromium) | Native / Full |
+| **Safety Persistence** | High (Backgrounded) | Low (Throttled) | **Highest (Headless Agent)** |
+| **Security Risk** | Standard Desktop App | Sandbox (Low) | Moderate (Needs Origin Check) |
+| **Ease of Install** | Full Installer | Zero-Install | Small Binary / Sidecar |
+
+---
+
+## 7. Implementation Roadmap
+
+### Phase 1: Core Logic Extraction
+
+Refactor hardware interaction into a standalone Rust crate (`gtaurus-core`). This ensures same logic is used by the `tauri-main` and the `headless-agent`.
+
+### Phase 2: Agent Development
+
+Build the `gtaurus-agent` with `tokio-tungstenite`. Configure Tauri to package this agent as a **Sidecar** so it installs automatically with the desktop app.
+
+### Phase 3: Unified Frontend Service
+
+Create a `TransportProvider` in React. It attempts to connect to the local Agent; if it fails, it falls back to Tauri Invoke. This allows the UI to stay consistent across platforms.
+
+### Phase 4: Safety & Hardening
+
+Implement the Origin check and the Communication Watchdog for safe manual control.
