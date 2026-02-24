@@ -5,7 +5,6 @@ pub mod ai;
 pub mod autolevel;
 mod driver;
 mod driver_tests;
-pub mod ws_server;
 
 use driver::{FluidNCDriver, GCodeConnection};
 
@@ -437,10 +436,7 @@ pub fn run() {
             driver: Arc::new(Mutex::new(Box::new(FluidNCDriver::new()))),
             height_map: Arc::new(Mutex::new(None)),
         })
-        .setup(|app| {
-            crate::ws_server::start_server(app.handle().clone());
-            Ok(())
-        })
+        .setup(|_app| Ok(()))
         .invoke_handler(tauri::generate_handler![
             list_serial_ports,
             connect_serial,
