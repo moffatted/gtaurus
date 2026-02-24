@@ -21,6 +21,7 @@ import { AlarmIndicator } from "./components/AlarmIndicator";
 import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
 import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
+import { transport } from './services/transportService';
 
 const queryClient = new QueryClient();
 
@@ -36,9 +37,7 @@ function App() {
     initSettings().then(() => {
       // Small delay to ensure serial is ready if it's auto-connecting
       setTimeout(() => {
-        import('@tauri-apps/api/core').then(({ invoke }) => {
-          invoke('send_gcode', { cmd: '$I' }).catch(() => {});
-        });
+        transport.invoke('send_gcode', { cmd: '$I' }).catch(() => {});
       }, 1000);
     });
   }, [initTheme, initSettings, initTools]);

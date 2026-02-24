@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { listen } from '@tauri-apps/api/event';
 import { useSettingsStore, JobHistoryEntry } from '../stores/settingsStore';
+import { transport } from '../services/transportService';
 
 export function useStatsTracker() {
   const { settings, setStatsSettings } = useSettingsStore();
@@ -11,7 +11,7 @@ export function useStatsTracker() {
   useEffect(() => {
     if (!settings.stats.enableLogging) return;
 
-    const unlisten = listen<string>('fluidnc://rx', (event) => {
+    const unlisten = transport.listen<string>('fluidnc://rx', (event: any) => {
       const line = event.payload;
       if (!line.startsWith('<') || !line.endsWith('>')) return;
 
@@ -20,7 +20,7 @@ export function useStatsTracker() {
       const status = parts[0];
       
       let spindleSpeed = 0;
-      parts.slice(1).forEach((part) => {
+      parts.slice(1).forEach((part: string) => {
         const [key, val] = part.split(':');
         if (key === 'FS') {
           const [_, s] = val.split(',').map(Number);

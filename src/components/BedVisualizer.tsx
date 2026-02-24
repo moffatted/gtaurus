@@ -5,11 +5,11 @@ import { Plus, Minus } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
-import { listen } from '@tauri-apps/api/event';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { useToolStore } from '../stores/toolStore';
 import { useThemeStore } from '../stores/themeStore';
 import { Tooltip } from './ui/Tooltip';
+import { transport } from '../services/transportService';
 
 // ─── Spindle Component ─────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ function AutolevelMesh() {
 
   useEffect(() => {
     // Listen for the "autolevel:grid_update" event from the Rust backend
-    const unlisten = listen<HeightMapData>('autolevel:grid_update', (event) => {
+    const unlisten = transport.listen<HeightMapData>('autolevel:grid_update', (event: any) => {
        console.log("Received new HeightMap data:", event.payload);
        setMapData(event.payload);
     });

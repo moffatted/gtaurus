@@ -1,7 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
 import { OctagonAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from './ui/Tooltip';
+import { transport } from '../services/transportService';
 
 export function EStopButton() {
   const [active, setActive] = useState(false);
@@ -10,7 +10,7 @@ export function EStopButton() {
     setActive(true);
     try {
       // Send 0x18 (Ctrl+X / Soft Reset)
-      await invoke('send_realtime', { byte: 0x18 });
+      await transport.invoke('send_realtime', { byte: 0x18 });
     } finally {
       setTimeout(() => setActive(false), 200);
     }

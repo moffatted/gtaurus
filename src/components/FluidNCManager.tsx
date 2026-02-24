@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '../stores/settingsStore';
 import { 
   Play, Terminal, Save, RefreshCw, 
@@ -7,6 +6,7 @@ import {
   Search, Copy, List, FileText, Power
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
+import { transport } from '../services/transportService';
 
 // ─── Command Definitions ──────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ const FLUIDNC_COMMANDS = [
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function CommandRow({ cmd, desc }: { cmd: string, desc: string }) {
-  const run = () => invoke('send_gcode', { cmd });
+  const run = () => transport.invoke('send_gcode', { cmd });
 
   return (
     <div className="flex items-center gap-4 py-3 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-tertiary)]/30 px-2 transition-colors">
@@ -75,7 +75,7 @@ function ConfigEditor() {
         setError('');
         try {
             const url = `http://${settings.connection.wsHost}/${targetFile}`;
-            const text = await invoke<string>('fetch_fluidnc_file', { url });
+            const text = await transport.invoke<string>('fetch_fluidnc_file', { url });
             setConfig(text);
             setStatus('idle');
         } catch (e: any) {
@@ -87,7 +87,7 @@ function ConfigEditor() {
     const fetchFileList = async () => {
         const url = `http://${settings.connection.wsHost}/files?path=/`;
         try {
-            const res = await invoke<string>('fetch_fluidnc_file', { url });
+            const res = await transport.invoke<string>('fetch_fluidnc_file', { url });
             // FluidNC returns detailed JSON: {"path":"/","files":[{"name":"config.yaml","size":1234},...]}
             const data = JSON.parse(res);
             if (data && data.files) {
@@ -122,7 +122,7 @@ function ConfigEditor() {
     const saveLiveToFlash = async () => {
         if (!confirm(`This will dump the CURRENT running settings in memory into ${activeFilename} on the flash. Proceed?`)) return;
         try {
-            await invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
+            await transport.invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
             setStatus('success');
             setTimeout(() => setStatus('idle'), 3000);
         } catch (e: any) {
@@ -134,7 +134,7 @@ function ConfigEditor() {
     const setActiveConfig = async () => {
         if (!confirm(`Set ${activeFilename} as the active boot configuration? This will require a restart.`)) return;
         try {
-            await invoke('send_gcode', { cmd: `$Config/Filename=${activeFilename}` });
+            await transport.invoke('send_gcode', { cmd: `$Config/Filename=${activeFilename}` });
             setStatus('success');
             setNeedsRestart(true);
             setTimeout(() => setStatus('idle'), 3000);
@@ -153,7 +153,7 @@ function ConfigEditor() {
                 ? `http://${settings.connection.wsHost}/command?plain=$Bye`
                 : `http://${settings.connection.wsHost}/restart_reload`;
             
-            const response = await invoke<string>('restart_fluidnc', { url });
+            const response = await transport.invoke<string>('restart_fluidnc', { url });
             setNeedsRestart(false);
             setShowRestartMenu(false);
             setStatus('success');
@@ -171,7 +171,7 @@ function ConfigEditor() {
         
         setStatus('saving');
         try {
-            await invoke('upload_fluidnc_file', { 
+            await transport.invoke('upload_fluidnc_file', { 
                 url: uploadUrl, 
                 target_path: "/",
                 filename: activeFilename, 
@@ -390,7 +390,7 @@ function MachineSettings() {
     const [wifiPass, setWifiPass] = useState('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-    const sendCmd = (cmd: string) => invoke('send_gcode', { cmd });
+    const sendCmd = (cmd: string) => transport.invoke('send_gcode', { cmd });
 
     const handleApplyWifi = async () => {
         if (!confirm('Warning: Setting WiFi will disconnect the current session. Proceed?')) return;

@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { 
   Activity, Move, Zap, Home, Play, Pause, XCircle, Target,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
@@ -15,6 +13,7 @@ import { useGcodeStore } from '../stores/gcodeStore';
 import { useToolStore } from '../stores/toolStore';
 import { Tooltip } from './ui/Tooltip';
 import { AlarmIndicator } from './AlarmIndicator';
+import { transport } from '../services/transportService';
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings } = useSettingsStore();
@@ -41,7 +40,7 @@ export function ControlsPanel() {
 
   const handleStart = async () => {
     if (isHold) {
-       invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
+       transport.invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
     } else if (isIdle && activeFilePath) {
         // 1. Home Check
         if (!hasHomed) {
@@ -95,7 +94,7 @@ export function ControlsPanel() {
         }
 
         try {
-            await invoke('stream_local_gcode', { path: activeFilePath });
+            await transport.invoke('stream_local_gcode', { path: activeFilePath });
         } catch (err) {
             console.error("Failed to start stream:", err);
             alert("Streaming failed to start.");
@@ -113,7 +112,7 @@ export function ControlsPanel() {
 
   useEffect(() => {
       let isMounted = true;
-      const unlisten = listen<string>('fluidnc://rx', (event) => {
+      const unlisten = transport.listen<string>('fluidnc://rx', (event: any) => {
           if (!isMounted) return;
           const line = event.payload;
 
@@ -144,7 +143,7 @@ export function ControlsPanel() {
           if (parts[0].startsWith('Home')) setHasHomed(true);
           if (parts[0].startsWith('Alarm')) resetPrerequisites();
           
-          parts.slice(1).forEach((part) => {
+          parts.slice(1).forEach((part: string) => {
               const [key, val] = part.split(':');
               if (!val) return;
 
@@ -183,7 +182,7 @@ export function ControlsPanel() {
   // Status Polling Effect
   useEffect(() => {
       const interval = setInterval(() => {
-         invoke('send_realtime', { byte: 0x3F }).catch(() => {});
+         transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
       }, settings.connection.statusPollInterval || 2000);
 
       return () => clearInterval(interval);
@@ -198,11 +197,11 @@ export function ControlsPanel() {
   };
 
   const sendRealtime = (byte: number) => {
-    invoke('send_realtime', { byte }).catch(console.error);
+    transport.invoke('send_realtime', { byte }).catch(console.error);
   };
 
   const sendGcode = (cmd: string) => {
-    invoke('send_gcode', { cmd }).catch(console.error);
+    transport.invoke('send_gcode', { cmd }).catch(console.error);
   };
 
   const handleJog = (x: number, y: number, z: number) => {

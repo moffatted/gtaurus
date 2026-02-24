@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, PlugZap, Usb, Wifi, Power, ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
@@ -9,6 +8,7 @@ import { useLayoutStore } from "../stores/layoutStore";
 import { useMachineStore } from "../stores/machineStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { Tooltip } from "./ui/Tooltip";
+import { transport } from '../services/transportService';
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ function ConnectionPanel() {
     // Serial port list
     const { data: ports, refetch, isLoading } = useQuery({
         queryKey: ["serial-ports"],
-        queryFn: () => invoke<string[]>("list_serial_ports"),
+        queryFn: () => transport.invoke<string[]>("list_serial_ports"),
         enabled: isTauriApp(),
     });
 
@@ -69,7 +69,7 @@ function ConnectionPanel() {
         if (!isTauriApp()) return;
         const tick = async () => {
             try {
-                const s = await invoke<string>("get_connection_status");
+                const s = await transport.invoke<string>("get_connection_status");
                 if (s === "Disconnected" && status !== "Disconnected") {
                     resetMachine();
                 }
@@ -94,13 +94,13 @@ function ConnectionPanel() {
         try {
             if (mode === 'wifi') {
                 const port = parseInt(wsPort, 10);
-                await invoke("connect_telnet", {
+                await transport.invoke("connect_telnet", {
                     host: wsHost,
                     wsPort: isNaN(port) ? 23 : port,
                 });
             } else {
                 if (!selectedPort) return;
-                await invoke("connect_serial", {
+                await transport.invoke("connect_serial", {
                     portName: selectedPort,
                     baudRate,
                 });
@@ -115,7 +115,7 @@ function ConnectionPanel() {
     const handleDisconnect = async () => {
         setDis(true);
         try {
-            await invoke("disconnect");
+            await transport.invoke("disconnect");
             setStatus("Disconnected");
             resetPrerequisites();
             resetMachine();
@@ -296,7 +296,7 @@ export function Sidebar({ className }: SidebarProps) {
         if (!isTauriApp()) return;
         const tick = async () => {
             try {
-                const s = await invoke<string>("get_connection_status");
+                const s = await transport.invoke<string>("get_connection_status");
                 setStatus(s);
             } catch {
                 setStatus("Disconnected");

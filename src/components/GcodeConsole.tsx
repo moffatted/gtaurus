@@ -20,10 +20,9 @@ import {
   Unplug,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useSettingsStore } from '../stores/settingsStore';
 import { isTauriApp } from '../utils/platform';
+import { transport } from '../services/transportService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +81,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
 
   useEffect(() => {
     if (mode === 'serial' && isTauriApp()) {
-      invoke<string[]>('list_serial_ports').then(setPorts).catch(() => setPorts([]));
+      transport.invoke<string[]>('list_serial_ports').then(setPorts).catch(() => setPorts([]));
     }
   }, [mode]);
 
@@ -95,10 +94,10 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
     setError('');
     try {
       if (mode === 'websocket') {
-        await invoke('connect_telnet', { host: wsHost, wsPort });
+        await transport.invoke('connect_telnet', { host: wsHost, wsPort });
         updateSettings({ connection: { ...conn, preferredMode: 'websocket', wsHost, wsPort } });
       } else {
-        await invoke('connect_serial', { portName: port, baudRate: baud });
+        await transport.invoke('connect_serial', { portName: port, baudRate: baud });
         updateSettings({ connection: { ...conn, preferredMode: 'serial', serialPort: port, baudRate: baud } });
       }
       onConnected();
@@ -275,9 +274,9 @@ export function GcodeConsole() {
       return;
     }
 
-    let unlisten: UnlistenFn | null = null;
+    let unlisten: any | null = null;
 
-    listen<string>('fluidnc://rx', (event) => {
+    transport.listen<string>('fluidnc://rx', (event: any) => {
       const text = event.payload.trim();
       if (!text) return;
       appendLine(text);
@@ -302,7 +301,7 @@ export function GcodeConsole() {
     if (!isTauriApp()) return;
 
     const syncStatus = () => {
-        invoke<string>('get_connection_status')
+        transport.invoke<string>('get_connection_status')
           .then((s) => {
             setStatusLabel(s);
             setConnected(s !== 'Disconnected');
@@ -321,7 +320,7 @@ export function GcodeConsole() {
     if (!trimmed || !isTauriApp()) return;
     appendLine(`> ${trimmed}`, 'cmd');
     try {
-      await invoke('send_gcode', { cmd: trimmed });
+      await transport.invoke('send_gcode', { cmd: trimmed });
     } catch (e) {
       appendLine(`error: ${String(e)}`, 'error');
     }
@@ -338,7 +337,7 @@ export function GcodeConsole() {
     if (!isTauriApp() || !connected) return;
     appendLine(`> [${label}]`, 'cmd');
     try {
-      await invoke('send_realtime', { byte });
+      await transport.invoke('send_realtime', { byte });
     } catch (e) {
       appendLine(`error: ${String(e)}`, 'error');
     }
@@ -346,7 +345,7 @@ export function GcodeConsole() {
 
   function handleDisconnect() {
     if (!isTauriApp()) return;
-    invoke('disconnect').then(() => {
+    transport.invoke('disconnect').then(() => {
       setConnected(false);
       setStatusLabel('Disconnected');
       appendLine('[GTaurus] Disconnected', 'sys');
@@ -370,7 +369,7 @@ export function GcodeConsole() {
   }
 
   function handleConnected() {
-    invoke<string>('get_connection_status')
+    transport.invoke<string>('get_connection_status')
       .then((s) => {
         setConnected(true);
         setStatusLabel(s);

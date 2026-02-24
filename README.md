@@ -94,15 +94,22 @@ Creates an optimized release build for your OS. The executable will be located i
 
 ---
 
-### Web Mode (Browser) - Limited Features
+### Web Mode (Browser) & Remote Access
 
-**Development:**
+Gtaurus includes a powerful remote access feature. When the main Tauri desktop application is running (e.g., via `npm run tauri dev`), the system exposes two services on your local network:
+
+1. **Vite Frontend Server (Port 1420)**: Hosts the web interface. You can access it locally (`http://localhost:1420/`) or from other devices on your network (e.g., `http://192.168.68.59:1420/` or `http://192.168.32.1:1420/`).
+2. **WebSocket Bridge (Port 9001)**: A dedicated Agent Bridge running in the Rust backend that mirrors Tauri's native IPC commands.
+
+By navigating to the network IP address (e.g., `http://192.168.68.59:1420/`) from a phone, tablet, or another computer, the web browser will load the Gtaurus UI and automatically connect back to the host's WebSocket Bridge on port `9001`. This allows you to **fully view and control the CNC machine remotely**, bridging the browser environment directly to the host PC's hardware.
+
+**Standalone Web Development:**
 
 ```bash
 npm run dev
 ```
 
-Starts the Vite dev server on `http://localhost:3000`. Open in your browser.
+Starts the frontend-only Vite dev server. Open in your browser.
 
 **Production Build:**
 
@@ -113,17 +120,9 @@ npm run preview
 
 Creates an optimized web build in the `dist/` directory.
 
-**Important Note on Web Mode:**
-Because Gtaurus uses Tauri's Inter-Process Communication (IPC) to talk to the Rust serial driver, opening the web version in a standard browser means **USB Serial communication is disabled**. The frontend cannot talk to your local USB ports without the Rust backend.
+**Important Note on Standalone Web Mode:**
+If you run the web version purely standalone (without the Tauri host running the WebSocket bridge), **USB Serial communication is disabled**. The frontend cannot talk to your local USB ports without the Rust backend bridge.
 *(If you need to talk to the CNC without the desktop app, FluidNC has its own built-in web server you can connect to by typing the CNC's IP address into your browser).*
-
-**Features Available:**
-
-- ✅ Theme switching (persisted via localStorage)
-- ✅ UI preview and testing
-- ❌ Serial port communication (requires desktop app)
-
-**Note:** Serial communication features are disabled in web mode with an informational message displayed in the sidebar.
 
 ## 🛑 Stopping the Application
 

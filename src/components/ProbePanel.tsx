@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Crosshair } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
+import { transport } from '../services/transportService';
 
 type ProbeAxis = 'Z' | 'XYZ' | 'XY' | 'X' | 'Y';
 
@@ -38,7 +38,7 @@ export function ProbePanel() {
       }
 
       console.log(`[ProbePanel] Emitting probe macro for ${selectedAxis}: ${cmd}`);
-      await invoke('send_gcode', { cmd });
+      await transport.invoke('send_gcode', { cmd });
 
       if (prb.wcoUpdate) {
          console.warn("WCO Auto-Update requested but full macro evaluation is not deployed yet.");

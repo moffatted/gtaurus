@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 // Prevent JSDOM errors if any component tries to measure text with canvas
 HTMLCanvasElement.prototype.getContext = vi.fn();
 
-// Mock Tauri internals so that invoke() doesn't fail in JSDOM tests
+// Mock Tauri internals so that transport.invoke() doesn't fail in JSDOM tests
 vi.stubGlobal('__TAURI_INTERNALS__', {
   invoke: vi.fn((_cmd: string, _args: Record<string, unknown>) => {
     // console.log(`[Tauri Mock] IPC Command called: ${cmd}`, args);

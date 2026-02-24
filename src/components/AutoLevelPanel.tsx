@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Settings, Play, ShieldAlert, Crosshair, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStore } from '../stores/machineStore';
+import { transport } from '../services/transportService';
 
 export function AutoLevelPanel() {
   const [minX, setMinX] = useState(0.0);
@@ -24,7 +24,7 @@ export function AutoLevelPanel() {
     setIsProbing(true);
     setProbeStatus("Initializing Probing Sequence...");
     try {
-      const resp = await invoke<string>("start_probing", {
+      const resp = await transport.invoke<string>("start_probing", {
         minX,
         minY,
         maxX,

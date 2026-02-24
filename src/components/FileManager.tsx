@@ -4,11 +4,11 @@ import {
   RefreshCw, HardDrive, FileCode, MoreVertical,
   Clock, Database, Eye
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { formatDistanceToNow } from 'date-fns';
+import { transport } from '../services/transportService';
 
 interface LocalFile {
   name: string;
@@ -28,7 +28,7 @@ export default function FileManager() {
     setLoading(true);
     setError(null);
     try {
-      const list = await invoke<LocalFile[]>('list_local_files', { 
+      const list = await transport.invoke<LocalFile[]>('list_local_files', { 
         path: settings.gcodeStoragePath 
       });
       // Sort by modified date descending
@@ -54,7 +54,7 @@ export default function FileManager() {
 
       if (selected && typeof selected === 'string' && settings.gcodeStoragePath) {
         // Validation check
-        const isValid = await invoke<boolean>('validate_gcode_file', { path: selected });
+        const isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
         
         if (!isValid) {
           if (!confirm("This file doesn't look like valid G-code. Upload anyway?")) {
@@ -62,7 +62,7 @@ export default function FileManager() {
           }
         }
 
-        await invoke('copy_to_storage', { 
+        await transport.invoke('copy_to_storage', { 
           sourcePath: selected, 
           destDir: settings.gcodeStoragePath 
         });
@@ -82,7 +82,7 @@ export default function FileManager() {
   const handleDelete = async (filename: string) => {
     if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
     try {
-      await invoke('delete_local_file', { 
+      await transport.invoke('delete_local_file', { 
         path: settings.gcodeStoragePath,
         filename 
       });
@@ -100,7 +100,7 @@ export default function FileManager() {
   const handlePreview = async (filename: string) => {
     try {
       const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
-      const content = await invoke<string>('read_local_file', { 
+      const content = await transport.invoke<string>('read_local_file', { 
         path: settings.gcodeStoragePath,
         filename 
       });
@@ -119,12 +119,12 @@ export default function FileManager() {
 
   const handleUploadToSD = async (filename: string) => {
     try {
-      const content = await invoke<string>('read_local_file', { 
+      const content = await transport.invoke<string>('read_local_file', { 
         path: settings.gcodeStoragePath,
         filename 
       });
       const uploadUrl = `http://${settings.connection.wsHost}/upload`;
-      await invoke('upload_fluidnc_file', {
+      await transport.invoke('upload_fluidnc_file', {
         url: uploadUrl,
         target_path: "/sd/",
         filename,
@@ -171,7 +171,7 @@ export default function FileManager() {
                     const selected = await openDialog({ directory: true, multiple: false });
                     if (selected && typeof selected === 'string') {
                       const normalized = selected.replace(/\\/g, '/');
-                      await invoke('ensure_dir_exists', { path: normalized });
+                      await transport.invoke('ensure_dir_exists', { path: normalized });
                       useSettingsStore.getState().updateSettings({ gcodeStoragePath: normalized });
                     }
                   }}

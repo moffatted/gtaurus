@@ -8,11 +8,11 @@ import {
   Folder, HardDrive, Plus, Trash, Edit, Save, FileCode,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
-import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
+import { transport } from '../services/transportService';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -863,7 +863,7 @@ function ConnectionContent() {
 
   const refreshStatus = async () => {
     try {
-      const s = await invoke<string>('get_connection_status');
+      const s = await transport.invoke<string>('get_connection_status');
       setStatus(s);
     } catch {
       setStatus('Disconnected');
@@ -873,7 +873,7 @@ function ConnectionContent() {
   const handleDisconnect = async () => {
     setDis(true);
     try {
-      await invoke('disconnect');
+      await transport.invoke('disconnect');
       setStatus('Disconnected');
     } catch {
       // ignore
@@ -885,7 +885,7 @@ function ConnectionContent() {
   const fetchPorts = async () => {
     setLP(true);
     try {
-      const list = await invoke<string[]>('list_serial_ports');
+      const list = await transport.invoke<string[]>('list_serial_ports');
       setPorts(list);
     } catch {
       setPorts([]);
@@ -1089,7 +1089,7 @@ function FileManagerContent() {
     const trimmed = path.trim();
     if (!trimmed) return;
     try {
-      await invoke('ensure_dir_exists', { path: trimmed });
+      await transport.invoke('ensure_dir_exists', { path: trimmed });
       updateSettings({ gcodeStoragePath: trimmed });
     } catch (err) {
       console.error("[settings] Failed to update storage path:", err);
@@ -1128,7 +1128,7 @@ function FileManagerContent() {
                 if (selected && typeof selected === 'string') {
                   const normalized = selected.replace(/\\/g, '/');
                   setPath(normalized);
-                  await invoke('ensure_dir_exists', { path: normalized });
+                  await transport.invoke('ensure_dir_exists', { path: normalized });
                   updateSettings({ gcodeStoragePath: normalized });
                 }
               }}
@@ -1408,7 +1408,7 @@ function AIAssistantContent() {
     setLoading(true);
     setSaveMessage('Fetching model list...');
     try {
-      const raw = await invoke<string>('list_gemini_models', { apiKey: apiKey || settings.ai.apiKey });
+      const raw = await transport.invoke<string>('list_gemini_models', { apiKey: apiKey || settings.ai.apiKey });
       const data = JSON.parse(raw);
       if (data.models) {
         const names = data.models.map((m: any) => m.name.replace('models/', '')).join(', ');

@@ -1,10 +1,10 @@
 import { Play, FileCode, Zap, Settings, Plus, Edit, Trash } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, Macro } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { useUIStore } from "../stores/uiStore";
 import { Tooltip } from "./ui/Tooltip";
 import clsx from "clsx";
+import { transport } from '../services/transportService';
 
 export function MacrosPanel() {
     const { settings, deleteMacro } = useSettingsStore();
@@ -24,7 +24,7 @@ export function MacrosPanel() {
             
             try {
                 // We await each line to ensure sequential execution and buffer safety
-                await invoke('send_gcode', { cmd: trimmed });
+                await transport.invoke('send_gcode', { cmd: trimmed });
             } catch (e) {
                 console.error(`[Macros] Error sending command "${trimmed}":`, e);
                 // We continue with other commands unless it's a critical error

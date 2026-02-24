@@ -5,6 +5,7 @@ pub mod ai;
 pub mod autolevel;
 mod driver;
 mod driver_tests;
+pub mod ws_server;
 
 use driver::{FluidNCDriver, GCodeConnection};
 
@@ -15,12 +16,16 @@ pub struct AppState {
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
-#[tauri::command]
-fn list_serial_ports() -> Vec<String> {
+pub(crate) fn shared_list_serial_ports() -> Vec<String> {
     match serialport::available_ports() {
         Ok(ports) => ports.into_iter().map(|p| p.port_name).collect(),
         Err(_) => vec![],
     }
+}
+
+#[tauri::command]
+fn list_serial_ports() -> Vec<String> {
+    shared_list_serial_ports()
 }
 
 /// Connect over USB/serial
@@ -375,8 +380,7 @@ fn warp_gcode(
     autolevel::warper::parse_and_warp(&gcode, &map)
 }
 
-#[tauri::command]
-fn stream_local_gcode(state: State<'_, AppState>, path: String) -> Result<String, String> {
+pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Result<String, String> {
     let content =
         std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
 
@@ -416,6 +420,11 @@ fn stream_local_gcode(state: State<'_, AppState>, path: String) -> Result<String
     Ok(format!("Streaming started"))
 }
 
+#[tauri::command]
+fn stream_local_gcode(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    shared_stream_local_gcode(&*state, path)
+}
+
 // ─── App bootstrap ───────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -427,6 +436,10 @@ pub fn run() {
         .manage(AppState {
             driver: Arc::new(Mutex::new(Box::new(FluidNCDriver::new()))),
             height_map: Arc::new(Mutex::new(None)),
+        })
+        .setup(|app| {
+            crate::ws_server::start_server(app.handle().clone());
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             list_serial_ports,

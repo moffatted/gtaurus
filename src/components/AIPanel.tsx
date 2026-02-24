@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Trash2, Code } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
+import { transport } from '../services/transportService';
 
 interface Message {
   id: string;
@@ -70,7 +70,7 @@ export function AIPanel() {
           parts: [{ text: m.content }]
         }));
 
-      const reply = await invoke<string>("ask_gemini", {
+      const reply = await transport.invoke<string>("ask_gemini", {
         messages: history.length > 0 ? history : [{ role: "user", parts: [{ text: userMsg.content }] }],
         machineContext,
         aiTier: settings.ai.tier,

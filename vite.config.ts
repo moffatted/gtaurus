@@ -26,7 +26,7 @@ export default defineConfig(async () => ({
     // Use fixed port for Tauri, flexible for web
     port: isTauri ? 1420 : 3000,
     strictPort: isTauri,
-    host: host || false,
+    host: host || true,
     
     // HMR configuration (only needed for Tauri)
     hmr: host

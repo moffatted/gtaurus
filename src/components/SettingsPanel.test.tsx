@@ -2,19 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SettingsPanel } from './SettingsPanel';
 
-// Mock the Tauri invoke function to prevent actual Tauri calls during tests
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}));
-
 // Mock the Tauri store plugin to prevent actual file I/O during tests
 vi.mock('@tauri-apps/plugin-store', () => ({
   Store: {
     load: vi.fn().mockResolvedValue({
       get: vi.fn().mockResolvedValue(null),
-      set: vi.fn().mockResolvedValue(undefined),
-      save: vi.fn().mockResolvedValue(undefined),
-    }),
+      set: vi.fn().mockResolvedValue(true),
+      save: vi.fn().mockResolvedValue(true),
+      entries: vi.fn().mockResolvedValue([]),
+    })
   }
 }));
 

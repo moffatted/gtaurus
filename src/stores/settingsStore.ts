@@ -12,8 +12,8 @@
 
 import { create } from "zustand";
 import { Store } from "@tauri-apps/plugin-store";
-import { invoke } from "@tauri-apps/api/core";
 import { isTauriApp } from "../utils/platform";
+import { transport } from '../services/transportService';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -414,11 +414,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       try {
         let path = saved?.gcodeStoragePath;
         if (!path) {
-          const home = await invoke<string>('get_home_dir');
+          const home = await transport.invoke<string>('get_home_dir');
           // Windows fix: normalize backslashes to forward slashes for consistency
           path = `${home}/gcode_files`.replace(/\\/g, '/');
         }
-        await invoke('ensure_dir_exists', { path });
+        await transport.invoke('ensure_dir_exists', { path });
         
         // If we didn't have saved settings, create a base with the path
         if (!saved) {
