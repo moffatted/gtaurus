@@ -21,10 +21,31 @@ class TransportService {
 
   private currentHost: string | null = null;
   private currentPort: number | null = null;
+  private useWebSocket: boolean = false;
 
   constructor() {
-    if (!isTauri) {
+    this.useWebSocket = !isTauri;
+    if (this.useWebSocket) {
       this.initWebSocket();
+    }
+  }
+
+  public setMode(mode: 'native' | 'websocket') {
+    const nextUseWS = mode === 'websocket' || !isTauri;
+    if (this.useWebSocket !== nextUseWS) {
+      this.useWebSocket = nextUseWS;
+      if (this.useWebSocket) {
+        if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
+          this.initWebSocket();
+        }
+      } else {
+        if (this.socket) {
+          this.socket.onclose = null;
+          this.socket.close();
+          this.socket = null;
+          if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+        }
+      }
     }
   }
 
@@ -121,7 +142,7 @@ class TransportService {
   }
 
   async invoke<T>(cmd: string, args?: any): Promise<T> {
-    if (isTauri) {
+    if (!this.useWebSocket && isTauri) {
       return tauriInvoke<T>(cmd, args);
     }
 
@@ -149,16 +170,11 @@ class TransportService {
     event: string,
     handler: EventCallback<T>,
   ): Promise<UnlistenFn> {
-    if (isTauri) {
-      return tauriListen<T>(event, handler);
-    }
-
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(handler);
-
-    return Promise.resolve(() => {
+    const websocketUnsub = () => {
       const arr = this.eventListeners.get(event);
       if (arr) {
         this.eventListeners.set(
@@ -166,7 +182,17 @@ class TransportService {
           arr.filter((cb) => cb !== handler),
         );
       }
-    });
+    };
+
+    let tauriUnsub: UnlistenFn | null = null;
+    if (isTauri) {
+      tauriUnsub = await tauriListen<T>(event, handler);
+    }
+
+    return () => {
+      websocketUnsub();
+      if (tauriUnsub) tauriUnsub();
+    };
   }
 }
 

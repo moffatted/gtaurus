@@ -71,8 +71,8 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
   const { settings, updateSettings } = useSettingsStore();
   const conn = settings.connection;
 
-  const [mode, setMode]         = useState<'websocket' | 'serial' | 'bridge'>(
-    isTauriApp() ? conn.preferredMode : 'bridge'
+  const [mode, setMode]         = useState<'telnet' | 'serial' | 'websocket'>(
+    conn.preferredMode || 'websocket'
   );
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(conn.wsPort ?? 23);
@@ -94,7 +94,8 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
     setConnecting(true);
     setError('');
     try {
-      if (mode === 'bridge') {
+      if (mode === 'websocket') {
+        transport.setMode('websocket');
         transport.reconnect(bridgeHost, bridgePort);
         // Delay status check slightly to allow bridge connection
         setTimeout(() => {
@@ -105,12 +106,14 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
                 }
             }).catch(() => {});
         }, 500);
-      } else if (mode === 'websocket') {
+      } else if (mode === 'telnet') {
+        if (isTauriApp()) transport.setMode('native');
         await transport.invoke('connect_telnet', { host: wsHost, wsPort });
-        updateSettings({ connection: { ...conn, preferredMode: 'websocket', wsHost, wsPort } });
+        updateSettings({ connection: { ...conn, preferredMode: 'telnet', wsHost, wsPort } });
         onConnected();
         onClose();
       } else {
+        if (isTauriApp()) transport.setMode('native');
         await transport.invoke('connect_serial', { portName: port, baudRate: baud });
         updateSettings({ connection: { ...conn, preferredMode: 'serial', serialPort: port, baudRate: baud } });
         onConnected();
@@ -146,8 +149,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
         <div className="px-5 py-4 space-y-4">
           {/* Mode selector */}
           <div className="flex rounded-lg overflow-hidden border border-[var(--border-color)]">
-            {(['websocket', 'serial', 'bridge'] as const)
-              .filter(m => isTauriApp() ? m !== 'bridge' : m !== 'serial')
+            {(['telnet', 'serial', 'websocket'] as const)
               .map((m) => (
               <button
                 key={m}
@@ -158,15 +160,15 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
-                {m === 'websocket' && <><Wifi className="w-3.5 h-3.5" /> WiFi</>}
+                {m === 'telnet' && <><Wifi className="w-3.5 h-3.5" /> Telnet</>}
                 {m === 'serial' && <><Usb className="w-3.5 h-3.5" /> USB</>}
-                {m === 'bridge' && <><RefreshCw className="w-3.5 h-3.5" /> Bridge</>}
+                {m === 'websocket' && <><RefreshCw className="w-3.5 h-3.5" /> Bridge</>}
               </button>
             ))}
           </div>
 
           {/* Fields */}
-          {mode === 'bridge' && (
+          {mode === 'websocket' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
@@ -191,7 +193,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
             </div>
           )}
 
-          {mode === 'websocket' && (
+          {mode === 'telnet' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
@@ -267,7 +269,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
           </button>
           <button
             onClick={handleConnect}
-            disabled={connecting || (mode === 'serial' && !port) || (mode === 'websocket' && !wsHost)}
+            disabled={connecting || (mode === 'serial' && !port) || (mode === 'telnet' && !wsHost) || (mode === 'websocket' && !bridgeHost)}
             className="px-4 py-2 text-sm rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {connecting ? 'Connecting…' : 'Connect'}

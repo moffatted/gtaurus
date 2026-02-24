@@ -37,9 +37,16 @@ function ConnectionPanel() {
     const conn = settings.connection;
 
     // Mode tab — initialise from saved preference
-    const [mode, setMode] = useState<'wifi' | 'serial' | 'bridge'>(
-        isTauriApp() ? (conn.preferredMode === 'serial' ? 'serial' : 'wifi') : 'bridge'
+    const [mode, setMode] = useState<'telnet' | 'serial' | 'websocket'>(
+        conn.preferredMode || 'websocket'
     );
+
+    useEffect(() => {
+        // Enforce websocket mode in browser unless Tauri
+        if (!isTauriApp()) {
+            transport.setMode('websocket');
+        }
+    }, []);
 
     // WiFi fields
     const [wsHost, setWsHost] = useState(conn.wsHost);
@@ -94,18 +101,19 @@ function ConnectionPanel() {
         setConn(true);
         setStatus("Connecting…");
         try {
-            if (mode === 'bridge') {
+            if (mode === 'websocket') {
+                transport.setMode('websocket');
                 transport.reconnect(bridgeHost, parseInt(bridgePort, 10));
-                // We don't wait for 'ok' because reconnect is WebSocket-level
-                // but we can check status again.
                 setTimeout(() => void refreshStatus(), 500);
-            } else if (mode === 'wifi') {
+            } else if (mode === 'telnet') {
+                if (isTauriApp()) transport.setMode('native');
                 const port = parseInt(wsPort, 10);
                 await transport.invoke("connect_telnet", {
                     host: wsHost,
                     wsPort: isNaN(port) ? 23 : port,
                 });
             } else {
+                if (isTauriApp()) transport.setMode('native');
                 if (!selectedPort) return;
                 await transport.invoke("connect_serial", {
                     portName: selectedPort,
@@ -151,8 +159,8 @@ function ConnectionPanel() {
         <div className="space-y-4">
             {/* Mode tabs */}
             <div className="flex rounded-lg overflow-hidden border border-[var(--border-color)] text-xs font-medium">
-                {(['wifi', 'serial', 'bridge'] as const).filter(m => isTauriApp() ? m !== 'bridge' : m !== 'serial').map((m) => (
-                    <Tooltip key={m} content={`Use ${m === 'wifi' ? 'Network (Telnet)' : m === 'serial' ? 'USB Serial' : 'Bridge Agent'} connection`} position="top" className="flex-1">
+                {(['telnet', 'serial', 'websocket'] as const).map((m) => (
+                    <Tooltip key={m} content={`Use ${m === 'telnet' ? 'Network (Telnet)' : m === 'serial' ? 'USB Serial' : 'Agent Bridge (WebSocket)'} connection`} position="top" className="flex-1">
                         <button
                             onClick={() => setMode(m)}
                             className={clsx(
@@ -163,16 +171,16 @@ function ConnectionPanel() {
                             )}
                             aria-pressed={mode === m}
                         >
-                            {m === 'wifi' && <><Wifi className="w-3 h-3" /> WiFi</>}
+                            {m === 'telnet' && <><Wifi className="w-3 h-3" /> Telnet</>}
                             {m === 'serial' && <><Usb  className="w-3 h-3" /> USB</>}
-                            {m === 'bridge' && <><RefreshCw className="w-3 h-3" /> Bridge</>}
+                            {m === 'websocket' && <><RefreshCw className="w-3 h-3" /> Bridge</>}
                         </button>
                     </Tooltip>
                 ))}
             </div>
 
             {/* Bridge fields */}
-            {mode === 'bridge' && (
+            {mode === 'websocket' && (
                 <div className="space-y-3">
                     <div>
                         <label className="text-xs text-[var(--text-secondary)] mb-1 block">Bridge Host</label>
@@ -196,8 +204,8 @@ function ConnectionPanel() {
                 </div>
             )}
 
-            {/* WiFi fields */}
-            {mode === 'wifi' && (
+            {/* WiFi Telnet fields */}
+            {mode === 'telnet' && (
                 <div className="space-y-3">
                     <div>
                         <label className="text-xs text-[var(--text-secondary)] mb-1 block">Host</label>
@@ -290,7 +298,7 @@ function ConnectionPanel() {
                     </button>
                 </Tooltip>
             ) : (
-                <Tooltip content={mode === 'wifi' ? "Connect via Telnet" : "Connect via Serial USB"} position="top" className="w-full">
+                <Tooltip content={mode === 'telnet' ? "Connect via Telnet" : mode === 'websocket' ? "Connect via Gtaurus Bridge" : "Connect via Serial USB"} position="top" className="w-full">
                     <button
                         onClick={handleConnect}
                         disabled={connecting || (mode === 'serial' && !selectedPort)}

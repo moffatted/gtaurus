@@ -33,7 +33,7 @@ export interface DashboardPanel {
 }
 
 export interface ConnectionSettings {
-  preferredMode: "serial" | "websocket";
+  preferredMode: "serial" | "telnet" | "websocket";
   serialPort: string;
   baudRate: number;
   terminalFontSize: number;
