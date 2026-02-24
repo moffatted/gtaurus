@@ -94,6 +94,23 @@ Creates an optimized release build for your OS. The executable will be located i
 
 ---
 
+### Headless Deployment (Ubuntu)
+
+Gtaurus can run on a headless server (e.g., using a virtual desktop) so that it can remain connected to your CNC machine continuously, while you access it via the Web Mode.
+**Note:** This has only been tested on **Ubuntu 24.04**.
+
+To launch Gtaurus headlessly with a virtual framebuffer (Xvfb), use the provided launch script:
+
+```bash
+# Make the script executable
+chmod +x scripts/launch_ubuntu.sh
+
+# Run the script to install dependencies and launch the app
+./scripts/launch_ubuntu.sh
+```
+
+---
+
 ### Web Mode (Browser) & Remote Access
 
 Gtaurus includes a powerful remote access feature. When the main Tauri desktop application is running (e.g., via `npm run tauri dev`), the system exposes two services on your local network:
