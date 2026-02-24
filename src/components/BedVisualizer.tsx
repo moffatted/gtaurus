@@ -506,8 +506,8 @@ export function BedVisualizer() {
         >
           <GizmoViewcube 
             opacity={1}
-            color={theme === 'dark' ? "#1e293b" : "#f1f5f9"}
-            strokeColor={theme === 'dark' ? "#334155" : "#cbd5e1"}
+            color={theme === 'dark' ? "#334155" : "#e2e8f0"}
+            strokeColor={theme === 'dark' ? "#cbd5e1" : "#475569"}
             textColor={theme === 'dark' ? "#f8fafc" : "#0f172a"}
             hoverColor="rgba(59, 130, 246, 0.5)"
             font="bold 24px Inter, sans-serif"
