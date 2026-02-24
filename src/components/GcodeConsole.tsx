@@ -12,6 +12,7 @@ import {
   Play,
   Square,
   RotateCcw,
+  RefreshCw,
   HelpCircle,
   X,
   ChevronRight,
@@ -70,9 +71,13 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
   const { settings, updateSettings } = useSettingsStore();
   const conn = settings.connection;
 
-  const [mode, setMode]         = useState(conn.preferredMode);
+  const [mode, setMode]         = useState<'websocket' | 'serial' | 'bridge'>(
+    isTauriApp() ? conn.preferredMode : 'bridge'
+  );
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(conn.wsPort ?? 23);
+  const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
+  const [bridgePort, setBridgePort] = useState(conn.bridgePort || 9001);
   const [port, setPort]         = useState(conn.serialPort);
   const [baud, setBaud]         = useState(conn.baudRate);
   const [ports, setPorts]       = useState<string[]>([]);
@@ -86,22 +91,31 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
   }, [mode]);
 
   async function handleConnect() {
-    if (!isTauriApp()) {
-      setError('Serial/WebSocket requires the desktop app.');
-      return;
-    }
     setConnecting(true);
     setError('');
     try {
-      if (mode === 'websocket') {
+      if (mode === 'bridge') {
+        transport.reconnect(bridgeHost, bridgePort);
+        // Delay status check slightly to allow bridge connection
+        setTimeout(() => {
+            transport.invoke<string>('get_connection_status').then(s => {
+                if (s !== 'Disconnected') {
+                    onConnected();
+                    onClose();
+                }
+            }).catch(() => {});
+        }, 500);
+      } else if (mode === 'websocket') {
         await transport.invoke('connect_telnet', { host: wsHost, wsPort });
         updateSettings({ connection: { ...conn, preferredMode: 'websocket', wsHost, wsPort } });
+        onConnected();
+        onClose();
       } else {
         await transport.invoke('connect_serial', { portName: port, baudRate: baud });
         updateSettings({ connection: { ...conn, preferredMode: 'serial', serialPort: port, baudRate: baud } });
+        onConnected();
+        onClose();
       }
-      onConnected();
-      onClose();
     } catch (e: unknown) {
       setError(String(e));
     } finally {
@@ -131,27 +145,53 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
 
         <div className="px-5 py-4 space-y-4">
           {/* Mode selector */}
-          <div className="grid grid-cols-2 gap-2">
-            {(['websocket', 'serial'] as const).map((m) => (
+          <div className="flex rounded-lg overflow-hidden border border-[var(--border-color)]">
+            {(['websocket', 'serial', 'bridge'] as const)
+              .filter(m => isTauriApp() ? m !== 'bridge' : m !== 'serial')
+              .map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 border-r last:border-r-0 border-[var(--border-color)] text-xs font-medium transition-all cursor-pointer ${
                   mode === m
-                    ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] text-[var(--accent-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                    ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
-                {m === 'websocket'
-                  ? <><Wifi className="w-4 h-4" /> WiFi</>
-                  : <><Usb className="w-4 h-4" /> USB Serial</>
-                }
+                {m === 'websocket' && <><Wifi className="w-3.5 h-3.5" /> WiFi</>}
+                {m === 'serial' && <><Usb className="w-3.5 h-3.5" /> USB</>}
+                {m === 'bridge' && <><RefreshCw className="w-3.5 h-3.5" /> Bridge</>}
               </button>
             ))}
           </div>
 
           {/* Fields */}
-          {mode === 'websocket' ? (
+          {mode === 'bridge' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  Bridge Host
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={bridgeHost}
+                    onChange={(e) => setBridgeHost(e.target.value)}
+                    placeholder="localhost"
+                    className="flex-1 px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <input
+                    type="number"
+                    value={bridgePort}
+                    onChange={(e) => setBridgePort(Number(e.target.value))}
+                    className="w-20 px-2 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mode === 'websocket' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
@@ -179,7 +219,9 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
                 </p>
               </div>
             </div>
-          ) : (
+          )}
+
+          {mode === 'serial' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Serial Port</label>
@@ -269,11 +311,6 @@ export function GcodeConsole() {
 
   // Listen for FluidNC RX events
   useEffect(() => {
-    if (!isTauriApp()) {
-      appendLine('[GTaurus] Serial/WebSocket requires the desktop app.', 'sys');
-      return;
-    }
-
     let unlisten: any | null = null;
 
     transport.listen<string>('fluidnc://rx', (event: any) => {
@@ -298,8 +335,6 @@ export function GcodeConsole() {
 
   // Sync connection status from backend regularly
   useEffect(() => {
-    if (!isTauriApp()) return;
-
     const syncStatus = () => {
         transport.invoke<string>('get_connection_status')
           .then((s) => {
@@ -317,7 +352,7 @@ export function GcodeConsole() {
   // Send a command
   async function sendCommand(cmd: string) {
     const trimmed = cmd.trim();
-    if (!trimmed || !isTauriApp()) return;
+    if (!trimmed) return;
     appendLine(`> ${trimmed}`, 'cmd');
     try {
       await transport.invoke('send_gcode', { cmd: trimmed });
@@ -334,7 +369,7 @@ export function GcodeConsole() {
 
   // Send a realtime byte
   async function sendRealtime(byte: number, label: string) {
-    if (!isTauriApp() || !connected) return;
+    if (!connected) return;
     appendLine(`> [${label}]`, 'cmd');
     try {
       await transport.invoke('send_realtime', { byte });
@@ -344,7 +379,6 @@ export function GcodeConsole() {
   }
 
   function handleDisconnect() {
-    if (!isTauriApp()) return;
     transport.invoke('disconnect').then(() => {
       setConnected(false);
       setStatusLabel('Disconnected');

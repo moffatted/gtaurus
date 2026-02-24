@@ -37,13 +37,17 @@ function ConnectionPanel() {
     const conn = settings.connection;
 
     // Mode tab — initialise from saved preference
-    const [mode, setMode] = useState<'wifi' | 'serial'>(
-        conn.preferredMode === 'serial' ? 'serial' : 'wifi'
+    const [mode, setMode] = useState<'wifi' | 'serial' | 'bridge'>(
+        isTauriApp() ? (conn.preferredMode === 'serial' ? 'serial' : 'wifi') : 'bridge'
     );
 
     // WiFi fields
     const [wsHost, setWsHost] = useState(conn.wsHost);
     const [wsPort, setWsPort] = useState(String(conn.wsPort));
+
+    // Bridge fields
+    const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
+    const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || 9001));
 
     // Serial fields
     const [selectedPort, setSelectedPort] = useState(conn.serialPort);
@@ -61,12 +65,10 @@ function ConnectionPanel() {
     const { data: ports, refetch, isLoading } = useQuery({
         queryKey: ["serial-ports"],
         queryFn: () => transport.invoke<string[]>("list_serial_ports"),
-        enabled: isTauriApp(),
     });
 
     // Poll connection status every 2 s
     useEffect(() => {
-        if (!isTauriApp()) return;
         const tick = async () => {
             try {
                 const s = await transport.invoke<string>("get_connection_status");
@@ -92,7 +94,12 @@ function ConnectionPanel() {
         setConn(true);
         setStatus("Connecting…");
         try {
-            if (mode === 'wifi') {
+            if (mode === 'bridge') {
+                transport.reconnect(bridgeHost, parseInt(bridgePort, 10));
+                // We don't wait for 'ok' because reconnect is WebSocket-level
+                // but we can check status again.
+                setTimeout(() => void refreshStatus(), 500);
+            } else if (mode === 'wifi') {
                 const port = parseInt(wsPort, 10);
                 await transport.invoke("connect_telnet", {
                     host: wsHost,
@@ -109,6 +116,15 @@ function ConnectionPanel() {
             setStatus(`Error: ${e}`);
         } finally {
             setConn(false);
+        }
+    };
+
+    const refreshStatus = async () => {
+        try {
+          const s = await transport.invoke<string>('get_connection_status');
+          setStatus(s);
+        } catch {
+          setStatus('Disconnected');
         }
     };
 
@@ -135,8 +151,8 @@ function ConnectionPanel() {
         <div className="space-y-4">
             {/* Mode tabs */}
             <div className="flex rounded-lg overflow-hidden border border-[var(--border-color)] text-xs font-medium">
-                {(['wifi', 'serial'] as const).map((m) => (
-                    <Tooltip key={m} content={`Use ${m === 'wifi' ? 'Network (Telnet)' : 'USB Serial'} connection`} position="top" className="flex-1">
+                {(['wifi', 'serial', 'bridge'] as const).filter(m => isTauriApp() ? m !== 'bridge' : m !== 'serial').map((m) => (
+                    <Tooltip key={m} content={`Use ${m === 'wifi' ? 'Network (Telnet)' : m === 'serial' ? 'USB Serial' : 'Bridge Agent'} connection`} position="top" className="flex-1">
                         <button
                             onClick={() => setMode(m)}
                             className={clsx(
@@ -147,14 +163,38 @@ function ConnectionPanel() {
                             )}
                             aria-pressed={mode === m}
                         >
-                            {m === 'wifi'
-                                ? <><Wifi className="w-3 h-3" /> WiFi</>
-                                : <><Usb  className="w-3 h-3" /> USB</>
-                            }
+                            {m === 'wifi' && <><Wifi className="w-3 h-3" /> WiFi</>}
+                            {m === 'serial' && <><Usb  className="w-3 h-3" /> USB</>}
+                            {m === 'bridge' && <><RefreshCw className="w-3 h-3" /> Bridge</>}
                         </button>
                     </Tooltip>
                 ))}
             </div>
+
+            {/* Bridge fields */}
+            {mode === 'bridge' && (
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs text-[var(--text-secondary)] mb-1 block">Bridge Host</label>
+                        <input
+                            type="text"
+                            value={bridgeHost}
+                            onChange={(e) => setBridgeHost(e.target.value)}
+                            placeholder="localhost"
+                            className={inputCls}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-[var(--text-secondary)] mb-1 block">Bridge Port</label>
+                        <input
+                            type="number"
+                            value={bridgePort}
+                            onChange={(e) => setBridgePort(e.target.value)}
+                            className={inputCls}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* WiFi fields */}
             {mode === 'wifi' && (
@@ -293,7 +333,6 @@ export function Sidebar({ className }: SidebarProps) {
 
     // Poll connection status for collapsed indicator
     useEffect(() => {
-        if (!isTauriApp()) return;
         const tick = async () => {
             try {
                 const s = await transport.invoke<string>("get_connection_status");
@@ -350,15 +389,7 @@ export function Sidebar({ className }: SidebarProps) {
                         <label className="text-xs font-semibold text-[var(--text-tertiary)] uppercase mb-3 block">
                             Connection
                         </label>
-                        {isTauriApp() ? (
-                            <ConnectionPanel />
-                        ) : (
-                            <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg p-4 text-center">
-                                <Usb className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                                <p className="text-sm text-[var(--text-secondary)] mb-1">Serial Communication Unavailable</p>
-                                <p className="text-xs text-[var(--text-tertiary)]">Download the desktop app to connect to CNC hardware</p>
-                            </div>
-                        )}
+                        <ConnectionPanel />
                     </>
                 ) : (
                     <div className="flex flex-col items-center gap-6 mt-2">

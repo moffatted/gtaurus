@@ -21,7 +21,25 @@ class TransportService {
     const host = window.location.hostname || 'localhost';
     console.log(`[TransportService] Connecting to WebSocket bridge at ws://${host}:9001`);
     this.socket = new WebSocket(`ws://${host}:9001`);
+    this.setupHandlers();
+  }
+
+  public reconnect(host: string, port: number) {
+    console.log(`[TransportService] Manually reconnecting to bridge at ws://${host}:${port}`);
+    if (this.socket) {
+      this.socket.onclose = null; // Prevent the default reconnect logic
+      this.socket.close();
+    }
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     
+    // Create new connection
+    this.socket = new WebSocket(`ws://${host}:${port}`);
+    // re-setup all handlers... (re-using the logic from initWebSocket but for the new instance)
+    this.setupHandlers();
+  }
+
+  private setupHandlers() {
+    if (!this.socket) return;
     this.socket.onopen = () => {
       console.log('[TransportService] WebSocket connected to Agent Bridge');
       while (this.messageQueue.length > 0) {
@@ -60,10 +78,10 @@ class TransportService {
       }
     };
 
-    this.socket.onclose = () => {
-      console.log('[TransportService] WebSocket disconnected. Reconnecting in 3s...');
+    this.socket.onclose = (event) => {
+      console.log(`[TransportService] WebSocket closed. Code: ${event.code}, Reason: ${event.reason}. Reconnecting in 3s...`);
       if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = window.setTimeout(() => this.initWebSocket(), 3000);
+      this.reconnectTimeout = window.setTimeout(() => this.setupHandlers(), 3000);
     };
 
     this.socket.onerror = (err) => {

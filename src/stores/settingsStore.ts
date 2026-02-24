@@ -41,6 +41,8 @@ export interface ConnectionSettings {
   // Visualizer Settings
   wsHost: string;
   wsPort: number;
+  bridgeHost: string;
+  bridgePort: number;
   statusPollInterval: number;
 }
 
@@ -225,6 +227,8 @@ export const DEFAULT_SETTINGS: Settings = {
     terminalScrollback: 1000,
     wsHost: "192.168.68.61",
     wsPort: 23,
+    bridgeHost: "192.168.68.64",
+    bridgePort: 9001,
     statusPollInterval: 2000,
   },
   general: {

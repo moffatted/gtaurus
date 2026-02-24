@@ -12,6 +12,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
+import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
@@ -853,6 +854,8 @@ function ConnectionContent() {
 
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(String(conn.wsPort));
+  const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
+  const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || 9001));
   const [pollInterval, setPollInterval] = useState(String(conn.statusPollInterval));
   const [serialPort, setSP]     = useState(conn.serialPort);
   const [baudRate, setBaud]     = useState(String(conn.baudRate));
@@ -908,6 +911,13 @@ function ConnectionContent() {
     });
   };
 
+  const saveBridge = () => {
+    const port = parseInt(bridgePort, 10);
+    updateSettings({
+      connection: { ...conn, bridgeHost: bridgeHost.trim(), bridgePort: isNaN(port) ? 9001 : port },
+    });
+  };
+
   const saveSerial = (newPort?: string, newBaud?: string) => {
     const baud = parseInt(newBaud ?? baudRate, 10);
     updateSettings({
@@ -956,6 +966,45 @@ function ConnectionContent() {
           {disconnecting ? 'Disconnecting…' : 'Disconnect'}
         </button>
       </div>
+
+      {/* Standalone Bridge (Agent) Settings */}
+      {!isTauriApp() && (
+        <div className="space-y-3 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Standalone Server (Bridge)</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-tertiary)] leading-relaxed">
+                When running in a browser, Gtaurus connects to a <strong>gtaurus_server</strong> instance to access your machine.
+            </p>
+            <div className="flex gap-2">
+                <div className="flex-1">
+                    <label className={labelCls}>Bridge Host</label>
+                    <input
+                        type="text"
+                        value={bridgeHost}
+                        onChange={(e) => setBridgeHost(e.target.value)}
+                        onBlur={saveBridge}
+                        className={inputCls}
+                    />
+                </div>
+                <div className="w-20">
+                    <label className={labelCls}>Port</label>
+                    <input
+                        type="number"
+                        value={bridgePort}
+                        onChange={(e) => setBridgePort(e.target.value)}
+                        onBlur={saveBridge}
+                        className={inputCls}
+                    />
+                </div>
+            </div>
+            <p className="text-[10px] text-[var(--text-tertiary)] italic">
+                Connects to the gtaurus_server bridge for browser-to-hardware communication.
+            </p>
+        </div>
+      )}
+
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-[var(--accent-primary)]">
           <Wifi className="w-3.5 h-3.5" />
