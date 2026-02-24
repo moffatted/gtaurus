@@ -129,13 +129,21 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Material</label>
               <select
                 value={stock.material}
-                onChange={(e) => setStockSettings({ material: e.target.value as any })}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  if (val === 'pcb') {
+                    setStockSettings({ material: val, thickness: 1.6 });
+                  } else {
+                    setStockSettings({ material: val });
+                  }
+                }}
                 className={inputCls + " cursor-pointer uppercase text-[10px] font-bold tracking-widest"}
               >
                 <option value="pine">Pine Wood</option>
                 <option value="mdf">MDF Board</option>
                 <option value="aluminum">Aluminum</option>
                 <option value="pvc">PVC / Plastic</option>
+                <option value="pcb">PCB (Copper Clad)</option>
               </select>
             </div>
             <div>

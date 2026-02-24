@@ -216,6 +216,7 @@ function AutolevelMesh() {
       // Create a flat dense plane representation
       const geo = new THREE.PlaneGeometry(settings.general.bedSizeX, settings.general.bedSizeY, 20, 20);
       geo.rotateX(-Math.PI / 2);
+      geo.translate(settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2);
       
       const positions = geo.attributes.position;
       const colors = new Float32Array(positions.count * 3);
@@ -323,7 +324,8 @@ function StockMesh() {
     pine:     { color: "#f3d299", metalness: 0.0, roughness: 0.8 },
     mdf:      { color: "#b58d5a", metalness: 0.0, roughness: 0.9 },
     aluminum: { color: "#cbd5e1", metalness: 0.8, roughness: 0.2, emissive: "#1e293b" },
-    pvc:      { color: "#f8fafc", metalness: 0.1, roughness: 0.5 }
+    pvc:      { color: "#f8fafc", metalness: 0.1, roughness: 0.5 },
+    pcb:      { color: "#b87333", metalness: 0.9, roughness: 0.2, emissive: "#4a2311" }
   };
 
   const profile = materialProfiles[stock.material] || materialProfiles.pine;
@@ -404,6 +406,7 @@ function MachineBed() {
         sectionColor="#475569" 
         fadeDistance={500}
         infiniteGrid={false}
+        followCamera={false}
       />
 
       {/* Origin Axis Labels */}
@@ -498,8 +501,8 @@ export function BedVisualizer() {
         />
 
         <GizmoHelper
-          alignment="bottom-right"
-          margin={[60, 140]}
+          alignment="bottom-left"
+          margin={[60, 120]}
         >
           <GizmoViewcube 
             opacity={1}

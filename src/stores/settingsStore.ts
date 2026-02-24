@@ -160,7 +160,7 @@ export interface StockSettings {
   thickness: number;
   offsetX: number;
   offsetY: number;
-  material: 'pine' | 'mdf' | 'aluminum' | 'pvc';
+  material: 'pine' | 'mdf' | 'aluminum' | 'pvc' | 'pcb';
   opacity: number;
 }
 
