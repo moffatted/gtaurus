@@ -68,6 +68,7 @@ class TransportService {
   }
 
   public reconnect(host: string, port: number) {
+    this.useWebSocket = true;
     console.log(
       `[TransportService] Manually reconnecting to bridge at ws://${host}:${port}`,
     );
@@ -87,6 +88,7 @@ class TransportService {
     if (!this.socket) return;
     this.socket.onopen = () => {
       console.log("[TransportService] WebSocket connected to Agent Bridge");
+      this.useWebSocket = true; // Auto-switch to bridge mode on success
       while (this.messageQueue.length > 0) {
         this.socket?.send(this.messageQueue.shift()!);
       }
@@ -146,6 +148,7 @@ class TransportService {
   }
 
   async invoke<T>(cmd: string, args?: any): Promise<T> {
+    console.log(`[TransportService] invoke: ${cmd}`, { useWebSocket: this.useWebSocket, isTauri, args });
     if (!this.useWebSocket && isTauri) {
       return tauriInvoke<T>(cmd, args);
     }
@@ -154,18 +157,20 @@ class TransportService {
       const id = `req_${++this.requestCounter}`;
       
       const message = JSON.stringify({ type: "invoke", id, cmd, args });
+      console.log(`[TransportService] Sending WS: ${message}`);
 
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         this.pendingRequests.set(id, { resolve, reject });
         this.socket.send(message);
       } else if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+        console.log(`[TransportService] WS connecting, queuing: ${cmd}`);
         this.pendingRequests.set(id, { resolve, reject });
         this.messageQueue.push(message);
       } else {
         if (cmd === "get_connection_status" || cmd === "get_status") {
           return resolve("Disconnected" as any);
         }
-        reject(new Error(`[TransportService] Cannot invoke '${cmd}': WebSocket is not connected.`));
+        reject(new Error(`[TransportService] Cannot invoke '${cmd}': WebSocket is not connected (State: ${this.socket?.readyState}).`));
       }
     });
   }
