@@ -87,6 +87,8 @@ Creates an optimized release build for your OS. The executable will be located i
 - ✅ **Tooltip System**: Contextual help throughout the interface.
 - ✅ **DockView Layout**: Rearrangeable and dockable windows for maximum workspace customization.
 - ✅ **Tool Changer**: Integrated panel for tool changing setup.
+- ✅ **Tool Library**: Visual bit catalog with SVG previews, Fusion tool library import/export (.json/.csv/.tools), and curated reference links for bit identification.
+  > **Note:** The external links provided in the *Reference & Identification* section of the Tool Library panel are intended solely to help users identify CNC bit types and specifications. Their inclusion does not constitute an endorsement of any particular vendor, product, or service.
 - ✅ **Bed Visualizer**: 3D interactive viewer (`@react-three/fiber`) of the CNC bed, spindle position, toolpaths, and autolevel meshes.
 - ✅ Serial port communication with CNC hardware
 - ✅ Theme persistence via Tauri Store
