@@ -25,7 +25,7 @@ export const HELP_TOPICS: HelpTopic[] = [
             <strong>Local WiFi (Telnet):</strong> Connects directly to the FluidNC controller over your local Wi-Fi. Great for wireless setups without needing a dedicated PC attached to the machine.
           </li>
           <li>
-            <strong>GTaurus Bridge (WebSocket):</strong> Used when accessing the dashboard via a web browser to control a machine remotely. Connects to a `gtaurus_server` running on a host computer physically wired to the CNC machine.
+            <strong>GTaurus Bridge (WebSocket):</strong> Used when accessing the dashboard via a web browser to control a machine remotely. Connects to a <code>gtaurus_server</code> running on a host computer physically wired to the CNC machine. Ensure the <code>gtaurus_server</code> is running on the host that is directly connected to the USB port. <strong>Important:</strong> If you are using the GTaurus Bridge to control the CNC, do not use the Local WiFi (Telnet) capability at the same time to avoid conflicts.
           </li>
         </ul>
         <p className="text-sm text-[var(--text-secondary)] mt-3">
