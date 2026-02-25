@@ -104,7 +104,14 @@ function ConnectionPanel() {
             if (mode === 'websocket') {
                 transport.setMode('websocket');
                 transport.reconnect(bridgeHost, parseInt(bridgePort, 10));
-                setTimeout(() => void refreshStatus(), 500);
+                setTimeout(async () => {
+                    try {
+                        await transport.invoke("resume_auto_connect");
+                    } catch (e) {
+                        console.error("Failed to resume bridge connection:", e);
+                    }
+                    void refreshStatus();
+                }, 500);
             } else if (mode === 'telnet') {
                 if (isTauriApp()) transport.setMode('native');
                 const port = parseInt(wsPort, 10);
