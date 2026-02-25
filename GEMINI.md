@@ -1,5 +1,9 @@
 # Gemini CLI Operational Guidelines
 
+## Git Repository Rules
+- Whenever a commit is performed, it must be followed by a push to the remote repository.
+- Always include a concise, descriptive commit message.
+
 ## Scanning and Investigation Rules
 To maintain context efficiency and focus on relevant source code, the following directories and file types are excluded from scanning, searching, and indexing:
 
