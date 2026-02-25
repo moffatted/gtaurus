@@ -8,6 +8,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { formatDistanceToNow } from 'date-fns';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { transport, isTauri } from '../services/transportService';
 
 interface LocalFile {
@@ -17,13 +18,13 @@ interface LocalFile {
 }
 
 export default function FileManager() {
-  const { settings } = useSettingsStore();
+  const { settings, healStoragePath } = useSettingsStore();
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const refreshFiles = useCallback(async () => {
+  const refreshFiles = useCallback(async (isRetry = false) => {
     if (!settings.gcodeStoragePath) return;
     setLoading(true);
     setError(null);
@@ -35,11 +36,20 @@ export default function FileManager() {
       setFiles(list.sort((a, b) => Number(b.modified) - Number(a.modified)));
     } catch (err) {
       console.error("[FileManager] Failed to list files:", err);
+      // Smart path healing: if error 2 (not found), try to heal the path and retry once
+      if (!isRetry && String(err).toLowerCase().includes("no such file")) {
+        console.log("[FileManager] Path looks invalid, attempting healing...");
+        const newPath = await healStoragePath();
+        if (newPath) {
+          // No need to manually retry, the settings change will trigger a refresh via the hook
+          return;
+        }
+      }
       setError("Failed to access storage directory.");
     } finally {
       setLoading(false);
     }
-  }, [settings.gcodeStoragePath]);
+  }, [settings.gcodeStoragePath, healStoragePath]);
 
   useEffect(() => {
     refreshFiles();
@@ -52,15 +62,24 @@ export default function FileManager() {
     }
 
     try {
-      if (isTauri) {
-        // --- Native Tauri Upload (via local file copy) ---
+      const isRemote = transport.isWebSocketMode();
+      console.log("[FileManager] handleUpload - isTauri:", isTauri, "isRemote:", isRemote);
+
+      if (isTauri && !isRemote) {
+        // --- Local Tauri Upload (File Copy) ---
         const selected = await openDialog({
           multiple: false,
           filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
         });
 
         if (selected && typeof selected === 'string') {
-          const isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
+          console.log("[FileManager] Local Upload source:", selected);
+          let isValid = true;
+          try {
+            isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
+          } catch (valErr) {
+            console.warn("[FileManager] Validation failed:", valErr);
+          }
           if (!isValid && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
             return;
           }
@@ -71,39 +90,68 @@ export default function FileManager() {
           refreshFiles();
         }
       } else {
-        // --- Web Browser Upload (via WebSocket to Bridge) ---
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.nc,.gcode,.gc,.tap,.txt';
-        
-        input.onchange = async (e: any) => {
-          const file = e.target.files?.[0];
+        // --- Web or Remote Bridge Upload (Send Content) ---
+        console.log("[FileManager] Remote/Web upload path. Dest:", settings.gcodeStoragePath);
+        let fileContent: string = "";
+        let fileName: string = "";
+
+        if (isTauri) {
+          const selected = await openDialog({
+            multiple: false,
+            filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
+          });
+          if (!selected || typeof selected !== 'string') return;
+          console.log("[FileManager] Remote Bridge: Reading local file content from:", selected);
+          
+          fileContent = await tauriInvoke<string>('read_local_file', { 
+            path: "", 
+            filename: selected 
+          });
+          fileName = selected.split(/[\\/]/).pop() || "uploaded.gcode";
+        } else {
+          // Standard browser file input
+          const file = await new Promise<File | null>((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.nc,.gcode,.gc,.tap,.txt';
+            input.onchange = (e: any) => resolve(e.target.files?.[0] || null);
+            input.click();
+          });
           if (!file) return;
+          fileName = file.name;
+          fileContent = await file.text();
+        }
 
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-             const content = event.target?.result as string;
-             
-             // Basic validation
-             const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => content.includes(char));
-             if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
-                 return;
-             }
+        console.log("[FileManager] Sending file content to bridge. Size:", fileContent.length);
 
-             await transport.invoke('save_local_file', {
-                path: settings.gcodeStoragePath,
-                filename: file.name,
-                content: content
-             });
-             refreshFiles();
-          };
-          reader.readAsText(file);
-        };
-        input.click();
+        // Basic validation
+        const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => fileContent.includes(char));
+        if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
+          return;
+        }
+
+        await transport.invoke('save_local_file', {
+          path: settings.gcodeStoragePath,
+          filename: fileName,
+          content: fileContent
+        });
+        refreshFiles();
       }
     } catch (err) {
-      console.error("[FileManager] Upload failed:", err);
-      alert("Failed to copy/upload file to storage.");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[FileManager] Upload failed:", msg);
+      
+      // Smart path healing for upload failure
+      if (msg.toLowerCase().includes("no such file")) {
+          console.log("[FileManager] Upload failed due to path, attempting healing...");
+          const newPath = await healStoragePath();
+          if (newPath) {
+              alert("The storage path was invalid for this connection. We've updated it to your home directory. Please try the upload again.");
+              return;
+          }
+      }
+      
+      alert(`Failed to upload file to storage:\n${msg}`);
     }
   };
 
@@ -140,14 +188,25 @@ export default function FileManager() {
       setGcode(content, filename, fullPath);
       simulate();
     } catch (err) {
-      console.error("[FileManager] Preview failed:", err);
-      alert("Failed to load file for preview.");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[FileManager] Preview failed:", msg);
+      alert(`Failed to load file preview:\n${msg}`);
     }
   };
 
   const handleSelect = async (filename: string) => {
-    // Selection now also previews for better UX
-    await handlePreview(filename);
+    try {
+      const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
+      const content = await transport.invoke<string>('read_local_file', { 
+        path: settings.gcodeStoragePath,
+        filename 
+      });
+      setGcode(content, filename, fullPath);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[FileManager] Select failed:", msg);
+      alert(`Failed to load file:\n${msg}`);
+    }
   };
 
   const handleUploadToSD = async (filename: string) => {
@@ -218,7 +277,7 @@ export default function FileManager() {
           
           <div className="flex items-center gap-2 shrink-0">
             <button 
-              onClick={refreshFiles}
+              onClick={() => refreshFiles()}
               disabled={loading}
               className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] transition-colors"
               title="Refresh list"
@@ -272,16 +331,20 @@ export default function FileManager() {
             {filteredFiles.map((file) => (
               <div 
                 key={file.name}
-                onClick={() => handlePreview(file.name)}
-                className={`group flex items-center justify-between p-3 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border rounded-xl transition-all duration-200 cursor-pointer ${
+                onClick={() => handleSelect(file.name)}
+                className={`group flex items-center justify-between p-3 border rounded-xl transition-all duration-200 cursor-pointer ${
                   activeFileName === file.name 
-                  ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]" 
-                  : "border-[var(--border-color)]"
+                  ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30 shadow-[0_0_12px_rgba(59,130,246,0.15)] border-l-4" 
+                  : "bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border-[var(--border-color)]"
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
-                    <FileText className="w-5 h-5 text-blue-500" />
+                  <div className={`p-2.5 rounded-lg transition-colors ${
+                    activeFileName === file.name 
+                    ? "bg-[var(--accent-primary)]/20" 
+                    : "bg-blue-500/10 group-hover:bg-blue-500/20"
+                  }`}>
+                    <FileText className={`w-5 h-5 ${activeFileName === file.name ? "text-[var(--accent-primary)]" : "text-blue-500"}`} />
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-medium text-[var(--text-primary)] truncate pr-4" title={file.name}>
@@ -333,9 +396,10 @@ export default function FileManager() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
-                  >
+                  onClick={(e) => e.stopPropagation()} 
+                  className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
+                  title="More options"
+                >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                 </div>

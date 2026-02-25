@@ -30,6 +30,10 @@ class TransportService {
     }
   }
 
+  public isWebSocketMode() {
+    return this.useWebSocket;
+  }
+
   public setMode(mode: 'native' | 'websocket') {
     const nextUseWS = mode === 'websocket' || !isTauri;
     if (this.useWebSocket !== nextUseWS) {

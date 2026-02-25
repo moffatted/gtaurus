@@ -370,6 +370,8 @@ interface SettingsStore {
   settings: Settings;
   initialized: boolean;
 
+  healStoragePath: () => Promise<string | null>;
+
   /** Load settings from disk. Call once on app start. */
   initSettings: () => Promise<void>;
 
@@ -410,29 +412,54 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   initialized: false,
 
+  healStoragePath: async () => {
+    try {
+      const home = await transport.invoke<string>('get_home_dir');
+      const path = `${home}/gcode_files`.replace(/\\/g, '/');
+      await transport.invoke('ensure_dir_exists', { path });
+      
+      const { updateSettings } = get();
+      updateSettings({ gcodeStoragePath: path });
+      console.log("[settings] Healed storage path to:", path);
+      return path;
+    } catch (err) {
+      console.error("[settings] Path healing failed:", err);
+      return null;
+    }
+  },
+
   initSettings: async () => {
     let saved = await loadFromStorage();
     
-    // Initialize gcodeStoragePath if missing or non-existent
-    if (isTauriApp()) {
-      try {
-        let path = saved?.gcodeStoragePath;
-        if (!path) {
-          const home = await transport.invoke<string>('get_home_dir');
-          // Windows fix: normalize backslashes to forward slashes for consistency
-          path = `${home}/gcode_files`.replace(/\\/g, '/');
+    // Initialize or verify gcodeStoragePath
+    try {
+      let path = saved?.gcodeStoragePath;
+      let needsRefresh = !path;
+
+      // Even if we have a path, verify it works with the current backend
+      if (path) {
+        try {
+          await transport.invoke('ensure_dir_exists', { path });
+        } catch (err) {
+          console.warn("[settings] Current storage path is invalid for this backend, refreshing...", err);
+          needsRefresh = true;
         }
+      }
+
+      if (needsRefresh) {
+        const home = await transport.invoke<string>('get_home_dir');
+        // Normalize backslashes to forward slashes for consistency
+        path = `${home}/gcode_files`.replace(/\\/g, '/');
         await transport.invoke('ensure_dir_exists', { path });
         
-        // If we didn't have saved settings, create a base with the path
         if (!saved) {
           saved = { ...DEFAULT_SETTINGS, gcodeStoragePath: path };
-        } else if (!saved.gcodeStoragePath) {
+        } else {
           saved.gcodeStoragePath = path;
         }
-      } catch (err) {
-        console.error("[settings] Storage init failed:", err);
       }
+    } catch (err) {
+      console.error("[settings] Storage path auto-provisioning failed:", err);
     }
 
     if (saved) {

@@ -166,8 +166,10 @@ fn ensure_dir_exists(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
+    let dir = std::path::PathBuf::from(&path);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let mut files = Vec::new();
-    let entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
+    let entries = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
 
     for entry in entries {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -190,16 +192,30 @@ fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
 
 #[tauri::command]
 fn read_local_file(path: String, filename: String) -> Result<String, String> {
-    let mut full_path = std::path::PathBuf::from(path);
-    full_path.push(filename);
-    std::fs::read_to_string(full_path).map_err(|e| e.to_string())
+    let mut full_path = std::path::PathBuf::from(&path);
+    full_path.push(&filename);
+    eprintln!(
+        "[read_local_file] path={:?}, filename={:?} -> full_path={:?}",
+        path, filename, full_path
+    );
+    std::fs::read_to_string(&full_path).map_err(|e| {
+        eprintln!("[read_local_file] ERR: {} for {:?}", e, full_path);
+        e.to_string()
+    })
 }
 
 #[tauri::command]
 fn save_local_file(path: String, filename: String, content: String) -> Result<(), String> {
-    let mut full_path = std::path::PathBuf::from(path);
+    let dir = std::path::PathBuf::from(&path);
+    eprintln!("[save_local_file] ensuring dir exists: {:?}", dir);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let mut full_path = dir;
     full_path.push(filename);
-    std::fs::write(full_path, content).map_err(|e| e.to_string())
+    eprintln!("[save_local_file] writing to: {:?}", full_path);
+    std::fs::write(&full_path, content).map_err(|e| {
+        eprintln!("[save_local_file] ERR: {} for {:?}", e, full_path);
+        e.to_string()
+    })
 }
 
 #[tauri::command]
@@ -211,22 +227,38 @@ fn delete_local_file(path: String, filename: String) -> Result<(), String> {
 
 #[tauri::command]
 fn copy_to_storage(source_path: String, dest_dir: String) -> Result<(), String> {
-    let source = std::path::PathBuf::from(source_path);
+    eprintln!(
+        "[copy_to_storage] source_path={:?}, dest_dir={:?}",
+        source_path, dest_dir
+    );
+    let source = std::path::PathBuf::from(&source_path);
+    if !source.exists() {
+        return Err(format!("Source file does not exist: {}", source_path));
+    }
     let filename = source.file_name().ok_or("Invalid filename")?;
-    let mut dest = std::path::PathBuf::from(dest_dir);
+    let dest_path = std::path::PathBuf::from(&dest_dir);
+    std::fs::create_dir_all(&dest_path).map_err(|e| format!("Failed to create dest dir: {}", e))?;
+    let mut dest = dest_path;
     dest.push(filename);
-    std::fs::copy(source, dest)
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    eprintln!("[copy_to_storage] copying {:?} -> {:?}", source, dest);
+    std::fs::copy(&source, &dest).map(|_| ()).map_err(|e| {
+        format!(
+            "Copy failed: {} (source={}, dest={})",
+            e,
+            source.display(),
+            dest.display()
+        )
+    })
 }
 
 #[tauri::command]
 fn validate_gcode_file(path: String) -> Result<bool, String> {
-    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    eprintln!("[validate_gcode_file] checking: {:?}", path);
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        eprintln!("[validate_gcode_file] ERR: {} for path {}", e, path);
+        e.to_string()
+    })?;
 
-    // Basic validation: check for common G-code characters or commands
-    // We look for any line starting with G, M, X, Y, Z, $ or containing them
-    // This is a simple heuristic, as requested.
     let is_gcode = content.lines().any(|line| {
         let l = line.trim();
         if l.is_empty() || l.starts_with(';') || l.starts_with('(') {
