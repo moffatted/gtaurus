@@ -81,11 +81,13 @@ function ConnectionPanel() {
                 const s = await transport.invoke<string>("get_connection_status");
                 if (s === "Disconnected" && status !== "Disconnected") {
                     resetMachine();
+                    resetPrerequisites();
                 }
                 setStatus(s);
             } catch {
                 if (status !== "Disconnected") {
                     resetMachine();
+                    resetPrerequisites();
                     setStatus("Disconnected");
                 }
             }

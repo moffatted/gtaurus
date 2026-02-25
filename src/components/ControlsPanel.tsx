@@ -27,9 +27,8 @@ export function ControlsPanel() {
   } = useGcodeStore();
   const { tools, activeToolId } = useToolStore();
 
-  // No longer resetting gcode/prerequisites on Disconnected status to allow 
-  // persistence through transient connection drops. Interaction remains restricted
-  // via isIdle/isRun/isHold derived from status.
+  // Reset prerequisites (hasHomed, hasZeroed) on Disconnected status for safety.
+  // Interaction remains restricted via isIdle/isRun/isHold derived from status.
 
   const isIdle = state.status.startsWith('Idle');
   const isHold = state.status.startsWith('Hold');
@@ -37,6 +36,13 @@ export function ControlsPanel() {
 
   const activeTool = tools.find(t => t.id === activeToolId);
   const toolMismatch = fileToolNumber !== null && (!activeTool || activeTool.number !== fileToolNumber);
+
+  // Safety: Reset homed/zeroed status when machine is disconnected
+  useEffect(() => {
+    if (state.status === 'Disconnected') {
+       resetPrerequisites();
+    }
+  }, [state.status, resetPrerequisites]);
 
   const handleStart = async () => {
     if (isHold) {
