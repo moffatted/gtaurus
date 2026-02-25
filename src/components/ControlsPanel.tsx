@@ -140,7 +140,13 @@ export function ControlsPanel() {
               return false;
           };
 
-          if (parts[0].startsWith('Home')) setHasHomed(true);
+          if (parts[0].startsWith('Home')) {
+              (window as any)._wasHoming = true;
+          } else if ((window as any)._wasHoming && (parts[0].startsWith('Idle') || parts[0].startsWith('Run') || parts[0].startsWith('Hold'))) {
+              (window as any)._wasHoming = false;
+              setHasHomed(true);
+          }
+
           if (parts[0].startsWith('Alarm')) resetPrerequisites();
           
           parts.slice(1).forEach((part: string) => {
