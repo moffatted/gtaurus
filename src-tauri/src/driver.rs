@@ -162,7 +162,8 @@ impl FluidNCDriver {
                     }
                     thread::sleep(Duration::from_millis(1));
                 }
-                let _ = writeln!(writer_port.0, "{}", cmd);
+                let full_cmd = format!("{}\n", cmd);
+                let _ = writer_port.0.write_all(full_cmd.as_bytes());
                 let _ = writer_port.0.flush();
                 {
                     let mut bytes = pending_bytes.lock().unwrap();
@@ -215,7 +216,8 @@ impl FluidNCDriver {
         thread::spawn(move || {
             for cmd in rx {
                 let mut s = stream.lock().unwrap();
-                if writeln!(s, "{}", cmd).is_err() || s.flush().is_err() {
+                let full_cmd = format!("{}\n", cmd);
+                if s.write_all(full_cmd.as_bytes()).is_err() || s.flush().is_err() {
                     break;
                 }
             }
