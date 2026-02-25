@@ -148,7 +148,6 @@ class TransportService {
   }
 
   async invoke<T>(cmd: string, args?: any): Promise<T> {
-    console.log(`[TransportService] invoke: ${cmd}`, { useWebSocket: this.useWebSocket, isTauri, args });
     if (!this.useWebSocket && isTauri) {
       return tauriInvoke<T>(cmd, args);
     }
@@ -157,13 +156,11 @@ class TransportService {
       const id = `req_${++this.requestCounter}`;
       
       const message = JSON.stringify({ type: "invoke", id, cmd, args });
-      console.log(`[TransportService] Sending WS: ${message}`);
 
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         this.pendingRequests.set(id, { resolve, reject });
         this.socket.send(message);
       } else if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
-        console.log(`[TransportService] WS connecting, queuing: ${cmd}`);
         this.pendingRequests.set(id, { resolve, reject });
         this.messageQueue.push(message);
       } else {
