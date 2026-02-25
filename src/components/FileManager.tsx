@@ -301,14 +301,14 @@ export default function FileManager() {
 
                 <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => handlePreview(file.name)}
+                    onClick={(e) => { e.stopPropagation(); handlePreview(file.name); }}
                     className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-all"
                     title="Preview Path"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={() => handleSelect(file.name)}
+                    onClick={(e) => { e.stopPropagation(); handleSelect(file.name); }}
                     className={`p-2 rounded-lg transition-all ${
                         activeFileName === file.name 
                         ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10" 
@@ -319,20 +319,23 @@ export default function FileManager() {
                     <Play className={`w-4 h-4 ${activeFileName === file.name ? 'fill-current' : ''}`} />
                   </button>
                   <button 
-                    onClick={() => handleUploadToSD(file.name)}
+                    onClick={(e) => { e.stopPropagation(); handleUploadToSD(file.name); }}
                     className="p-2 text-[var(--text-secondary)] hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
                     title="Send to Machine SD Card"
                   >
                     <HardDrive className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={() => handleDelete(file.name)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
                     className="p-2 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                     title="Delete file"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <button className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all">
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
+                  >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                 </div>

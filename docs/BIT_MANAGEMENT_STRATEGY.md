@@ -88,7 +88,7 @@ Popular Woodworking’s CNC Bit Anatomy: Great for visual comparison between spi
 
 Amana Tool & Whiteside: While they sell bits, their free PDF catalogs are the industry standard for visual identification. You can look at the "Profile" drawings to match the bit in your hand.
 
-2. Integration with Autodesk Fusion (Free/Hobbyist)
+1. Integration with Autodesk Fusion (Free/Hobbyist)
 Fusion 360 has a massive Cloud Tool Library that is free for personal use. This is likely your best path for a "visual" digital twin:
 
 Manufacturer Libraries: You can download free .json or .hsmlib files from manufacturers like SpeTool, Genmitsu (SainSmart), and Amana.
@@ -97,7 +97,7 @@ Visual Preview: When you import these, Fusion generates a 3D model of the bit. Y
 
 Advanced Tool Library Plugin: There is an "Advanced Tool Library" add-in in the Autodesk App Store (some features are free/trial) that helps with indexing and searching your library more efficiently.
 
-3. Integration into gtaurus / G-Code Workflows
+1. Integration into gtaurus / G-Code Workflows
 Since gtaurus is typically a G-code sender or controller, it doesn't "see" the bit—it just follows the code. To bridge the gap:
 
 Tool Number Mapping: Use Fusion 360's Tool Library to assign a "Tool Number" (e.g., T1, T2) to your bits.
