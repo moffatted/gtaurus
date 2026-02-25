@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SettingsTab = 'dashboard' | 'machine';
+export type SettingsTab = 'dashboard' | 'ui' | 'machine';
 
 interface UIState {
   settingsOpen: boolean;

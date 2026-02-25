@@ -1805,6 +1805,9 @@ function MacrosContent() {
 const SECTIONS = [
   { id: 'dashboard',   title: 'Dashboard',      icon: <LayoutGrid className="w-4 h-4" />, tab: 'dashboard' },
   { id: 'widgets',     title: 'Widgets',        icon: <LayoutDashboard className="w-4 h-4" />, tab: 'dashboard' },
+  { id: 'theme',       title: 'Theme & UX',     icon: <Palette className="w-4 h-4" />, tab: 'ui' },
+  { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'ui' },
+  { id: 'stats',       title: 'Stats Display',  icon: <BarChart2 className="w-4 h-4" />, tab: 'ui' },
   { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" />, tab: 'machine' },
   { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" />, tab: 'machine' },
   { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" />, tab: 'machine' },
@@ -1813,10 +1816,7 @@ const SECTIONS = [
   { id: 'rotary',      title: 'Rotary Config',  icon: <RotateCw className="w-4 h-4" />, tab: 'machine' },
   { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" />, tab: 'machine' },
   { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" />, tab: 'machine' },
-  { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'machine' },
-  { id: 'stats',       title: 'Stats',          icon: <BarChart2 className="w-4 h-4" />, tab: 'machine' },
   { id: 'ai',          title: 'AI Assistant',   icon: <Bot className="w-4 h-4" />, tab: 'machine' },
-  { id: 'theme',       title: 'Theme',          icon: <Palette className="w-4 h-4" />, tab: 'machine' },
   { id: 'history',     title: 'History',        icon: <History className="w-4 h-4" />, tab: 'machine' },
 ] as const;
 
@@ -1934,6 +1934,17 @@ export function SettingsPanel() {
                     >
                         <LayoutGrid className="w-3.5 h-3.5" />
                         Dashboard
+                    </button>
+                    <button
+                        onClick={() => setSettingsTab('ui')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                            settingsTab === 'ui'
+                                ? 'bg-[var(--bg-secondary)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-color)]'
+                                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <Palette className="w-3.5 h-3.5" />
+                        UI Controls
                     </button>
                     <button
                         onClick={() => setSettingsTab('machine')}
