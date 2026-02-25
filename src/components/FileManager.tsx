@@ -8,7 +8,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { formatDistanceToNow } from 'date-fns';
-import { transport } from '../services/transportService';
+import { transport, isTauri } from '../services/transportService';
 
 interface LocalFile {
   name: string;
@@ -46,31 +46,64 @@ export default function FileManager() {
   }, [refreshFiles]);
 
   const handleUpload = async () => {
-    try {
-      const selected = await openDialog({
-        multiple: false,
-        filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
-      });
+    if (!settings.gcodeStoragePath) {
+      alert("Please configure a G-code storage path in Settings first.");
+      return;
+    }
 
-      if (selected && typeof selected === 'string' && settings.gcodeStoragePath) {
-        // Validation check
-        const isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
-        
-        if (!isValid) {
-          if (!confirm("This file doesn't look like valid G-code. Upload anyway?")) {
+    try {
+      if (isTauri) {
+        // --- Native Tauri Upload (via local file copy) ---
+        const selected = await openDialog({
+          multiple: false,
+          filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
+        });
+
+        if (selected && typeof selected === 'string') {
+          const isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
+          if (!isValid && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
             return;
           }
+          await transport.invoke('copy_to_storage', { 
+            sourcePath: selected, 
+            destDir: settings.gcodeStoragePath 
+          });
+          refreshFiles();
         }
+      } else {
+        // --- Web Browser Upload (via WebSocket to Bridge) ---
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.nc,.gcode,.gc,.tap,.txt';
+        
+        input.onchange = async (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
 
-        await transport.invoke('copy_to_storage', { 
-          sourcePath: selected, 
-          destDir: settings.gcodeStoragePath 
-        });
-        refreshFiles();
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+             const content = event.target?.result as string;
+             
+             // Basic validation
+             const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => content.includes(char));
+             if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
+                 return;
+             }
+
+             await transport.invoke('save_local_file', {
+                path: settings.gcodeStoragePath,
+                filename: file.name,
+                content: content
+             });
+             refreshFiles();
+          };
+          reader.readAsText(file);
+        };
+        input.click();
       }
     } catch (err) {
       console.error("[FileManager] Upload failed:", err);
-      alert("Failed to copy file to storage.");
+      alert("Failed to copy/upload file to storage.");
     }
   };
 
