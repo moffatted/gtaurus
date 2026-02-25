@@ -16,12 +16,20 @@ export const HELP_TOPICS: HelpTopic[] = [
         <p>Gtaurus is a modern control dashboard for FluidNC and GRBL-based CNC machines.</p>
         
         <h3 className="text-lg font-semibold mt-6">Connecting to your Machine</h3>
-        <ul className="list-disc pl-5 space-y-2">
-          <li><strong>WiFi (Telnet):</strong> Enter the IP address of your FluidNC controller (e.g., 192.168.1.100) and port (default 23).</li>
-          <li><strong>Serial / USB:</strong> Select the COM port and Baud Rate (usually 115200).</li>
+        <p className="text-sm mb-2">Gtaurus supports three connection methods, each tailored for a specific setup:</p>
+        <ul className="list-disc pl-5 space-y-3 text-sm">
+          <li>
+            <strong>Local USB / Serial:</strong> Direct physical connection to the controller. Offers the lowest latency and highest reliability. <em>Note: Not available when using Gtaurus in a standard web browser.</em>
+          </li>
+          <li>
+            <strong>Local WiFi (Telnet):</strong> Connects directly to the FluidNC controller over your local Wi-Fi. Great for wireless setups without needing a dedicated PC attached to the machine.
+          </li>
+          <li>
+            <strong>GTaurus Bridge (WebSocket):</strong> Used when accessing the dashboard via a web browser to control a machine remotely. Connects to a `gtaurus_server` running on a host computer physically wired to the CNC machine.
+          </li>
         </ul>
-        <p className="text-sm text-[var(--text-secondary)] mt-2">
-          Use the <strong>Connection Panel</strong> in the sidebar to manage connections.
+        <p className="text-sm text-[var(--text-secondary)] mt-3">
+          Use the <strong>Connection Panel</strong> in the sidebar to select your mode and connect.
         </p>
 
         <h3 className="text-lg font-semibold mt-4">Safety Checklist</h3>
