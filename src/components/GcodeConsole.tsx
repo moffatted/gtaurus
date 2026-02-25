@@ -414,7 +414,7 @@ export function GcodeConsole() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-x-auto min-w-[320px]">
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
         <Terminal className="w-4 h-4 text-[var(--accent-primary)] mr-1" />

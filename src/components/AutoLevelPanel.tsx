@@ -42,7 +42,7 @@ export function AutoLevelPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#1A1A1A]">
+    <div className="flex flex-col h-full bg-[#1A1A1A] overflow-x-auto min-w-[320px]">
       <div className="flex items-center gap-2 p-3 border-b border-[#333]">
         <Crosshair size={18} className="text-[#00E5FF]" />
         <h2 className="font-semibold text-white tracking-wide">Auto-Leveling</h2>

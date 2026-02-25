@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Trash } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
@@ -451,6 +451,7 @@ export function BedVisualizer() {
   const { machine } = useMachineStatusStore();
   const { settings } = useSettingsStore();
   const theme = useThemeStore(state => state.theme);
+  const clearSimulation = useGcodeStore(state => state.clearSimulation);
   const controlsRef = useRef<any>(null);
 
   const handleZoom = (direction: 'in' | 'out') => {
@@ -561,18 +562,30 @@ export function BedVisualizer() {
 
         <div className="hidden sm:flex items-center gap-3 border-l border-[var(--border-color)]/30 pl-4 shrink-0">
            <div className="flex items-center gap-1.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
-             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span>
+             <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span>
            </div>
            <div className="flex items-center gap-1.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-blue-500/80" />
-             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Y</span>
+             <div className="w-2.5 h-2.5 rounded-full bg-blue-500/80" />
+             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Y</span>
            </div>
            <div className="flex items-center gap-1.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
-             <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Z</span>
+             <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Z</span>
            </div>
         </div>
+      </div>
+
+      {/* Clear Toolpath Button */}
+      <div className="absolute bottom-4 right-4 z-10">
+        <Tooltip content="Clear Simulated Path" position="left">
+          <button 
+            onClick={clearSimulation}
+            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg shadow-sm transition-all"
+          >
+            <Trash className="w-4 h-4" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

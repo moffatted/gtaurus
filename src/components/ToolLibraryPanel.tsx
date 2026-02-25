@@ -96,7 +96,7 @@ export function ToolLibraryPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-x-auto min-w-[320px]">
       {/* Header */}
       <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
         <div className="flex items-center justify-between mb-4">

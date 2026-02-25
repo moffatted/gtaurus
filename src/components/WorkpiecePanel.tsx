@@ -12,7 +12,7 @@ export function WorkpiecePanel() {
     'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all';
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-x-auto min-w-[320px]">
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         
         {/* 0. Visibility Toggle */}

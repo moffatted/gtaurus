@@ -70,7 +70,7 @@ export function StatsPanel() {
   };
 
   return (
-    <div className="p-4 space-y-4 h-full overflow-y-auto custom-scrollbar">
+    <div className="p-4 space-y-4 h-full overflow-y-auto overflow-x-auto min-w-[320px] custom-scrollbar">
       
       {/* OEE Overview */}
       <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
