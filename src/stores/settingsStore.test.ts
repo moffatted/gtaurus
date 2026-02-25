@@ -37,14 +37,14 @@ describe('settingsStore', () => {
   it('enables and disables dashboard panels', () => {
     const { setDashboardPanelEnabled } = useSettingsStore.getState();
     
-    // Jog panel is disabled by default
-    const jogPanelInitial = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'jog');
-    expect(jogPanelInitial?.enabled).toBe(false);
+    // Controls panel is enabled by default, so we should test disabling or test a disabled one instead like 'manager'
+    const managerPanelInitial = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'manager');
+    expect(managerPanelInitial?.enabled).toBe(false);
 
-    // Enable jog panel
-    setDashboardPanelEnabled('jog', true);
+    // Enable manager panel
+    setDashboardPanelEnabled('manager', true);
     
-    const jogPanelUpdated = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'jog');
-    expect(jogPanelUpdated?.enabled).toBe(true);
+    const managerPanelUpdated = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'manager');
+    expect(managerPanelUpdated?.enabled).toBe(true);
   });
 });
