@@ -6,32 +6,21 @@ import {
   Trash, 
   Edit, 
   History, 
-  Activity, 
   CheckCircle2, 
-  Info,
   Clock,
   Navigation,
-  Box
+  ExternalLink,
+  BookOpen,
+  ChevronDown,
+  Upload,
+  Download,
+  FolderSearch,
 } from 'lucide-react';
 import { useToolStore, Bit, ToolType } from '../stores/toolStore';
 import { Tooltip } from './ui/Tooltip';
+import { BitVisualizer } from './ui/BitVisualizer';
+import { isTauriApp } from '../utils/platform';
 import clsx from 'clsx';
-
-const TYPE_ICONS: Record<ToolType, any> = {
-  endmill: Wrench,
-  'v-bit': Navigation,
-  ballnose: Activity,
-  surfacing: Box,
-  other: Info
-};
-
-const TYPE_COLORS: Record<ToolType, string> = {
-  endmill: 'text-blue-400',
-  'v-bit': 'text-purple-400',
-  ballnose: 'text-emerald-400',
-  surfacing: 'text-amber-400',
-  other: 'text-gray-400'
-};
 
 export function ToolLibraryPanel() {
   const { tools, activeToolId, addTool, updateTool, deleteTool, setActiveTool } = useToolStore();
@@ -46,6 +35,8 @@ export function ToolLibraryPanel() {
     diameter: 3.175,
     number: 1,
     fluteCount: 2,
+    fluteLength: 12,
+    overallLength: 38,
     material: 'Carbide',
     notes: ''
   });
@@ -64,6 +55,8 @@ export function ToolLibraryPanel() {
       diameter: 3.175,
       number: 1,
       fluteCount: 2,
+      fluteLength: 12,
+      overallLength: 38,
       material: 'Carbide',
       notes: ''
     });
@@ -88,11 +81,163 @@ export function ToolLibraryPanel() {
       diameter: tool.diameter,
       number: tool.number,
       fluteCount: tool.fluteCount,
+      fluteLength: tool.fluteLength,
+      overallLength: tool.overallLength,
+      angle: tool.angle,
       material: tool.material,
       notes: tool.notes
     });
     setEditingId(tool.id);
     setIsAdding(false);
+  };
+
+  // ── Import / Export ─────────────────────────────────────────────────────
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.csv,.tools';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        if (file.name.endsWith('.csv')) {
+          const text = await file.text();
+          importFromCSV(text);
+        } else if (file.name.endsWith('.tools')) {
+          // Fusion .tools files are zipped JSON
+          await importFromToolsFile(file);
+        } else {
+          const text = await file.text();
+          importFromJSON(text);
+        }
+      } catch (err) {
+        alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    };
+    input.click();
+  };
+
+  const importFromToolsFile = async (file: File) => {
+    // .tools files are ZIP archives containing a JSON tool library
+    const { BlobReader, ZipReader, TextWriter } = await import('@zip.js/zip.js');
+    const reader = new ZipReader(new BlobReader(file));
+    const entries = await reader.getEntries();
+    const jsonEntry = entries.find(e => e.filename.endsWith('.json') || e.filename.endsWith('.tools'));
+    if (!jsonEntry || !('getData' in jsonEntry)) {
+      // Might not be zipped — try parsing as raw JSON
+      const text = await file.text();
+      importFromJSON(text);
+      return;
+    }
+    const text = await (jsonEntry as any).getData(new TextWriter());
+    await reader.close();
+    importFromJSON(text);
+  };
+
+  const importFromJSON = (text: string) => {
+    const data = JSON.parse(text);
+    let imported = 0;
+
+    // Fusion tool library format: { data: [ { ... } ] } or [ { ... } ]
+    const items: any[] = Array.isArray(data) ? data : (data.data || data.tools || []);
+
+    for (const item of items) {
+      const bit = parseFusionTool(item);
+      if (bit) {
+        addTool(bit);
+        imported++;
+      }
+    }
+    alert(`Imported ${imported} tool${imported !== 1 ? 's' : ''} successfully.`);
+  };
+
+  const importFromCSV = (text: string) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    let imported = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      const get = (key: string) => {
+        const idx = headers.indexOf(key);
+        return idx >= 0 ? cols[idx] : undefined;
+      };
+
+      const name = get('name') || get('description') || `Imported Tool ${i}`;
+      const diameter = parseFloat(get('diameter') || '0');
+      if (!diameter) continue;
+
+      const rawType = (get('type') || 'other').toLowerCase();
+      const type: ToolType = (['endmill', 'v-bit', 'ballnose', 'surfacing'].includes(rawType) ? rawType : 'other') as ToolType;
+
+      addTool({
+        name,
+        type,
+        diameter,
+        number: parseInt(get('number') || get('tool_number') || String(tools.length + imported + 1)),
+        fluteCount: parseInt(get('flutes') || get('flute_count') || '2'),
+        fluteLength: parseFloat(get('flute_length') || '') || undefined,
+        overallLength: parseFloat(get('overall_length') || '') || undefined,
+        angle: parseFloat(get('angle') || '') || undefined,
+        material: get('material') || 'Carbide',
+        notes: get('notes') || '',
+      });
+      imported++;
+    }
+    alert(`Imported ${imported} tool${imported !== 1 ? 's' : ''} from CSV.`);
+  };
+
+  const handleExport = () => {
+    const payload = JSON.stringify({ tools }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gtaurus_tool_library.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Scan Fusion local library directory (Tauri only)
+  const handleScanFusion = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: true,
+        filters: [{
+          name: 'Fusion Tool Library',
+          extensions: ['json', 'tools'],
+        }],
+        title: 'Select Fusion Tool Library Files',
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      let totalImported = 0;
+      for (const filePath of paths) {
+        // Read file via fetch (Tauri asset protocol)
+        const resp = await fetch(`https://asset.localhost/${encodeURIComponent(filePath)}`);
+        if (!resp.ok) {
+          // Fallback: read as text via convertFileSrc
+          const { convertFileSrc } = await import('@tauri-apps/api/core');
+          const assetUrl = convertFileSrc(filePath);
+          const fallbackResp = await fetch(assetUrl);
+          const text = await fallbackResp.text();
+          const before = tools.length;
+          importFromJSON(text);
+          totalImported += tools.length - before;
+          continue;
+        }
+        const text = await resp.text();
+        importFromJSON(text);
+      }
+      if (totalImported === 0) {
+        // importFromJSON already shows its own alert
+      }
+    } catch (err) {
+      alert(`Fusion scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -104,24 +249,49 @@ export function ToolLibraryPanel() {
             <Wrench className="w-5 h-5 text-[var(--accent-primary)]" />
             <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">Tool Library</h2>
           </div>
-          <button 
-            onClick={() => { resetForm(); setIsAdding(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--accent-primary)] text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            New Bit
-          </button>
+          <div className="flex items-center gap-2">
+            {isTauriApp() && (
+              <Tooltip content="Scan Fusion Library" position="bottom">
+                <button
+                  onClick={handleScanFusion}
+                  className="flex items-center gap-1.5 px-2 py-1.5 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/10 hover:border-purple-500/50 transition-all cursor-pointer"
+                >
+                  <FolderSearch className="w-3.5 h-3.5" />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Import Tool Library (.json / .csv / .tools)" position="bottom">
+              <button
+                onClick={handleImport}
+                className="flex items-center gap-1.5 px-2 py-1.5 border border-[var(--border-color)] text-[var(--text-secondary)] text-xs font-bold rounded-lg hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent-primary)] transition-all cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Export Library as JSON" position="bottom">
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-2 py-1.5 border border-[var(--border-color)] text-[var(--text-secondary)] text-xs font-bold rounded-lg hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent-primary)] transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </Tooltip>
+            <button 
+              onClick={() => { resetForm(); setIsAdding(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--accent-primary)] text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              New Bit
+            </button>
+          </div>
         </div>
 
         {/* Active Tool Badge */}
         {activeTool && (
           <div className="mb-4 p-3 bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center text-white shadow-lg shadow-[var(--accent-primary)]/20">
-                {(() => {
-                  const Icon = TYPE_ICONS[activeTool.type] || Wrench;
-                  return <Icon className="w-6 h-6" />;
-                })()}
+              <div className="w-10 h-10 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center shadow-lg shadow-[var(--accent-primary)]/20">
+                <BitVisualizer type={activeTool.type} diameter={activeTool.diameter} fluteLength={activeTool.fluteLength} overallLength={activeTool.overallLength} angle={activeTool.angle} size={36} isActive />
               </div>
               <div>
                 <div className="text-[10px] font-bold text-[var(--accent-primary)] uppercase tracking-tighter opacity-70">Currently Loaded</div>
@@ -220,6 +390,55 @@ export function ToolLibraryPanel() {
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
                 />
               </div>
+
+              {/* Geometry Fields */}
+              <div>
+                <label className="block text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1.5 ml-1">Flute Length (mm)</label>
+                <input 
+                  type="number"
+                  step="0.5"
+                  value={formData.fluteLength ?? ''}
+                  onChange={(e) => setFormData({...formData, fluteLength: e.target.value ? parseFloat(e.target.value) : undefined})}
+                  placeholder="Cutting edge"
+                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1.5 ml-1">Overall Length (mm)</label>
+                <input 
+                  type="number"
+                  step="0.5"
+                  value={formData.overallLength ?? ''}
+                  onChange={(e) => setFormData({...formData, overallLength: e.target.value ? parseFloat(e.target.value) : undefined})}
+                  placeholder="Total stick-out"
+                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                />
+              </div>
+              {formData.type === 'v-bit' && (
+                <div>
+                  <label className="block text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1.5 ml-1">Tip Angle (°)</label>
+                  <input 
+                    type="number"
+                    step="5"
+                    value={formData.angle ?? 60}
+                    onChange={(e) => setFormData({...formData, angle: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                </div>
+              )}
+
+              {/* Live Preview */}
+              <div className="col-span-2 flex flex-col items-center py-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
+                <div className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-2">Preview</div>
+                <BitVisualizer
+                  type={formData.type}
+                  diameter={formData.diameter}
+                  fluteLength={formData.fluteLength}
+                  overallLength={formData.overallLength}
+                  angle={formData.angle}
+                  size={100}
+                />
+              </div>
               <div className="col-span-2">
                 <label className="block text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1.5 ml-1">Notes</label>
                 <textarea 
@@ -263,13 +482,10 @@ export function ToolLibraryPanel() {
                   <div className={clsx(
                     "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
                     activeToolId === tool.id 
-                      ? "bg-[var(--accent-primary)] text-white shadow-lg shadow-[var(--accent-primary)]/20" 
-                      : "bg-[var(--bg-tertiary)] " + TYPE_COLORS[tool.type]
+                      ? "bg-[var(--accent-primary)]/15 shadow-lg shadow-[var(--accent-primary)]/20" 
+                      : "bg-[var(--bg-tertiary)]"
                   )}>
-                    {(() => {
-                      const Icon = TYPE_ICONS[tool.type] || Wrench;
-                      return <Icon className="w-6 h-6" />;
-                    })()}
+                    <BitVisualizer type={tool.type} diameter={tool.diameter} fluteLength={tool.fluteLength} overallLength={tool.overallLength} angle={tool.angle} size={44} isActive={activeToolId === tool.id} />
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-[var(--text-primary)] leading-snug group-hover:text-[var(--accent-primary)] transition-colors">
@@ -364,6 +580,9 @@ export function ToolLibraryPanel() {
             </div>
           )}
         </div>
+
+        {/* ── Reference & Identification Links ─────────────────────── */}
+        <ReferenceLinks />
       </div>
 
       {/* Persistence Notice */}
@@ -378,4 +597,149 @@ export function ToolLibraryPanel() {
       </div>
     </div>
   );
+}
+
+// ─── Reference Links ──────────────────────────────────────────────────────────
+
+const REFERENCE_LINKS = [
+  {
+    category: 'Visual Identification Guides',
+    links: [
+      { label: 'CNC Cookbook — Router Bit Guide', url: 'https://www.cnccookbook.com/cnc-router-bits/', desc: 'Photos of bit types with purposes and chip-clearance diagrams.' },
+      { label: 'Popular Woodworking — CNC Bit Anatomy', url: 'https://www.popularwoodworking.com/', desc: 'Visual comparison of spiral, straight, and profile bits.' },
+      { label: 'Amana Tool — Bit Search', url: 'https://www.amanatool.com/nsearch?q=bits', desc: 'Industry-standard profile drawings for matching physical bits.' },
+      { label: 'Whiteside Router Bits', url: 'https://www.whitesiderouterbits.com/', desc: 'Comprehensive catalog with detailed specifications.' },
+      { label: 'IDC Woodcraft', url: 'https://idcwoodcraft.com', desc: 'CNC bit identification and sourcing for hobbyists and professionals.' },
+    ]
+  },
+  {
+    category: 'Digital Twin & CAM Integration',
+    links: [
+      { label: 'Fusion Cloud Tool Library', url: 'https://cam.autodesk.com/hsmposts', desc: 'Free manufacturer libraries (.json / .hsmlib) for 3D bit preview.' },
+      { label: 'SpeTool — Fusion Library', url: 'https://www.spetools.com/', desc: 'Downloadable tool definitions for Fusion.' },
+      { label: 'Genmitsu / SainSmart Tools', url: 'https://www.sainsmart.com/collections/genmitsu-cnc', desc: 'Hobbyist-grade bits with matching digital libraries.' },
+      { label: 'Bantam Tools', url: 'https://bantamtools.com/collections/end-mills-and-bits', desc: 'Free visual tool library with .json export.' },
+    ]
+  },
+  {
+    category: 'Fusion Integration',
+    links: [
+      { label: 'Fusion API — Tool Libraries', url: 'https://help.autodesk.com/view/fusion360/ENU/?guid=GUID-A92A4B10-3781-4925-94C6-47DA85A4F65A', desc: 'Official docs for the CAMManager.toolLibraries Python API.' },
+      { label: 'Local Library Path', url: '#', desc: 'Windows: %AppData%/Autodesk/CAM360/libraries/Local — macOS: ~/Library/Application Support/Autodesk/CAM360/libraries/Local' },
+      { label: 'Gtaurus Export Script', url: 'https://github.com/moffatted/gtaurus/blob/main/scripts/fusion360_export_library.py', desc: 'Python script to run inside Fusion that exports your library for Gtaurus.' },
+    ]
+  },
+];
+
+function ReferenceLinks() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="mx-4 mb-4 border border-[var(--border-color)] rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 cursor-pointer transition-colors duration-150"
+      >
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-[var(--accent-primary)]" />
+          <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Reference & Identification</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200 ${expanded ? 'rotate-0' : '-rotate-90'}`} />
+      </button>
+
+      <div
+        className="overflow-hidden transition-all duration-200"
+        style={{ maxHeight: expanded ? '600px' : '0px', opacity: expanded ? 1 : 0 }}
+      >
+        <div className="px-4 py-3 bg-[var(--bg-secondary)] space-y-4">
+          {REFERENCE_LINKS.map(cat => (
+            <div key={cat.category}>
+              <div className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-2">{cat.category}</div>
+              <div className="space-y-1.5">
+                {cat.links.map(link => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-start gap-2.5 p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-150"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-[var(--accent-primary)] mt-0.5 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors leading-snug">{link.label}</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] leading-relaxed mt-0.5">{link.desc}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Fusion Tool Parser ──────────────────────────────────────────────────────
+// Supports both Fusion's hyphenated JSON keys (e.g. "body-length", "number-of-flutes")
+// and camelCase / snake_case variants from third-party exporters.
+
+type BitInput = Omit<Bit, 'id' | 'usageTimeSec' | 'usageDistanceMm' | 'lastMaintenanceDate'>;
+
+function parseFusionTool(item: any): BitInput | null {
+  // Fusion nests geometry under "geometry" and post-processor data under "post-process"
+  const geom = item.geometry || item;
+  const post = item['post-process'] || item.post_process || item;
+
+  // Diameter — try every known field name
+  const diameter =
+    geom.diameter ?? geom.dc ?? geom['diameter'] ??
+    item.diameter ?? null;
+  if (diameter === null || diameter === undefined) return null;
+
+  // ── Type mapping ────────────────────────────────────────────────────────
+  const fusionType = (item.type || item.tool_type || item['type'] || '').toLowerCase();
+  let type: ToolType = 'other';
+  if (fusionType.includes('flat end') || fusionType.includes('endmill') || fusionType === 'mill') type = 'endmill';
+  else if (fusionType.includes('chamfer') || fusionType.includes('v-bit') || fusionType.includes('engrav') || fusionType.includes('dovetail')) type = 'v-bit';
+  else if (fusionType.includes('ball')) type = 'ballnose';
+  else if (fusionType.includes('face') || fusionType.includes('surfac') || fusionType.includes('fly')) type = 'surfacing';
+
+  // ── Geometry extraction (hyphenated Fusion keys + fallbacks) ────────────
+  const fluteCount =
+    geom['number-of-flutes'] ?? geom.number_of_flutes ?? geom.flute_count ??
+    geom.fluteCount ?? item.fluteCount ?? 2;
+
+  const fluteLength =
+    geom['body-length'] ?? geom['flute-length'] ?? geom.body_length ??
+    geom.flute_length ?? geom.fluteLength ?? undefined;
+
+  const overallLength =
+    geom['overall-length'] ?? geom.overall_length ?? geom.overallLength ??
+    geom['shoulder-length'] ?? geom.shoulder_length ?? undefined;
+
+  const angle =
+    geom['tip-angle'] ?? geom['taper-angle'] ?? geom['included-angle'] ??
+    geom.tip_angle ?? geom.included_angle ?? geom.angle ?? undefined;
+
+  // ── Post-process fields ─────────────────────────────────────────────────
+  const toolNumber = post.number ?? post['number'] ?? post.tool_number ?? 1;
+
+  // ── Material ────────────────────────────────────────────────────────────
+  const material =
+    item.BMC ?? item.bmc ?? item.material ??
+    item['tool-material'] ?? item.tool_material ?? 'Carbide';
+
+  return {
+    name: item.description || item.name || item['product-id'] || item.product_id || `Imported ${type}`,
+    type,
+    diameter: typeof diameter === 'number' ? diameter : parseFloat(diameter),
+    number: typeof toolNumber === 'number' ? toolNumber : parseInt(toolNumber) || 1,
+    fluteCount: typeof fluteCount === 'number' ? fluteCount : parseInt(fluteCount) || 2,
+    fluteLength: fluteLength !== undefined ? (typeof fluteLength === 'number' ? fluteLength : parseFloat(fluteLength)) : undefined,
+    overallLength: overallLength !== undefined ? (typeof overallLength === 'number' ? overallLength : parseFloat(overallLength)) : undefined,
+    angle: angle !== undefined ? (typeof angle === 'number' ? angle : parseFloat(angle)) : undefined,
+    material: typeof material === 'string' ? material : 'Carbide',
+    notes: item.comment || item.notes || '',
+  };
 }

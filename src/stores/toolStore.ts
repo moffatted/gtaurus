@@ -13,6 +13,9 @@ export interface Bit {
   diameter: number; // mm
   number: number; // Tool number (T1, T2, etc)
   fluteCount: number;
+  fluteLength?: number; // mm — cutting edge length
+  overallLength?: number; // mm — total stick-out length
+  angle?: number; // degrees (v-bit tip angle)
   usageTimeSec: number;
   usageDistanceMm: number;
   material: string; // carbide, hss, etc.
@@ -44,6 +47,8 @@ const DEFAULT_TOOLS: Bit[] = [
     diameter: 3.175,
     number: 1,
     fluteCount: 2,
+    fluteLength: 12,
+    overallLength: 38,
     usageTimeSec: 0,
     usageDistanceMm: 0,
     material: 'Carbide',
@@ -57,6 +62,8 @@ const DEFAULT_TOOLS: Bit[] = [
     diameter: 6.35,
     number: 2,
     fluteCount: 2,
+    fluteLength: 20,
+    overallLength: 50,
     usageTimeSec: 0,
     usageDistanceMm: 0,
     material: 'Carbide',
@@ -70,11 +77,29 @@ const DEFAULT_TOOLS: Bit[] = [
     diameter: 12.7,
     number: 3,
     fluteCount: 1,
+    fluteLength: 10,
+    overallLength: 40,
+    angle: 60,
     usageTimeSec: 0,
     usageDistanceMm: 0,
     material: 'Carbide',
     lastMaintenanceDate: new Date().toISOString(),
     notes: 'For detail carving and chamfering.'
+  },
+  {
+    id: 'ball-1/4',
+    name: '1/4" Ballnose',
+    type: 'ballnose',
+    diameter: 6.35,
+    number: 5,
+    fluteCount: 2,
+    fluteLength: 22,
+    overallLength: 50,
+    usageTimeSec: 0,
+    usageDistanceMm: 0,
+    material: 'Carbide',
+    lastMaintenanceDate: new Date().toISOString(),
+    notes: '3D contouring and finish passes.'
   },
   {
     id: '1-surfacing',
@@ -83,6 +108,8 @@ const DEFAULT_TOOLS: Bit[] = [
     diameter: 25.4,
     number: 4,
     fluteCount: 3,
+    fluteLength: 6,
+    overallLength: 45,
     usageTimeSec: 0,
     usageDistanceMm: 0,
     material: 'Carbide',

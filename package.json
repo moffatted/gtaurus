@@ -26,6 +26,7 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-store": "^2.4.2",
+    "@zip.js/zip.js": "^2.8.21",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dockview": "^5.0.0",
