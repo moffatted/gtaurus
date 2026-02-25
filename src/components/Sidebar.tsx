@@ -235,6 +235,13 @@ function ConnectionPanel() {
                 </div>
             )}
 
+            {/* Warning about simultaneous connections via separate layers */}
+            {(mode === 'telnet' || mode === 'serial') && (
+                <div className="text-[10px] text-[var(--text-tertiary)] italic p-2 bg-[var(--bg-tertiary)]/50 rounded-lg border border-amber-500/20 leading-tight">
+                    <span className="text-amber-500 font-bold">Note:</span> If the GTaurus Bridge Server is running on another machine and connected to your controller, using Local {mode === 'telnet' ? 'Telnet' : 'USB'} simultaneously might cause dropped commands or conflicts.
+                </div>
+            )}
+
             {/* Serial fields */}
             {mode === 'serial' && (
                 <div className="space-y-3">
