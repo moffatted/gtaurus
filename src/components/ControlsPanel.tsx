@@ -61,22 +61,22 @@ export function ControlsPanel() {
 
         // 2. Bounds Check (Safety Limits)
         if (bounds) {
-            const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
+            const { bedSizeX, bedSizeY, bedSizeZ, homingPosition } = settings.general;
             const margin = 0.5;
             
-            const isAxisOut = (min: number, max: number, limit: number, mpos: number) => {
-                if (mpos <= 0.1) {
-                    // Negative coordinate space (FluidNC: home at 0, travel toward -limit)
-                    return min < -limit + margin || max > 0;
-                } else {
-                    // Positive coordinate space
+            const isAxisOut = (min: number, max: number, limit: number) => {
+                if (homingPosition === 'min') {
+                    // Positive coordinate space: valid range [0, +limit]
                     return min < 0 || max > limit - margin;
+                } else {
+                    // Negative coordinate space: valid range [-limit, 0]
+                    return min < -limit + margin || max > 0;
                 }
             };
 
-            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, state.x.mpos);
-            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, state.y.mpos);
-            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, state.z.mpos);
+            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX);
+            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY);
+            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ);
 
             if (outX || outY || outZ) {
                 const confirmed = await ask(
@@ -235,28 +235,23 @@ export function ControlsPanel() {
 
     // --- Safety Limits Check ---
     // Always enforce limits using machine position data from FluidNC.
-    // Even if hasHomed tracking was lost (e.g., after Door/Alarm recovery),
-    // the mpos data is still valid and prevents jogging past physical limits.
+    // Uses the homingPosition setting to determine coordinate space direction.
     {
-        const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
+        const { bedSizeX, bedSizeY, bedSizeZ, homingPosition } = settings.general;
         const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
         
-        // FluidNC coordinate system after homing:
-        //   Home (endstop) is at 0. Full travel extends into NEGATIVE space.
-        //   Valid machine coordinate range: [-limit + margin, 0]
-        //   This prevents jogging past the endstop (positive) or past the 
-        //   travel limit (negative).
+        // homingPosition='min': Home at 0, travel positive → valid range [0, +bedSize]
+        // homingPosition='max': Home at 0, travel negative → valid range [-bedSize, 0]
         const check = (current: number, delta: number, limit: number): boolean => {
             if (delta === 0) return true;
             const target = current + delta;
             
-            if (current <= 0.1) {
-                // Negative coordinate space (standard FluidNC after homing)
-                // Block movement past home (> 0) and past bed limit (< -limit)
-                return target >= -limit + margin && target <= 0;
+            if (homingPosition === 'min') {
+                // Positive coordinate space: home at 0, travel toward +limit
+                return target >= 0 + margin && target <= limit - margin;
             } else {
-                // Positive coordinate space (non-standard, handle gracefully)
-                return target >= 0 && target <= limit - margin;
+                // Negative coordinate space: home at 0, travel toward -limit
+                return target >= -limit + margin && target <= 0 - margin;
             }
         };
 

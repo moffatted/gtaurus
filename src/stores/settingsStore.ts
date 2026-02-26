@@ -53,6 +53,8 @@ export interface GeneralSettings {
   bedSizeX: number;
   bedSizeY: number;
   bedSizeZ: number;
+  /** Where the machine homes to. 'min' = home at 0, travel positive. 'max' = home at 0, travel negative. */
+  homingPosition: "min" | "max";
 }
 
 export interface ProbeSettings {
@@ -238,6 +240,7 @@ export const DEFAULT_SETTINGS: Settings = {
     bedSizeX: 300,
     bedSizeY: 180,
     bedSizeZ: 45,
+    homingPosition: "min",
   },
   probe: {
     fastFeedrate: 500,
