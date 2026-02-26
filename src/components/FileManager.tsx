@@ -24,6 +24,7 @@ export default function FileManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isWebSocket, setIsWebSocket] = useState(transport.isWebSocketMode());
+  const [isDragging, setIsDragging] = useState(false);
 
   // Watch for transport mode changes
   useEffect(() => {
@@ -42,18 +43,12 @@ export default function FileManager() {
       const list = await transport.invoke<LocalFile[]>('list_local_files', { 
         path: settings.gcodeStoragePath 
       });
-      // Sort by modified date descending
       setFiles(list.sort((a, b) => Number(b.modified) - Number(a.modified)));
     } catch (err) {
       console.error("[FileManager] Failed to list files:", err);
-      // Smart path healing: if error 2 (not found), try to heal the path and retry once
       if (!isRetry && String(err).toLowerCase().includes("no such file")) {
-        console.log("[FileManager] Path looks invalid, attempting healing...");
         const newPath = await healStoragePath();
-        if (newPath) {
-          // No need to manually retry, the settings change will trigger a refresh via the hook
-          return;
-        }
+        if (newPath) return;
       }
       setError("Failed to access storage directory.");
     } finally {
@@ -65,6 +60,49 @@ export default function FileManager() {
     refreshFiles();
   }, [refreshFiles]);
 
+  const saveFileContent = async (fileName: string, fileContent: string) => {
+    if (!settings.gcodeStoragePath) return;
+    const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => fileContent.includes(char));
+    if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) return;
+
+    await transport.invoke('save_local_file', {
+      path: settings.gcodeStoragePath,
+      filename: fileName,
+      content: fileContent
+    });
+    refreshFiles();
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (!settings.gcodeStoragePath) {
+      alert("Please configure a G-code storage path in Settings first.");
+      return;
+    }
+
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      const file = droppedFiles[0];
+      const content = await file.text();
+      await saveFileContent(file.name, content);
+    }
+  };
+
   const handleUpload = async () => {
     if (!settings.gcodeStoragePath) {
       alert("Please configure a G-code storage path in Settings first.");
@@ -73,53 +111,32 @@ export default function FileManager() {
 
     try {
       const isRemote = transport.isWebSocketMode();
-      console.log("[FileManager] handleUpload - isTauri:", isTauri, "isRemote:", isRemote);
-
       if (isTauri && !isRemote) {
-        // --- Local Tauri Upload (File Copy) ---
         const selected = await openDialog({
           multiple: false,
           filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
         });
-
         if (selected && typeof selected === 'string') {
-          console.log("[FileManager] Local Upload source:", selected);
           let isValid = true;
           try {
             isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
-          } catch (valErr) {
-            console.warn("[FileManager] Validation failed:", valErr);
-          }
-          if (!isValid && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
-            return;
-          }
-          await transport.invoke('copy_to_storage', { 
-            sourcePath: selected, 
-            destDir: settings.gcodeStoragePath 
-          });
+          } catch (valErr) {}
+          if (!isValid && !confirm("This file doesn't look like valid G-code. Upload anyway?")) return;
+          await transport.invoke('copy_to_storage', { sourcePath: selected, destDir: settings.gcodeStoragePath });
           refreshFiles();
         }
       } else {
-        // --- Web or Remote Bridge Upload (Send Content) ---
-        console.log("[FileManager] Remote/Web upload path. Dest:", settings.gcodeStoragePath);
         let fileContent: string = "";
         let fileName: string = "";
-
         if (isTauri) {
           const selected = await openDialog({
             multiple: false,
             filters: [{ name: 'G-code', extensions: ['nc', 'gcode', 'gc', 'tap', 'txt'] }]
           });
           if (!selected || typeof selected !== 'string') return;
-          console.log("[FileManager] Remote Bridge: Reading local file content from:", selected);
-          
-          fileContent = await tauriInvoke<string>('read_local_file', { 
-            path: "", 
-            filename: selected 
-          });
+          fileContent = await tauriInvoke<string>('read_local_file', { path: "", filename: selected });
           fileName = selected.split(/[\\/]/).pop() || "uploaded.gcode";
         } else {
-          // Standard browser file input
           const file = await new Promise<File | null>((resolve) => {
             const input = document.createElement('input');
             input.type = 'file';
@@ -131,37 +148,18 @@ export default function FileManager() {
           fileName = file.name;
           fileContent = await file.text();
         }
-
-        console.log("[FileManager] Sending file content to bridge. Size:", fileContent.length);
-
-        // Basic validation
-        const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => fileContent.includes(char));
-        if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) {
-          return;
-        }
-
-        await transport.invoke('save_local_file', {
-          path: settings.gcodeStoragePath,
-          filename: fileName,
-          content: fileContent
-        });
-        refreshFiles();
+        await saveFileContent(fileName, fileContent);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[FileManager] Upload failed:", msg);
-      
-      // Smart path healing for upload failure
       if (msg.toLowerCase().includes("no such file")) {
-          console.log("[FileManager] Upload failed due to path, attempting healing...");
           const newPath = await healStoragePath();
           if (newPath) {
-              alert("The storage path was invalid for this connection. We've updated it to your home directory. Please try the upload again.");
+              alert("Storage path updated. Please try again.");
               return;
           }
       }
-      
-      alert(`Failed to upload file to storage:\n${msg}`);
+      alert(`Upload failed: ${msg}`);
     }
   };
 
@@ -253,7 +251,23 @@ export default function FileManager() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[300px]">
+    <div 
+      className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[300px] relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--accent-primary)]/10 backdrop-blur-[2px] border-4 border-dashed border-[var(--accent-primary)]/40 rounded-2xl m-3 pointer-events-none animate-in fade-in zoom-in duration-200">
+          <div className="bg-[var(--bg-primary)] p-8 rounded-full shadow-2xl border border-[var(--accent-primary)]/20 mb-6">
+            <Upload className="w-16 h-16 text-[var(--accent-primary)] animate-bounce" />
+          </div>
+          <h3 className="text-xl font-bold text-[var(--text-primary)]">Drop G-code to Upload</h3>
+          <p className="text-sm text-[var(--text-tertiary)] mt-2 font-medium">Files will be saved to your local library</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 p-4 gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
