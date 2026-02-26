@@ -62,11 +62,11 @@ export function ControlsPanel() {
             const margin = 0.5;
             
             const isAxisOut = (min: number, max: number, limit: number, mpos: number) => {
-                if (mpos < -0.1) {
-                    // Negative space [-limit, 0]
+                if (mpos <= 0.1) {
+                    // Negative coordinate space (FluidNC: home at 0, travel toward -limit)
                     return min < -limit + margin || max > 0;
                 } else {
-                    // Positive space [0, limit]
+                    // Positive coordinate space
                     return min < 0 || max > limit - margin;
                 }
             };
@@ -235,24 +235,23 @@ export function ControlsPanel() {
         const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
         const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
         
+        // FluidNC coordinate system after homing:
+        //   Home (endstop) is at 0. Full travel extends into NEGATIVE space.
+        //   Valid machine coordinate range: [-limit + margin, 0]
+        //   This prevents jogging past the endstop (positive) or past the 
+        //   travel limit (negative).
         const check = (current: number, delta: number, limit: number) => {
             if (delta === 0) return true;
             const target = current + delta;
             
-            // Heuristic detection of coordinate system
-            // Negative space (0 is back/right/top, common in Grbl/FluidNC): range [-limit, 0]
-            if (current < -0.1) {
-                if (target < -limit + margin || target > 0) return false;
-            } 
-            // Positive space (0 is front/left/bottom): range [0, limit]
-            else if (current > 0.1) {
-                if (target < 0 || target > limit - margin) return false;
+            if (current <= 0.1) {
+                // Negative coordinate space (standard FluidNC after homing)
+                // Block movement past home (> 0) and past bed limit (< -limit)
+                return target >= -limit + margin && target <= 0;
+            } else {
+                // Positive coordinate space (non-standard, handle gracefully)
+                return target >= 0 && target <= limit - margin;
             }
-            // If at 0, we allow moving into either negative or positive space as long as range is valid
-            else {
-                if (Math.abs(target) > limit - margin) return false;
-            }
-            return true;
         };
 
         const dx = x * stepSize * (isMetric ? 1 : 25.4);
