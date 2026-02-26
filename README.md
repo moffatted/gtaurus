@@ -75,8 +75,9 @@ Allows control via any device on your network (phone, tablet, etc.).
 1. **Start the Server Bridge** (Handles USB/Serial communication):
 
     ```bash
-    npm run build:server
-    # Then run the binary from deps/gtaurus_server/target/debug/gtaurus_server
+    npm run server
+    # OR manually via cargo:
+    cd deps/gtaurus_server && cargo run
     ```
 
 2. **Start the Web Frontend**:
@@ -85,15 +86,15 @@ Allows control via any device on your network (phone, tablet, etc.).
     npm run dev
     ```
 
-## 🛠️ Build Commands
+## 🛠️ Build & Run Commands
 
 | Command | Description |
 | --- | --- |
 | `npm install` | Installs JS deps and builds Rust library/server |
 | `npm run build:all` | Builds Lib, Server, and Web frontend |
-| `npm run build:lib` | Builds the shared `gtaurus_common` library |
-| `npm run build:server` | Builds the standalone WebSocket server |
+| `npm run server` | Starts the bridge server via `cargo run` |
 | `npm run tauri:dev` | Launches the desktop app in dev mode |
+| `npm run dev` | Launches the web frontend in dev mode |
 
 ## 📂 Project Structure
 

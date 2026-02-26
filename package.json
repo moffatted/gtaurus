@@ -20,6 +20,7 @@
     "postinstall": "npm run build:lib && npm run build:server",
     "build:lib": "cd deps/gtaurus_lib && cargo build",
     "build:server": "cd deps/gtaurus_server && cargo build",
+    "server": "cd deps/gtaurus_server && cargo run",
     "build:all": "npm run build:lib && npm run build:server && npm run build:web"
   },
   "dependencies": {
