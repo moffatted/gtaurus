@@ -96,6 +96,12 @@ Allows control via any device on your network (phone, tablet, etc.).
 | `npm run tauri:dev` | Launches the desktop app in dev mode |
 | `npm run dev` | Launches the web frontend in dev mode |
 
+| To recursively update submodules:
+
+  ```bash
+  git submodule update --init --recursive
+  ```
+
 ## 📂 Project Structure
 
 ```text
