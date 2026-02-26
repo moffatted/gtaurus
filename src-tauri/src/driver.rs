@@ -1,6 +1,5 @@
 use gtaurus_common::{
-    DriverEventObserver, FluidNCDriver as LibDriver, GCodeConnection as LibGCodeConnection,
-    RX_EVENT as COMMON_RX_EVENT,
+    DriverEventObserver, FluidNCDriver as LibDriver, RX_EVENT as COMMON_RX_EVENT,
 };
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
@@ -49,6 +48,7 @@ pub trait GCodeConnection: LibGCodeConnection + Send {
 
 // Re-export ConnectionStatus for visibility in this module's consumers
 pub use gtaurus_common::ConnectionStatus;
+pub use gtaurus_common::GCodeConnection as LibGCodeConnection;
 
 impl FluidNCDriver {
     pub fn new() -> Self {

@@ -1,0 +1,6 @@
+[submodule "deps/gtaurus_lib"]
+	path = deps/gtaurus_lib
+	url = https://github.com/moffatted/gtaurus_lib.git
+[submodule "deps/gtaurus_server"]
+	path = deps/gtaurus_server
+	url = https://github.com/moffatted/gtaurus_server.git

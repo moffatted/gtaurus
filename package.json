@@ -16,7 +16,11 @@
     "test:ui": "vitest --ui",
     "test:e2e": "npm run tauri:build -- --debug && wdio run ./wdio.conf.ts",
     "test:rust": "cd src-tauri && cargo test",
-    "wdio": "wdio run ./wdio.conf.ts"
+    "wdio": "wdio run ./wdio.conf.ts",
+    "postinstall": "npm run build:lib && npm run build:server",
+    "build:lib": "cd deps/gtaurus_lib && cargo build",
+    "build:server": "cd deps/gtaurus_server && cargo build",
+    "build:all": "npm run build:lib && npm run build:server && npm run build:web"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
