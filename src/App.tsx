@@ -48,9 +48,9 @@ function App() {
 
   const appWindow = isTauriApp() ? getCurrentWindow() : null;
 
-  const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+  const handleResizeStart = (_e: React.MouseEvent, direction: string) => {
     if (appWindow) {
-      void appWindow.startResize(direction as any);
+      void (appWindow as any).startResize(direction as any);
     }
   };
 

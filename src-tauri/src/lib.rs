@@ -36,7 +36,7 @@ fn connect_serial(
     baud_rate: u32,
 ) -> Result<String, String> {
     let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
-    driver.connect_serial(&port_name, baud_rate, app)?;
+    driver.connect_serial_tauri(&port_name, baud_rate, app)?;
     Ok(format!("Connected to {}", port_name))
 }
 
@@ -50,7 +50,7 @@ fn connect_telnet(
 ) -> Result<String, String> {
     let port = ws_port.unwrap_or(23);
     let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
-    driver.connect_telnet(&host, port, app)?;
+    driver.connect_telnet_tauri(&host, port, app)?;
     Ok(format!("Connected to {}:{}", host, port))
 }
 
@@ -465,7 +465,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
-            driver: Arc::new(Mutex::new(Box::new(FluidNCDriver::new()))),
+            driver: Arc::new(Mutex::new(FluidNCDriver::new_boxed())),
             height_map: Arc::new(Mutex::new(None)),
         })
         .setup(|_app| Ok(()))

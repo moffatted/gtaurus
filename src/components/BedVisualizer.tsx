@@ -68,8 +68,8 @@ function Spindle() {
 
     // 2. Rotation & Sparks Animation
     const isRealOn = machine.isSpindleActive || machine.spindle > 0;
-    const isSimOn = isSimulating && simPos && !simPos.isRapid;
-    const isEnergized = isRealOn || isSimOn;
+    const isSimOn = (isSimulating && simPos) ? !simPos.isRapid : false;
+    const isEnergized = !!(isRealOn || isSimOn);
 
     if (rotatingPartsRef.current) {
         if (isEnergized) {
