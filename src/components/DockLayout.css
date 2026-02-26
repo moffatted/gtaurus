@@ -2,38 +2,38 @@
 
 .dockview-theme-dark,
 .dockview-theme-light {
-    height: 100%;
-    width: 100%;
+  height: 100%;
+  width: 100%;
 
-    /* Interaction Sashes */
-    --dv-sash-size: 8px;
-    
-    /* Separators: The high-contrast visual line between panels */
-    --dv-separator-border: 2px solid var(--border-color);
-    
-    /* Tab Header Customization */
-    --dv-tabs-and-actions-container-font-size: 11px;
-    --dv-tabs-and-actions-container-height: 34px;
+  /* Interaction Sashes - Made larger for easier grabbing */
+  --dv-sash-size: 12px;
+
+  /* Separators: The high-contrast visual line between panels - Thicker for better visibility */
+  --dv-separator-border: 4px solid var(--border-color);
+
+  /* Tab Header Customization */
+  --dv-tabs-and-actions-container-font-size: 11px;
+  --dv-tabs-and-actions-container-height: 34px;
 }
 
 /* Dark Theme Specifics */
 .dockview-theme-dark {
-    --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
-    --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
-    --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
-    
-    /* Use a slightly brighter border for separators in dark mode to make them POP */
-    --dv-separator-border: 2px solid #3f4451; 
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
+  --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
+
+  /* Use a slightly brighter border for separators in dark mode to make them POP */
+  --dv-separator-border: 2px solid #3f4451;
 }
 
 /* Light Theme Specifics */
 .dockview-theme-light {
-    --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
-    --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
-    --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
-    
-    /* High-contrast separator for light mode */
-    --dv-separator-border: 2px solid #cbd5e1;
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg-tertiary);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-secondary);
+  --dv-tabs-and-actions-container-background-color: var(--bg-secondary);
+
+  /* High-contrast separator for light mode */
+  --dv-separator-border: 2px solid #cbd5e1;
 }
 
 /* 
@@ -42,14 +42,14 @@
 */
 .dockview-theme-dark .dv-sash:hover,
 .dockview-theme-light .dv-sash:hover {
-    background-color: var(--accent-primary);
-    opacity: 0.2;
+  background-color: var(--accent-primary);
+  opacity: 0.2;
 }
 
 .dockview-theme-dark .dv-sash.active,
 .dockview-theme-light .dv-sash.active {
-    background-color: var(--accent-primary);
-    opacity: 1;
+  background-color: var(--accent-primary);
+  opacity: 1;
 }
 
 /* 
@@ -59,27 +59,27 @@
 */
 .dockview-theme-dark .dv-tabs-and-actions-container,
 .dockview-theme-light .dv-tabs-and-actions-container {
-    /* Transparent top border allows the separator to show through correctly,
+  /* Transparent top border allows the separator to show through correctly,
        but provides structure. */
-    border-top: 1px solid rgba(255,255,255,0.05) !important;
-    border-bottom: 2px solid var(--border-color) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-bottom: 2px solid var(--border-color) !important;
 }
 
 /* Active Tab indicator (VS Code Style) */
 .dockview-theme-dark .dv-tab.active,
 .dockview-theme-light .dv-tab.active {
-    border-top: 2px solid var(--accent-primary) !important;
-    color: var(--text-primary);
-    font-weight: 600;
+  border-top: 2px solid var(--accent-primary) !important;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .dockview-theme-dark .dv-tab:not(.active),
 .dockview-theme-light .dv-tab:not(.active) {
-    color: var(--text-tertiary);
+  color: var(--text-tertiary);
 }
 
 /* Ensure child panels fill the space without weird internal rounding gaps */
 .dockview-theme-dark .dv-render-container,
 .dockview-theme-light .dv-render-container {
-    background-color: var(--bg-primary);
+  background-color: var(--bg-primary);
 }

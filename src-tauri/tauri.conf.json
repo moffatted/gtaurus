@@ -13,9 +13,13 @@
     "windows": [
       {
         "title": "Gtaurus",
-        "width": 1280,
-        "height": 900,
-        "dragDropEnabled": false
+        "width": 1400,
+        "height": 960,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "dragDropEnabled": true,
+        "center": true
       }
     ],
     "security": {
