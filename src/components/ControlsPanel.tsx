@@ -234,7 +234,10 @@ export function ControlsPanel() {
     if (!isIdle) return;
 
     // --- Safety Limits Check ---
-    if (hasHomed) {
+    // Always enforce limits using machine position data from FluidNC.
+    // Even if hasHomed tracking was lost (e.g., after Door/Alarm recovery),
+    // the mpos data is still valid and prevents jogging past physical limits.
+    {
         const { bedSizeX, bedSizeY, bedSizeZ } = settings.general;
         const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
         
@@ -243,7 +246,7 @@ export function ControlsPanel() {
         //   Valid machine coordinate range: [-limit + margin, 0]
         //   This prevents jogging past the endstop (positive) or past the 
         //   travel limit (negative).
-        const check = (current: number, delta: number, limit: number) => {
+        const check = (current: number, delta: number, limit: number): boolean => {
             if (delta === 0) return true;
             const target = current + delta;
             
@@ -261,10 +264,13 @@ export function ControlsPanel() {
         const dy = y * stepSize * (isMetric ? 1 : 25.4);
         const dz = z * stepSize * (isMetric ? 1 : 25.4);
 
-        if (!check(state.x.mpos, dx, bedSizeX) || 
-            !check(state.y.mpos, dy, bedSizeY) || 
-            !check(state.z.mpos, dz, bedSizeZ)) {
-            setJogLimitWarning("Bed Limit");
+        const xOk = check(state.x.mpos, dx, bedSizeX);
+        const yOk = check(state.y.mpos, dy, bedSizeY);
+        const zOk = check(state.z.mpos, dz, bedSizeZ);
+
+        if (!xOk || !yOk || !zOk) {
+            const blocked = [!xOk && 'X', !yOk && 'Y', !zOk && 'Z'].filter(Boolean).join('/');
+            setJogLimitWarning(`${blocked} Limit`);
             setTimeout(() => setJogLimitWarning(null), 2000);
             return;
         }
