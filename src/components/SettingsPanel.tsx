@@ -199,6 +199,49 @@ function GeneralContent() {
           Define the physical travel limits of your machine. This used by the 3D Visualizer and for Soft Limit checks.
         </p>
       </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* Axis Homing Direction */}
+      <div className="space-y-4">
+        <label className={labelCls}>Axis Endstop Position</label>
+        <p className="text-[10px] text-[var(--text-tertiary)] italic leading-relaxed -mt-2">
+          Set where each axis endstop is located. This determines the valid travel direction for jog safety limits.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {([
+            { axis: 'X', key: 'homingPositionX' as const, val: gen.homingPositionX, minLabel: 'Left (0)', maxLabel: 'Right (0)' },
+            { axis: 'Y', key: 'homingPositionY' as const, val: gen.homingPositionY, minLabel: 'Front (0)', maxLabel: 'Rear (0)' },
+            { axis: 'Z', key: 'homingPositionZ' as const, val: gen.homingPositionZ, minLabel: 'Bottom (0)', maxLabel: 'Top (0)' },
+          ]).map(({ axis, key, val, minLabel, maxLabel }) => (
+            <div key={axis}>
+              <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">{axis} Endstop</label>
+              <div className="flex gap-1 p-0.5 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
+                <button
+                  onClick={() => setGeneralSettings({ [key]: 'min' })}
+                  className={`flex-1 py-1.5 text-[10px] font-medium rounded-md transition-all ${
+                    val === 'min'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {minLabel}
+                </button>
+                <button
+                  onClick={() => setGeneralSettings({ [key]: 'max' })}
+                  className={`flex-1 py-1.5 text-[10px] font-medium rounded-md transition-all ${
+                    val === 'max'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {maxLabel}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
