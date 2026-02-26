@@ -4,6 +4,7 @@
 
 - Whenever a commit is performed, it must be followed by a push to the remote repository.
 - Always include a concise, descriptive commit message.
+- **Submodule Sync:** After pushing changes to `gtaurus_lib` or `gtaurus_server`, always update the submodule references in `gtaurus` by running `cd deps/gtaurus_lib && git pull origin main` and/or `cd deps/gtaurus_server && git pull origin main`, then committing and pushing the updated submodule refs from the `gtaurus` root. This ensures the other machine receives all changes via `git pull && git submodule update --init --recursive`.
 
 ## Scanning and Investigation Rules
 
