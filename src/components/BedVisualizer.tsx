@@ -15,20 +15,42 @@ import { transport } from '../services/transportService';
 
 function Spindle() {
   const spindleRef = useRef<THREE.Group>(null);
+  const rotatingPartsRef = useRef<THREE.Group>(null);
+  const blurRef = useRef<THREE.Mesh>(null);
+  const sparksRef = useRef<THREE.Group>(null);
+  
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
   
   // Get tool diameter
   const activeToolId = useToolStore(state => state.activeToolId);
   const tools = useToolStore(state => state.tools);
   const activeTool = useMemo(() => tools.find(t => t.id === activeToolId), [tools, activeToolId]);
-  const toolRadius = (activeTool?.diameter || 3.175) / 2;
+  
+  // Visual Scaling: Make it beefier for visibility
+  const toolRadius = ((activeTool?.diameter || 3.175) / 2) * 1.5; 
+  const bitLength = 30;
 
-  useFrame((_, delta) => {
+  // Initialize sparks once - increased radius for top-down visibility
+  const sparks = useMemo(() => {
+    return Array.from({ length: 12 }).map((_, i) => ({
+      angle: (i / 12) * Math.PI * 2,
+      radius: 18 + Math.random() * 6, // Moved outside the spindle body (r=14)
+      speed: 0.8 + Math.random() * 2.5,
+      offset: Math.random() * Math.PI * 2
+    }));
+  }, []);
+
+  useFrame(({ clock }, delta) => {
     if (!spindleRef.current) return;
     
-    const { isSimulating, simPos } = useGcodeStore.getState();
-    const { machine } = useMachineStatusStore.getState();
+    // Get non-reactive state for frame updates
+    const gcodeState = useGcodeStore.getState();
+    const statusState = useMachineStatusStore.getState();
+    const machine = statusState.machine;
+    const isSimulating = gcodeState.isSimulating;
+    const simPos = gcodeState.simPos;
     
+    // 1. Position Update
     let tx = machine.x.mpos;
     let ty = machine.y.mpos;
     let tz = machine.z.mpos;
@@ -39,44 +61,125 @@ function Spindle() {
       tz = simPos.z;
     }
 
-    const targetX = tx;
-    const targetY = tz + bedSizeZ; 
-    const targetZ = -ty;
+    // Three.js Coordinate Mapping
+    spindleRef.current.position.x = THREE.MathUtils.lerp(spindleRef.current.position.x, tx, 1 - Math.exp(-20 * delta));
+    spindleRef.current.position.y = THREE.MathUtils.lerp(spindleRef.current.position.y, tz + bedSizeZ, 1 - Math.exp(-20 * delta));
+    spindleRef.current.position.z = THREE.MathUtils.lerp(spindleRef.current.position.z, -ty, 1 - Math.exp(-20 * delta));
 
-    const lerpSpeed = isSimulating ? 25 : 15;
-    const t = 1 - Math.exp(-lerpSpeed * delta);
-    
-    spindleRef.current.position.x = THREE.MathUtils.lerp(spindleRef.current.position.x, targetX, t);
-    spindleRef.current.position.y = THREE.MathUtils.lerp(spindleRef.current.position.y, targetY, t);
-    spindleRef.current.position.z = THREE.MathUtils.lerp(spindleRef.current.position.z, targetZ, t);
+    // 2. Rotation & Sparks Animation
+    const isRealOn = machine.isSpindleActive || machine.spindle > 0;
+    const isSimOn = isSimulating && simPos && !simPos.isRapid;
+    const isEnergized = isRealOn || isSimOn;
+
+    if (rotatingPartsRef.current) {
+        if (isEnergized) {
+            const rpm = (machine.spindle > 100) ? machine.spindle : 1200;
+            const radPerSec = (rpm / 60) * Math.PI * 2;
+            rotatingPartsRef.current.rotation.y += radPerSec * delta;
+
+            if (blurRef.current) {
+                blurRef.current.visible = true;
+                const intensity = Math.min(rpm / 5000, 1.0); 
+                blurRef.current.scale.set(1 + intensity * 0.3, 1, 1 + intensity * 0.3);
+                (blurRef.current.material as THREE.MeshStandardMaterial).opacity = intensity * 0.25;
+            }
+        } else {
+            if (blurRef.current) blurRef.current.visible = false;
+        }
+    }
+
+    // 3. Sparks Logic
+    if (sparksRef.current) {
+        sparksRef.current.visible = isEnergized;
+        if (isEnergized) {
+            const t = clock.getElapsedTime();
+            sparksRef.current.children.forEach((child, i) => {
+                const s = sparks[i];
+                // More aggressive vertical dance and flickering
+                const flicker = Math.sin(t * 30 + s.offset) * 0.5 + 0.5;
+                child.position.y = 10 + Math.sin(t * 20 * s.speed) * 8;
+                child.scale.setScalar(0.8 + flicker * 1.5);
+                (child as any).material.opacity = 0.4 + flicker * 0.6;
+                (child as any).material.emissiveIntensity = 2 + flicker * 10;
+            });
+        }
+    }
   });
 
   return (
     <group ref={spindleRef}>
-      {/* Spindle Body - Sleek Metallic Silver */}
-      <group rotation={[Math.PI, 0, 0]}>
-        <mesh position={[0, -15, 0]} castShadow>
-          <cylinderGeometry args={[12, 11, 25, 32]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.4} metalness={0.6} />
+      {/* Spindle Body - Large static mounting bracket/motor housing */}
+      <mesh position={[0, 45, 0]} castShadow>
+        <cylinderGeometry args={[14, 14, 40, 32]} />
+        <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.7} />
+      </mesh>
+      <mesh position={[0, 20, 0]} castShadow>
+        <cylinderGeometry args={[11, 12, 12, 32]} />
+        <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
+      </mesh>
+      
+      {/* Rotating Mechanical Assembly */}
+      <group ref={rotatingPartsRef}>
+        {/* Collet / Nut */}
+        <mesh position={[0, 14, 0]} castShadow>
+          <cylinderGeometry args={[6, 7, 6, 6]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.2} metalness={0.9} />
+        </mesh>
+
+        {/* Rotation Vanes (The "Propeller" to make movement indisputable) */}
+        <group position={[0, 14, 0]}>
+          <mesh rotation={[0, 0, 0]}>
+            <boxGeometry args={[16, 1.5, 0.5]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
+          </mesh>
+          <mesh rotation={[0, Math.PI / 2, 0]}>
+            <boxGeometry args={[16, 1.5, 0.5]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
+          </mesh>
+        </group>
+
+        {/* Longer Tool Bit */}
+        <mesh position={[0, bitLength/2 - 2, 0]} castShadow>
+          <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 16]} />
+          <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.6} />
+        </mesh>
+
+        {/* High-speed Blur Disk */}
+        <mesh ref={blurRef} position={[0, 14, 0]} visible={false}>
+          <cylinderGeometry args={[10, 10, 2, 32]} />
+          <meshStandardMaterial color="#ffffff" transparent opacity={0.2} />
         </mesh>
       </group>
-      
-      {/* Collet / Nut - Polished Steel */}
-      <mesh position={[0, 4, 0]} castShadow>
-        <cylinderGeometry args={[5, 6, 4, 6]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.3} metalness={0.8} />
-      </mesh>
 
-      {/* "Tool Bit" Cylinder - Tungsten/Carbide Metal */}
-      <mesh position={[0, 1.5, 0]} castShadow>
-        <cylinderGeometry args={[toolRadius, toolRadius, 10, 16]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.4} metalness={0.5} />
-      </mesh>
+      {/* Sparks Group - Energized Indication */}
+      <group ref={sparksRef} visible={false}>
+        {sparks.map((s, i) => (
+          <mesh 
+            key={i} 
+            position={[Math.cos(s.angle) * s.radius, 14, Math.sin(s.angle) * s.radius]}
+          >
+            <sphereGeometry args={[1.5, 8, 8]} />
+            <meshStandardMaterial 
+              color="#fbbf24" 
+              emissive="#fbbf24" 
+              emissiveIntensity={8} 
+              transparent 
+              opacity={0.8} 
+            />
+          </mesh>
+        ))}
+      </group>
 
-      {/* Tool Tip Glow */}
-      <mesh position={[0, -3.5, 0]}>
-        <sphereGeometry args={[toolRadius + 0.2, 16, 16]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1} transparent opacity={0.6} />
+      {/* Tool Tip Glow (Always at the absolute tip) */}
+      <mesh position={[0, -2, 0]}>
+        <sphereGeometry args={[toolRadius + 0.5, 16, 16]} />
+        <meshStandardMaterial 
+          color="#ef4444" 
+          emissive="#ef4444" 
+          emissiveIntensity={2.0} 
+          transparent 
+          opacity={0.6} 
+        />
       </mesh>
     </group>
   );

@@ -155,6 +155,7 @@ export function ControlsPanel() {
 
           if (parts[0].startsWith('Alarm')) resetPrerequisites();
           
+          let hasAccessoryField = false;
           parts.slice(1).forEach((part: string) => {
               const [key, val] = part.split(':');
               if (!val) return;
@@ -179,8 +180,13 @@ export function ControlsPanel() {
                   if (!checkPending()) {
                       nextUpdate.isSpindleActive = (val.includes('S') || val.includes('C'));
                   }
+                  hasAccessoryField = true;
               }
           });
+          
+          if (!hasAccessoryField && !checkPending()) {
+              nextUpdate.isSpindleActive = false;
+          }
           
           updateMachine(nextUpdate);
       });
