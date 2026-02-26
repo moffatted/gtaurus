@@ -601,7 +601,7 @@ export function BedVisualizer() {
           enableDamping
           dampingFactor={0.05}
           maxPolarAngle={Math.PI / 2 - 0.05}
-          target={[settings.general.bedSizeX / 4, 0, -settings.general.bedSizeY / 4]} 
+          target={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} 
         />
 
         <GizmoHelper
