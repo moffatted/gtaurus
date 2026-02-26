@@ -61,11 +61,11 @@ export function ControlsPanel() {
 
         // 2. Bounds Check (Safety Limits)
         if (bounds) {
-            const { bedSizeX, bedSizeY, bedSizeZ, homingPosition } = settings.general;
+            const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
             const margin = 0.5;
             
-            const isAxisOut = (min: number, max: number, limit: number) => {
-                if (homingPosition === 'min') {
+            const isAxisOut = (min: number, max: number, limit: number, homing: 'min' | 'max') => {
+                if (homing === 'min') {
                     // Positive coordinate space: valid range [0, +limit]
                     return min < 0 || max > limit - margin;
                 } else {
@@ -74,9 +74,9 @@ export function ControlsPanel() {
                 }
             };
 
-            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX);
-            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY);
-            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ);
+            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, homingPositionX);
+            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, homingPositionY);
+            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, homingPositionZ);
 
             if (outX || outY || outZ) {
                 const confirmed = await ask(
@@ -237,20 +237,18 @@ export function ControlsPanel() {
     // Always enforce limits using machine position data from FluidNC.
     // Uses the homingPosition setting to determine coordinate space direction.
     {
-        const { bedSizeX, bedSizeY, bedSizeZ, homingPosition } = settings.general;
+        const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
         const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
         
-        // homingPosition='min': Home at 0, travel positive → valid range [0, +bedSize]
-        // homingPosition='max': Home at 0, travel negative → valid range [-bedSize, 0]
-        const check = (current: number, delta: number, limit: number): boolean => {
+        // 'min': Endstop at 0, travel positive → valid range [0+margin, +bedSize-margin]
+        // 'max': Endstop at 0, travel negative → valid range [-bedSize+margin, 0-margin]
+        const check = (current: number, delta: number, limit: number, homing: 'min' | 'max'): boolean => {
             if (delta === 0) return true;
             const target = current + delta;
             
-            if (homingPosition === 'min') {
-                // Positive coordinate space: home at 0, travel toward +limit
+            if (homing === 'min') {
                 return target >= 0 + margin && target <= limit - margin;
             } else {
-                // Negative coordinate space: home at 0, travel toward -limit
                 return target >= -limit + margin && target <= 0 - margin;
             }
         };
@@ -259,9 +257,9 @@ export function ControlsPanel() {
         const dy = y * stepSize * (isMetric ? 1 : 25.4);
         const dz = z * stepSize * (isMetric ? 1 : 25.4);
 
-        const xOk = check(state.x.mpos, dx, bedSizeX);
-        const yOk = check(state.y.mpos, dy, bedSizeY);
-        const zOk = check(state.z.mpos, dz, bedSizeZ);
+        const xOk = check(state.x.mpos, dx, bedSizeX, homingPositionX);
+        const yOk = check(state.y.mpos, dy, bedSizeY, homingPositionY);
+        const zOk = check(state.z.mpos, dz, bedSizeZ, homingPositionZ);
 
         if (!xOk || !yOk || !zOk) {
             const blocked = [!xOk && 'X', !yOk && 'Y', !zOk && 'Z'].filter(Boolean).join('/');
