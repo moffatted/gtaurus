@@ -315,11 +315,6 @@ export function ControlsPanel() {
         }
     } else {
         // --- ACTION: START ---
-        if (!hasHomed) {
-            alert("Machine must be Homed before starting the spindle for safety.");
-            (window as any)._spindlePendingUntil = 0;
-            return;
-        }
 
         const confirmed = await ask(
             `Start spindle motor at ${spindleRPM} RPM?`,
@@ -714,13 +709,10 @@ export function ControlsPanel() {
                         >
                             <button 
                                 onClick={handleSpindleToggle}
-                                disabled={!isSpindleOn && !hasHomed}
                                 className={`p-4 rounded-full transition-all duration-300 shadow-lg flex items-center justify-center ${
                                     isSpindleOn 
                                         ? "bg-red-500 text-white animate-pulse shadow-red-500/30 scale-110" 
-                                        : !hasHomed
-                                        ? "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-color)] opacity-50 cursor-not-allowed"
-                                        : "bg-[var(--bg-secondary)] text-amber-500 border border-[var(--border-color)] hover:border-amber-500 hover:bg-amber-500/10 cursor-pointer"
+                                        : "bg-[var(--bg-secondary)] text-amber-500 border border-[var(--border-color)] hover:border-amber-500 hover:bg-amber-500/10 cursor-pointer shadow-amber-500/10"
                                 }`}
                             >
                                 <Power className="w-6 h-6" />
