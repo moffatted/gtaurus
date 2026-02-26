@@ -23,6 +23,16 @@ export default function FileManager() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isWebSocket, setIsWebSocket] = useState(transport.isWebSocketMode());
+
+  // Watch for transport mode changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const mode = transport.isWebSocketMode();
+      if (mode !== isWebSocket) setIsWebSocket(mode);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isWebSocket]);
 
   const refreshFiles = useCallback(async (isRetry = false) => {
     if (!settings.gcodeStoragePath) return;
@@ -276,6 +286,12 @@ export default function FileManager() {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 px-2 py-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
+              <Database className={`w-3 h-3 ${isWebSocket ? 'text-green-500' : 'text-blue-500'}`} />
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+                {isWebSocket ? 'Bridge' : 'Local'}
+              </span>
+            </div>
             <button 
               onClick={() => refreshFiles()}
               disabled={loading}

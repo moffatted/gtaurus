@@ -54,7 +54,7 @@ function ConnectionPanel() {
 
     // Bridge fields
     const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
-    const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || 9001));
+    const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || import.meta.env.VITE_BACKEND_PORT || 9001));
 
     // Serial fields
     const [selectedPort, setSelectedPort] = useState(conn.serialPort);

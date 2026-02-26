@@ -77,7 +77,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(conn.wsPort ?? 23);
   const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
-  const [bridgePort, setBridgePort] = useState(conn.bridgePort || 9001);
+  const [bridgePort, setBridgePort] = useState(conn.bridgePort || Number(import.meta.env.VITE_BACKEND_PORT) || 9001);
   const [port, setPort]         = useState(conn.serialPort);
   const [baud, setBaud]         = useState(conn.baudRate);
   const [ports, setPorts]       = useState<string[]>([]);

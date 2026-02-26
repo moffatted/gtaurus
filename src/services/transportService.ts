@@ -55,7 +55,8 @@ class TransportService {
 
   private initWebSocket() {
     this.currentHost = window.location.hostname || "localhost";
-    this.currentPort = 9001;
+    const envPort = import.meta.env.VITE_BACKEND_PORT;
+    this.currentPort = envPort ? Number(envPort) : 9001;
     this.createSocket(this.currentHost, this.currentPort);
   }
 

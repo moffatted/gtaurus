@@ -228,7 +228,7 @@ export const DEFAULT_SETTINGS: Settings = {
     wsHost: "192.168.68.61",
     wsPort: 23,
     bridgeHost: "192.168.68.64",
-    bridgePort: 9001,
+    bridgePort: Number(import.meta.env.VITE_BACKEND_PORT) || 9001,
     statusPollInterval: 2000,
   },
   general: {

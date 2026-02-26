@@ -855,7 +855,7 @@ function ConnectionContent() {
   const [wsHost, setWsHost]     = useState(conn.wsHost);
   const [wsPort, setWsPort]     = useState(String(conn.wsPort));
   const [bridgeHost, setBridgeHost] = useState(conn.bridgeHost || window.location.hostname);
-  const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || 9001));
+  const [bridgePort, setBridgePort] = useState(String(conn.bridgePort || import.meta.env.VITE_BACKEND_PORT || 9001));
   const [pollInterval, setPollInterval] = useState(String(conn.statusPollInterval));
   const [serialPort, setSP]     = useState(conn.serialPort);
   const [baudRate, setBaud]     = useState(String(conn.baudRate));
@@ -914,7 +914,7 @@ function ConnectionContent() {
   const saveBridge = () => {
     const port = parseInt(bridgePort, 10);
     updateSettings({
-      connection: { ...conn, bridgeHost: bridgeHost.trim(), bridgePort: isNaN(port) ? 9001 : port },
+      connection: { ...conn, bridgeHost: bridgeHost.trim(), bridgePort: isNaN(port) ? Number(import.meta.env.VITE_BACKEND_PORT || 9001) : port },
     });
   };
 
