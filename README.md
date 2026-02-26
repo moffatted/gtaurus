@@ -4,172 +4,117 @@
 
 ## 🚀 Technical Architecture
 
-### Frontend (User Interface)
+Gtaurus uses a modular architecture to share core CNC logic across different deployment targets.
 
-- **Framework**: React + Vite + TypeScript
-- **State Management**:
-  - `Zustand` for UI state (sidebar toggles, active tabs, theme preferences).
-  - `TanStack Query` for server state (serial ports, connection status).
-  - `Tauri Store Plugin` for persistent configuration (theme settings).
-- **Styling**: Tailwind CSS + `clsx`/`tailwind-merge` with CSS variables for theming.
-- **Icons**: Lucide React.
-- **Window Docking**: \`dockview\` for customizable, draggable panels.
-- **Testing**: \`vitest\` with \`@testing-library/react\` and \`jsdom\` for component and unit testing.
-- **Communication**: Invokes Tauri commands to communicate with the Rust backend.
+### 📦 Shared Core Library (`gtaurus_common`)
 
-### Backend (System Layer)
+- **Location**: `deps/gtaurus_lib` (Submodule)
+- **Functions**: 
+  - Cross-platform **FluidNC Driver** implementation.
+  - **Buffering**: Implements **Character Counting Protocol** with a 127-byte lookahead buffer.
+  - **Connection Management**: Abstracted traits for Serial and Telnet/TCP communication.
+  - **Observer Pattern**: Platform-agnostic event emission (Tauri events vs. Terminal/WebSocket streams).
 
-- **Core**: Rust (`src-tauri`).
-- **Async Runtime**: `tokio` for non-blocking I/O.
-- **Serial Communication**: `serialport` crate.
-- **Driver Logic**: Custom `CNCController` trait and `FluidNCDriver` struct.
-  - **Buffering**: Implements **Character Counting Protocol** with a 127-byte lookahead buffer to prevent overflowing the ESP32's RX buffer.
-  - **Streaming**: dedicated thread for streaming G-code files line-by-line.
-  - **Realtime**: Bypass channel for immediate commands (`!`, `~`, `?`).
+### 🖥️ Desktop App (`gtaurus-app`)
+
+- **Frontend**: React + Vite + TypeScript.
+  - `Zustand` for UI state, `TanStack Query` for server state.
+  - `dockview` for customizable, draggable panels.
+- **Backend**: Tauri v2 (Rust).
+  - Wraps `gtaurus_common` to provide desktop-integrated CNC control.
+  - Emits all controller traffic as `fluidnc://rx` Tauri events.
+
+### 🌐 Standalone Server (`gtaurus_server`)
+
+- **Location**: `deps/gtaurus_server` (Submodule)
+- **Functions**: 
+  - Headless WebSocket bridge for remote web access.
+  - Wraps `gtaurus_common` to provide hardware access to browser clients.
 
 ## 🛠️ Prerequisites
 
 - **Node.js** (v18 or later recommended)
 - **Rust** (Stable toolchain)
+- **Git** (Required for submodules)
 - **Visual Studio Code** (Recommended IDE) with Tauri and Rust Analyzer extensions.
 
-## 📦 Installation
+## 📦 Installation & Setup
 
-1. Clone the repository:
+1. **Clone the repository with submodules**:
 
     ```bash
-    git clone https://github.com/yourusername/gtaurus.git
-    cd gtaurus/gtaurus-app
+    git clone --recursive https://github.com/moffatted/gtaurus.git
+    cd gtaurus
     ```
 
-2. Install Frontend Dependencies:
+2. **Install Dependencies & Build Core Components**:
 
     ```bash
     npm install
     ```
 
-3. (Optional) Install Rust Dependencies manually (usually handled automatically by Tauri):
-
-    ```bash
-    cd src-tauri
-    cargo check
-    cd ..
-    ```
+    *Note: The `postinstall` script automatically builds the shared library and the standalone server.*
 
 ## 🏃‍♂️ Usage
 
-Gtaurus supports **two deployment modes**: Desktop (Tauri) and Web (Browser).
+Gtaurus supports **two deployment modes**: Desktop (Tauri) and Web (via Server Bridge).
 
-### Desktop Mode (Tauri) - Full Features
+### 1. Desktop Mode (Tauri) - Recommended
 
-**Development:**
-
-```bash
-npm run tauri:dev
-```
-
-This runs the React dev server and opens the Tauri application window with hot-reloading enabled.
-
-**Production Build:**
+Runs as a native application with full hardware access.
 
 ```bash
-npm run tauri:build
+npm run tauri:dev   # Development
+npm run tauri:build # Production Build
 ```
 
-Creates an optimized release build for your OS. The executable will be located in `src-tauri/target/release/bundle/`.
+### 2. Web Mode & Remote Access
 
-**Features Available:**
+Allows control via any device on your network (phone, tablet, etc.).
 
-- ✅ **FluidNC Manager**: Execute commands and manage configuration files.
-- ✅ **Emergency Stop**: Software E-Stop button sending immediate Soft Reset (`0x18`).
-- ✅ **Integrated Consoles**: G-code terminal with history and real-time control buttons.
-- ✅ **Digital Readout (DRO)**: Real-time axis positions (WPos/MPos), feed rate, and spindle speed.
-- ✅ **Tooltip System**: Contextual help throughout the interface.
-- ✅ **DockView Layout**: Rearrangeable and dockable windows for maximum workspace customization.
-- ✅ **Tool Changer**: Integrated panel for tool changing setup.
-- ✅ **Tool Library**: Visual bit catalog with SVG previews, Fusion tool library import/export (.json/.csv/.tools), and curated reference links for bit identification.
-  > **Note:** The external links provided in the *Reference & Identification* section of the Tool Library panel are intended solely to help users identify CNC bit types and specifications. Their inclusion does not constitute an endorsement of any particular vendor, product, or service.
-- ✅ **Bed Visualizer**: 3D interactive viewer (`@react-three/fiber`) of the CNC bed, spindle position, toolpaths, and autolevel meshes.
-- ✅ Serial port communication with CNC hardware
-- ✅ Theme persistence via Tauri Store
-- ✅ Full desktop integration
+1. **Start the Server Bridge** (Handles USB/Serial communication):
 
----
+    ```bash
+    npm run build:server
+    # Then run the binary from deps/gtaurus_server/target/debug/gtaurus_server
+    ```
 
-### Headless Deployment (Ubuntu)
+2. **Start the Web Frontend**:
 
-Gtaurus can run on a headless server (e.g., using a virtual desktop) so that it can remain connected to your CNC machine continuously, while you access it via the Web Mode.
-**Note:** This has only been tested on **Ubuntu 24.04**.
+    ```bash
+    npm run dev
+    ```
 
-To launch Gtaurus headlessly with a virtual framebuffer (Xvfb), use the provided launch script:
+## 🛠️ Build Commands
 
-```bash
-# Make the script executable
-chmod +x scripts/launch_ubuntu.sh
-
-# Run the script to install dependencies and launch the app
-./scripts/launch_ubuntu.sh
-```
-
----
-
-### Web Mode (Browser) & Remote Access
-
-Gtaurus includes a powerful remote access feature when running as a web application. Because web browsers cannot directly communicate with local USB/Serial ports easily, hardware communication is handled by a standalone WebSocket bridge.
-
-1. **Vite Frontend Server (Port 1420)**: Hosts the web interface. You can access it locally (`http://localhost:1420/`) or from other devices on your network (e.g., `http://192.168.68.59:1420/`).
-2. **`gtaurus_server` (WebSocket Bridge on Port 9001)**: A standalone, dedicated Rust backend (located in the `gtaurus_server` repository) that manages the USB/Serial connection to FluidNC and exposes a WebSocket API.
-
-By navigating to the network IP address (e.g., `http://192.168.68.59:1420/`) from a phone, tablet, or another computer, the web browser will load the Gtaurus UI and automatically connect back to the host's `gtaurus_server` WebSocket Bridge on port `9001`. This allows you to **fully view and control the CNC machine remotely**, bridging the browser environment directly to the host PC's hardware.
-
-**Standalone Web Development:**
-
-```bash
-npm run dev
-```
-
-Starts the frontend-only Vite dev server. Open in your browser. Ensure that you also have the `gtaurus_server` application running so the web UI can connect to your CNC hardware.
-
-**Production Build:**
-
-```bash
-npm run build:web
-npm run preview
-```
-
-Creates an optimized web build in the `dist/` directory.
-
-**Important Note on Web Mode:**
-If you run the web version purely standalone without running `gtaurus_server`, **USB Serial communication is disabled**. The frontend cannot talk to your local USB ports without the `gtaurus_server` backend bridge.
-*(If you need to talk to the CNC and don't want to use Gtaurus, FluidNC has its own built-in web server you can connect to by typing the CNC's IP address into your browser).*
-
-## 🛑 Stopping the Application
-
-- **Development**: Close the application window or press `Ctrl+C` in the terminal where `npm run tauri dev` is running.
-- **Production**: Simply close the application window.
-
-## 📝 Logging
-
-Logs are generally output to the terminal in development mode.
-
-- **Frontend Logs**: Inspect Element -> Console.
-- **Backend Logs**: Visible in the terminal that launched the app.
+| Command | Description |
+| --- | --- |
+| `npm install` | Installs JS deps and builds Rust library/server |
+| `npm run build:all` | Builds Lib, Server, and Web frontend |
+| `npm run build:lib` | Builds the shared `gtaurus_common` library |
+| `npm run build:server` | Builds the standalone WebSocket server |
+| `npm run tauri:dev` | Launches the desktop app in dev mode |
 
 ## 📂 Project Structure
 
 ```text
-gtaurus-app/
-├── src/                # Frontend React Code
-│   ├── components/     # UI Components (Sidebar, Terminal, etc.)
-│   ├── App.tsx         # Main Layout
-│   └── main.tsx        # Entry Point
-├── src-tauri/          # Backend Rust Code
-│   ├── src/
-│   │   ├── driver.rs   # FluidNC Driver & Buffering Logic
-│   │   └── lib.rs      # Tauri Command Exports
-│   └── Cargo.toml      # Rust Derivatives
-└── package.json        # Node Dependencies
+gtaurus/
+├── deps/                   # Shared Dependencies (Git Submodules)
+│   ├── gtaurus_lib/        # Core G-code Driver & Protocol Logic
+│   └── gtaurus_server/     # Headless WebSocket Server
+├── src/                    # Frontend React Code
+├── src-tauri/              # Desktop App Backend (Rust)
+├── docs/                   # Documentation & Guides
+└── package.json            # Unified build and dependency management
 ```
+
+## 🧪 Testing
+
+- **Frontend**: `npm run test` (Vitest + React Testing Library)
+- **Backend Logic**: `npm run test:rust` (Cargo tests for driver logic)
+- **End-to-End**: `npm run test:e2e` (WebdriverIO + Tauri integration)
+
+---
 
 ## 🤝 Contributing
 
@@ -183,59 +128,7 @@ gtaurus-app/
 
 ## 🔌 FluidNC References
 
-Gtaurus is purpose-built for boards running **FluidNC** firmware.
-
 | Resource | URL |
 | --- | --- |
-| FluidNC Firmware | <https://github.com/bdring/FluidNC> |
-| FluidNC Web UI (ESP3D-WEBUI) | <https://github.com/michmela44/ESP3D-WEBUI> |
-| FluidNC Wiki (Commands, Settings, Config) | <http://wiki.fluidnc.com> |
-| FluidNC Wiki — Commands & Settings | <http://wiki.fluidnc.com/en/features/commands_and_settings> |
-| Gtaurus FluidNC Alarm Guide | [docs/FLUIDNC_ALARM_GUIDE.md](docs/FLUIDNC_ALARM_GUIDE.md) |
-
-### Target Hardware
-
-- **Board**: MKS DLC32 v2.1 running FluidNC
-- **USB**: Connected to 2010 Mac Mini
-- **WiFi**: `192.168.68.64` (local network, used for remote development/testing)
-
-### Connection Modes
-
-| Mode | Address | Notes |
-| --- | --- | --- |
-| Serial/USB | e.g. `/dev/cu.usbserial-...` | 115200 baud, Grbl character-counting protocol |
-| WiFi WebSocket | `ws://192.168.68.64/ws` | Same text protocol over WebSocket; preferred for remote dev |
-| WiFi HTTP | `http://192.168.68.64/command?commandText=<cmd>` | One-shot commands only |
-
-### FluidNC Protocol Notes
-
-- **Wire format**: Grbl-compatible line-based text (`command\n` → `ok\n` or `error:N\n`)
-- **Realtime bytes**: `?` (status), `!` (feed hold), `~` (resume), `0x18` (soft reset) — sent without `\n`, bypass the buffer
-- **`$` commands**: FluidNC-specific actions (`$Home`, `$MD`, `$G`, `$I`, etc.). Machine config is in `config.yaml`, not `$$` numbered settings.
-- **Event format**: Tauri backend emits all received lines as `fluidnc://rx` events to the frontend
-
-## 🧪 Testing Infrastructure
-
-Gtaurus uses a comprehensive testing strategy covering the frontend, backend, and end-to-end (E2E) integration.
-
-### Frontend Unit & Component Tests
-
-We use **Vitest**, **React Testing Library**, and **JSDOM** to test React components and TypeScript utilities.
-
-- **Run fast tests in watch mode:** `npm run test:watch`
-- **Run tests once:** `npm run test`
-- **Run tests with UI:** `npm run test:ui`
-
-### Backend Rust Tests
-
-Rust core logic, including the FluidNC driver, buffering, and commands, are tested with cargo's built-in test runner.
-
-- **Run Rust tests:** `npm run test:rust` (or `cargo test` from the `src-tauri` directory)
-
-### End-to-End (E2E) Desktop Tests
-
-We use **WebdriverIO (WDIO)** to run automated E2E tests against the compiled Tauri desktop application. This ensures all parts of the tech stack (React + Tauri + Rust) communicate correctly in a real operating system environment.
-
-- **Run E2E tests:** `npm run test:e2e`
-
-*Note: running the E2E tests will automatically build a debug version of the Tauri application before executing the WebDriverIO test suite.*
+| FluidNC Wiki | <http://wiki.fluidnc.com> |
+| Gtaurus Alarm Guide | [docs/FLUIDNC_ALARM_GUIDE.md](docs/FLUIDNC_ALARM_GUIDE.md) |
