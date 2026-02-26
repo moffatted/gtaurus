@@ -14,11 +14,13 @@ import { useToolStore } from '../stores/toolStore';
 import { Tooltip } from './ui/Tooltip';
 import { AlarmIndicator } from './AlarmIndicator';
 import { transport } from '../services/transportService';
+import { useConsoleStore } from '../stores/consoleStore';
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
+  const { appendLine } = useConsoleStore();
   const [jogLimitWarning, setJogLimitWarning] = useState<string | null>(null);
   const { 
     gcode, activeFileName, activeFilePath, fileToolNumber, bounds,
@@ -219,7 +221,10 @@ export function ControlsPanel() {
   };
 
   const sendGcode = (cmd: string) => {
-    transport.invoke('send_gcode', { cmd }).catch(console.error);
+    appendLine(`> ${cmd}`, 'cmd');
+    transport.invoke('send_gcode', { cmd }).catch(err => {
+        appendLine(`error: ${err}`, 'error');
+    });
   };
 
   const handleJog = (x: number, y: number, z: number) => {
@@ -330,6 +335,7 @@ export function ControlsPanel() {
             // OR we just send M3 and see. Usually M3/M4 releases it.
             
             sendGcode(`M3 S${spindleRPM}`);
+            appendLine(`[GTaurus] Spindle Motor START requested: ${spindleRPM} RPM`, 'sys');
             updateMachine({ spindle: spindleRPM, isSpindleActive: true });
         } else {
             (window as any)._spindlePendingUntil = 0;

@@ -67,9 +67,14 @@ function Spindle() {
     spindleRef.current.position.z = THREE.MathUtils.lerp(spindleRef.current.position.z, -ty, 1 - Math.exp(-20 * delta));
 
     // 2. Rotation & Sparks Animation
-    const isRealOn = machine.isSpindleActive || machine.spindle > 0;
+    const isRealOn = !!(machine.isSpindleActive || machine.spindle > 0 || machine.status === 'Run');
     const isSimOn = (isSimulating && simPos) ? !simPos.isRapid : false;
     const isEnergized = !!(isRealOn || isSimOn);
+
+    if (machine.spindle > 0) {
+        // Just for debugging - verify the state is reaching the component
+        // console.log("[BedVisualizer] Spindle active:", machine.spindle, "isEnergized:", isEnergized);
+    }
 
     if (rotatingPartsRef.current) {
         if (isEnergized) {

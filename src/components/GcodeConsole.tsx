@@ -2,7 +2,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useCallback,
   KeyboardEvent,
 } from 'react';
 import {
@@ -25,29 +24,8 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { useConsoleStore, type LineType } from '../stores/consoleStore';
 
-type LineType = 'cmd' | 'ok' | 'error' | 'status' | 'msg' | 'alarm' | 'info' | 'sys';
-
-interface LogLine {
-  id: number;
-  text: string;
-  type: LineType;
-  ts: number;
-}
-
-let lineId = 0;
-
-function classify(text: string): LineType {
-  if (text.startsWith('[GTaurus]')) return 'sys';
-  if (text === 'ok')               return 'ok';
-  if (text.startsWith('error:'))   return 'error';
-  if (text.startsWith('ALARM:'))   return 'alarm';
-  if (text.startsWith('<') && text.endsWith('>')) return 'status';
-  if (text.startsWith('[MSG:'))    return 'msg';
-  if (text.startsWith('['))        return 'info';
-  return 'info';
-}
 
 const LINE_STYLES: Record<LineType, string> = {
   cmd:    'text-[var(--accent-primary)]',
@@ -285,7 +263,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
 const MAX_HISTORY = 50;
 
 export function GcodeConsole() {
-  const [lines, setLines]             = useState<LogLine[]>([]);
+  const { lines, appendLine } = useConsoleStore();
   const [input, setInput]             = useState('');
   const [connected, setConnected]     = useState(false);
   const [statusLabel, setStatusLabel] = useState('Disconnected');
@@ -296,13 +274,6 @@ export function GcodeConsole() {
   const logRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Append a line to the log
-  const appendLine = useCallback((text: string, type?: LineType) => {
-    setLines((prev) => [
-      ...prev.slice(-999), // keep last 1000 lines
-      { id: lineId++, text, type: type ?? classify(text), ts: Date.now() },
-    ]);
-  }, []);
 
   // Auto-scroll log to bottom
   useEffect(() => {
