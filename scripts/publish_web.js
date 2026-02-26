@@ -30,4 +30,4 @@ if (fs.existsSync(dest)) {
     fs.rmSync(dest, { recursive: true, force: true });
 }
 copyRecursiveSync(src, dest);
-console.log('✅ Sync Complete! The bridge server can now host the dashboard on port 8080.');
+console.log('✅ Sync Complete! The bridge server can now host the dashboard.');
