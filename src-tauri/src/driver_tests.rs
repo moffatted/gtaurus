@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::driver::*;
+    use gtaurus_common::ConnectionStatus;
 
     #[test]
     fn test_connection_status_display() {

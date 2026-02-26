@@ -47,7 +47,6 @@ pub trait GCodeConnection: LibGCodeConnection + Send {
 }
 
 // Re-export ConnectionStatus for visibility in this module's consumers
-pub use gtaurus_common::ConnectionStatus;
 pub use gtaurus_common::GCodeConnection as LibGCodeConnection;
 
 impl FluidNCDriver {
