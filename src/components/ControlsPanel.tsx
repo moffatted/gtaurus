@@ -35,6 +35,9 @@ export function ControlsPanel() {
   const isIdle = state.status.startsWith('Idle');
   const isHold = state.status.startsWith('Hold');
   const isRun = state.status.startsWith('Run');
+  const isAlarm = state.status.startsWith('Alarm');
+  const isDoor = state.status.startsWith('Door');
+  const needsReset = isRun || isHold || isAlarm || isDoor;
 
   const activeTool = tools.find(t => t.id === activeToolId);
   const toolMismatch = fileToolNumber !== null && (!activeTool || activeTool.number !== fileToolNumber);
@@ -501,18 +504,18 @@ export function ControlsPanel() {
                     </button>
                 </Tooltip>
 
-                <Tooltip content={!isRun && !isHold ? "Nothing to stop" : "Terminate Job / Reset (CTRL-X)"} position="top">
+                <Tooltip content={!needsReset ? "Nothing to stop" : isAlarm || isDoor ? "Soft Reset (CTRL-X)" : "Terminate Job / Reset (CTRL-X)"} position="top">
                     <button 
                         onClick={() => sendRealtime(0x18)} 
-                        disabled={!isRun && !isHold}
+                        disabled={!needsReset}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-bold text-xs ${
-                            isRun || isHold
+                            needsReset
                             ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/30" 
                             : "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)] cursor-not-allowed opacity-50"
                         }`}
                     >
                         <XCircle className="w-4 h-4" />
-                        Stop
+                        {isAlarm || isDoor ? "Reset" : "Stop"}
                     </button>
                 </Tooltip>
                 <div className="w-px h-6 bg-[var(--border-color)] mx-1" />

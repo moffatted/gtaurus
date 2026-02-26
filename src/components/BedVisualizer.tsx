@@ -584,7 +584,7 @@ export function BedVisualizer() {
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas 
         shadows 
-        camera={{ position: [200, 200, 200], fov: 45 }}
+        camera={{ position: [300, 300, 300], fov: 45 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
