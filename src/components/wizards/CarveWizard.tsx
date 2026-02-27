@@ -7,6 +7,7 @@ import { useGcodeStore } from '../../stores/gcodeStore';
 import { useToolStore } from '../../stores/toolStore';
 import { useWizardStore } from '../../stores/wizardStore';
 import { transport } from '../../services/transportService';
+import { BasicProbeUI } from '../shared/BasicProbeUI';
 import { 
   CheckCircle2, AlertTriangle, Play, 
   Box, FileCode, Target, AlignVerticalSpaceAround,
@@ -438,28 +439,28 @@ export function CarveWizard() {
              </>
            ) : (
              <>
-                <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500 mx-auto mb-4">
-                  <AlignVerticalSpaceAround className="w-10 h-10" />
-               </div>
-               <h3 className="text-xl font-bold text-[var(--text-primary)]">Run Probe Sequence</h3>
-               <p className="text-sm text-[var(--text-secondary)] mb-8">
-                  Ensure the alligator clip is attached to the collet and the puck is positioned beneath the endmill. 
-               </p>
-               <button 
-                    // TODO: Replace with actual probing macro when backend supports it
-                    onClick={() => {
-                      setHasMockProbed(true);
-                      setHasZeroed(true);
-                    }}
-                    className={`w-full py-4 rounded-xl transition-all font-bold text-lg flex items-center justify-center gap-3 border-2 ${
-                        hasMockProbed 
-                        ? "bg-green-500/10 text-green-500 border-green-500" 
-                        : "bg-purple-600 hover:bg-purple-500 text-white border-purple-600 active:scale-95"
-                    }`}
-                >
-                    {hasMockProbed ? <CheckCircle2 className="w-6 h-6" /> : <AlignVerticalSpaceAround className="w-6 h-6" />}
-                    {hasMockProbed ? "Probing Complete" : "Execute Probe Macro (MOCK)"}
-                </button>
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Run Probe Sequence</h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-6">
+                   Ensure the alligator clip is attached to the collet and the puck is positioned correctly. 
+                </p>
+                <div className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]">
+                  <BasicProbeUI />
+                </div>
+                <div className="mt-6 flex flex-col items-center">
+                  <button 
+                      onClick={() => {
+                        setHasMockProbed(true);
+                        setHasZeroed(true);
+                      }}
+                      className={`px-8 py-2 rounded-full transition-all text-xs font-bold border ${
+                          hasMockProbed 
+                          ? "bg-green-500/10 text-green-500 border-green-500" 
+                          : "bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]"
+                      }`}
+                  >
+                      {hasMockProbed ? "✓ Probe Step Verified" : "Skip/Mark Verified Internally"}
+                  </button>
+                </div>
              </>
            )}
         </div>
