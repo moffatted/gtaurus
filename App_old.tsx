@@ -26,8 +26,7 @@ import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
 import { transport } from "./services/transportService";
 import { Play } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
-import { useWizardStore } from "./stores/wizardStore";
-import { Tooltip } from "./components/ui/Tooltip";
+import { useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -36,16 +35,7 @@ function App() {
   const initSettings = useSettingsStore((state) => state.initSettings);
   const initTools = useToolStore((state) => state.initTools);
   const initialized = useSettingsStore((state) => state.initialized);
-  // Prevents native OS drag/drop from intercepting webview events (Dockview fix)
-  useEffect(() => {
-    const handleDragOver = (e: DragEvent) => e.preventDefault();
-    window.addEventListener('dragover', handleDragOver);
-    return () => window.removeEventListener('dragover', handleDragOver);
-  }, []);
-
-  // Use the openCarveWizard from the store.
-  const openCarveWizard = useWizardStore((state) => state.openCarveWizard);
-
+  const [isCarveWizardOpen, setIsCarveWizardOpen] = useState(false);
 
   useEffect(() => {
     initTheme();
@@ -108,33 +98,21 @@ function App() {
             {/* Draggable indicator or Spacer */}
             <div
               data-tauri-drag-region
-              className="flex-1 h-full flex items-center gap-4 pl-2"
+              className="flex-1 h-full flex items-center"
             >
-              <Tooltip content="Launch the Carve Wizard (Step-by-step Setup)" position="bottom">
-                <div className="relative group flex items-center cursor-pointer shadow-lg shadow-blue-500/10 rounded-xl" onClick={openCarveWizard}>
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200" />
-                  <div className="relative flex items-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] overflow-hidden group-active:scale-95 transition-transform">
-                     <div className="w-12 h-10 shrink-0 border-r border-[var(--border-color)] bg-blue-900 overflow-hidden relative">
-                       <div className="absolute inset-0 bg-blue-500/30 mix-blend-overlay z-10" />
-                       <img 
-                         src="/carve_hero.png" 
-                         alt="" 
-                         className="absolute inset-0 w-full h-full object-cover object-center scale-[1.7] group-hover:scale-[1.5] opacity-80 transition-transform duration-700 blur-[0.5px]" 
-                       />
-                     </div>
-                     <button
-                       className="flex items-center gap-2 px-4 h-10 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors btn-3d"
-                       tabIndex={-1}
-                     >
-                       <Play className="w-4 h-4 fill-current" />
-                       Carve
-                     </button>
-                  </div>
-                </div>
-              </Tooltip>
+              <button
+                onClick={() => setIsCarveWizardOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Carve
+              </button>
             </div>
 
-            <CarveWizard />
+            <CarveWizard 
+              isOpen={isCarveWizardOpen} 
+              onClose={() => setIsCarveWizardOpen(false)} 
+            />
 
 
             <div className="flex items-center gap-3">
@@ -147,7 +125,7 @@ function App() {
           </header>
 
           {/* Content Area - Resizable Dashboard (Docking) */}
-          <div className="flex-1 min-h-0 relative bg-[var(--bg-primary)] overflow-hidden">
+          <div className="flex-1 overflow-y-auto min-h-0 relative bg-[var(--bg-primary)]">
             <ErrorBoundary>
               <DockLayout
                 consolePanel={<GcodeConsole />}

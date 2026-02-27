@@ -21,7 +21,7 @@ export function EStopButton() {
       <button
         onClick={handleStop}
         className={`
-          flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white shadow-md transition-all duration-150
+          flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white shadow-md transition-all duration-150 btn-3d
           ${active 
             ? 'bg-red-700 scale-95 shadow-inner' 
             : 'bg-red-600 hover:bg-red-500 hover:shadow-lg active:scale-95'

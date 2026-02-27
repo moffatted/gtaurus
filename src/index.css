@@ -55,20 +55,13 @@ body {
   color: var(--text-primary);
 }
 
-/* Smooth transitions for theme switching — exclude transforms and opacity */
-*,
-*::before,
-*::after {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 200ms;
-  transition-timing-function: ease-in-out;
-}
-
-/* Exclude dockview elements from global transitions to prevent drag lag */
+/* Removed problematic global CSS transitions that break HTML5 Drag and Drop targets */
 .dockview-container *,
-.dv-drag-proxy {
+.dv-drag-proxy,
+.dv-drag-proxy * {
   transition: none !important;
 }
+
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
@@ -115,8 +108,6 @@ body {
 /* ── Interactive Elements & 3D Click Feedback ───────────────── */
 
 /* Global Button & Interactive Style Rule */
-button,
-[role="button"],
 .btn-3d {
   position: relative;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -128,16 +119,12 @@ button,
 }
 
 /* Hover state - lift slightly */
-button:not(:disabled):hover,
-[role="button"]:not(:disabled):hover,
 .btn-3d:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Active state - the "Click" simulation */
-button:not(:disabled):active,
-[role="button"]:not(:disabled):active,
 .btn-3d:not(:disabled):active {
   transform: translateY(1px);
   box-shadow:
@@ -147,8 +134,7 @@ button:not(:disabled):active,
 }
 
 /* Disabled state - flat */
-button:disabled,
-[role="button"]:disabled {
+.btn-3d:disabled {
   transform: none !important;
   box-shadow: none !important;
   opacity: 0.6;

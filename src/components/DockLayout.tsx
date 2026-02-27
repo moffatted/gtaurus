@@ -1,6 +1,6 @@
 import { ReactNode, useState, useMemo, createContext, useContext, useEffect, useRef, useCallback } from 'react';
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
-import 'dockview/dist/styles/dockview.css';
+import 'dockview-core/dist/styles/dockview.css';
 import { BedVisualizer } from './BedVisualizer';
 import { useSettingsStore } from '../stores/settingsStore';
 import { AutoLevelPanel } from './AutoLevelPanel';
@@ -23,81 +23,53 @@ interface DockLayoutProps {
 // Context to provide panel content to wrapper components
 const DockLayoutContext = createContext<DockLayoutProps | null>(null);
 
-// Wrapper Components (Stable References) with Safety Checks
+// Wrapper Components
 const ConsolePanel = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in ConsolePanel!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.consolePanel}</div>;
 }
 const ControlsPanel = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in ControlsPanel!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.controlsPanel}</div>;
 }
 const ManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in ManagerPanel!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.managerPanel}</div>;
 }
 const FileManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in FileManagerPanel!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full">{ctx.fileManagerPanel}</div>;
 }
 const StatsPanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in StatsPanelWrapper!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.statsPanel}</div>;
 }
 const ProbePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in ProbePanelWrapper!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.probePanel}</div>;
 }
 const AIPanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in AIPanelWrapper!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.aiPanel}</div>;
 }
 const WorkpiecePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in WorkpiecePanelWrapper!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.workpiecePanel}</div>;
 }
 const ToolsPanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
-    if (!ctx) {
-        console.error("DockLayoutContext is missing in ToolsPanelWrapper!");
-        return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    }
+    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.toolsPanel}</div>;
 }
 
-// Placeholder Panel wrapper for unimplemented features
 const PlaceholderPanel = ({ title }: { title: string }) => (
     <div className="flex items-center justify-center h-full w-full bg-[var(--bg-primary)] p-4 text-center text-[var(--text-tertiary)] italic">
         {title} (Not implemented yet)
@@ -116,52 +88,46 @@ export function DockLayout(props: DockLayoutProps) {
       isRebuildingRef.current = true;
       try {
           apiInstance.clear();
-
-          // Get ordered and enabled panels from settings
           const activePanels = [...settings.dashboardPanels]
               .filter(p => p.enabled)
               .sort((a, b) => a.order - b.order);
 
-      // Dynamically add panels
-      activePanels.forEach((panelData, index) => {
-          const panelConfig: any = {
-              id: panelData.id,
-              component: panelData.id,
-              title: panelData.label,
-              renderer: 'always',
-              minimumHeight: 100,
-              minimumWidth: 100,
-              initialWidth: panelData.defaultWidth,
-              initialHeight: panelData.defaultHeight
-          };
+          activePanels.forEach((panelData, index) => {
+              const panelConfig: any = {
+                  id: panelData.id,
+                  component: panelData.id,
+                  title: panelData.label,
+                  renderer: 'always',
+                  minimumHeight: 100,
+                  minimumWidth: 100,
+                  initialWidth: panelData.defaultWidth,
+                  initialHeight: panelData.defaultHeight
+              };
 
-          // Special constraints (relaxed)
-          if (panelData.id === 'controls') {
-              panelConfig.minimumWidth = 420;
-              panelConfig.minimumHeight = 600;
-          }
+              if (panelData.id === 'controls') {
+                  panelConfig.minimumWidth = 420;
+                  panelConfig.minimumHeight = 600;
+              }
 
-          if (index === 0) {
-             apiInstance.addPanel(panelConfig);
-          } else {
-             // Alternate direction to tile correctly: 'right', 'below', 'right'...
-             panelConfig.position = { 
-                 direction: index % 2 === 1 ? 'right' : 'below' 
-             };
-             apiInstance.addPanel(panelConfig);
-          }
-      });
+              if (index === 0) {
+                 apiInstance.addPanel(panelConfig);
+              } else {
+                 panelConfig.position = { 
+                     direction: index % 2 === 1 ? 'right' : 'below' 
+                 };
+                 apiInstance.addPanel(panelConfig);
+              }
+          });
       } finally {
           isRebuildingRef.current = false;
       }
   }, [settings.dashboardPanels]);
 
-  // Stable map of components
   const components = useMemo(() => ({
       console: ConsolePanel,
       controls: ControlsPanel,
-      dro: ControlsPanel, // Fallback for old layouts
-      jog: ControlsPanel, // Fallback for old layouts
+      dro: ControlsPanel,
+      jog: ControlsPanel,
       manager: ManagerPanel,
       fileManager: FileManagerPanel,
       stats: StatsPanelWrapper,
@@ -176,12 +142,11 @@ export function DockLayout(props: DockLayoutProps) {
       default: (_props: IDockviewPanelProps) => <div className="p-4">Unknown Panel</div>
   }), []);
 
-  const onReady = (event: DockviewReadyEvent) => {
+  const onReady = useCallback((event: DockviewReadyEvent) => {
       console.log("Dockview Ready Event Fired");
       const apiInstance = event.api;
       setApi(apiInstance);
 
-      // Restore layout from settings store
       let loaded = false;
       if (settings.dashboardLayout) {
           try {
@@ -197,23 +162,19 @@ export function DockLayout(props: DockLayoutProps) {
           buildLayout(apiInstance);
       }
       
-      // Save on change
       apiInstance.onDidLayoutChange(() => {
           if (isRebuildingRef.current) return;
           setDashboardLayout(JSON.stringify(apiInstance.toJSON()));
       });
 
-      // Sync close events to store
       apiInstance.onDidRemovePanel((event: any) => {
            if (isRebuildingRef.current) return;
            setDashboardPanelEnabled(event.id, false);
       });
-  };
+  }, [settings.dashboardLayout, buildLayout, setDashboardLayout, setDashboardPanelEnabled]);
 
-  // Rebuild Layout on Explicit Order Change
   useEffect(() => {
      if (!api) return;
-     // Track the full order independent of 'enabled' to isolate move up/down actions
      const currentOrder = [...settings.dashboardPanels]
          .sort((a, b) => a.order - b.order)
          .map(p => p.id)
@@ -226,23 +187,18 @@ export function DockLayout(props: DockLayoutProps) {
      prevOrderRef.current = currentOrder;
   }, [settings.dashboardPanels, api, buildLayout]);
 
-  // Two-way Sync: Store -> Dockview
   useEffect(() => {
     if (!api) return;
 
     const syncPanel = (id: string, visible: boolean, title: string, defaultWidth?: number, defaultHeight?: number) => {
         const panel = api.getPanel(id);
         if (visible && !panel) {
-            console.log(`Restoring panel: ${id}`);
-            
-            // Determine expected index for tiling direction
             const activePanels = [...settings.dashboardPanels]
               .filter(p => p.enabled)
               .sort((a, b) => a.order - b.order);
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            // Re-open panel
             const minH = id === 'controls' ? 600 : 100;
             const minW = id === 'controls' ? 420 : 100;
 
@@ -258,7 +214,6 @@ export function DockLayout(props: DockLayoutProps) {
                 position: { direction: dir }
             });
         } else if (!visible && panel) {
-            console.log(`Closing panel: ${id}`, panel);
             try {
                 if ('close' in panel && typeof (panel as any).close === 'function') {
                     (panel as any).close();
@@ -279,7 +234,7 @@ export function DockLayout(props: DockLayoutProps) {
 
   return (
     <DockLayoutContext.Provider value={props}>
-        <div className="h-full w-full relative dock-layout-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '800px', height: '100%', width: '100%' }}> 
+        <div className="h-full w-full relative dock-layout-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}> 
             <DockviewReact
                 components={components}
                 onReady={onReady}
