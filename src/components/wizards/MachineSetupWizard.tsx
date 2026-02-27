@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, 
   ArrowUp, ArrowDown, Info, Home, Settings2, Wrench, 
   Cpu, MousePointer2, Thermometer, Play, AlertTriangle,
-  RotateCcw, Unlock
+  RotateCcw, RotateCw, RefreshCw, Unlock
 } from 'lucide-react';
 
 export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -21,8 +21,10 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
   useEffect(() => {
     if (isOpen) {
       resetPrerequisites();
+      setHasHomed(false);
+      setAxisChecks({ x: false, y: false, z: false });
     }
-  }, [isOpen, resetPrerequisites]);
+  }, [isOpen, resetPrerequisites, setHasHomed]);
 
   // Status listener for Homing detection within the wizard
   useEffect(() => {
@@ -66,6 +68,9 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
 
     // Small jog 5mm at 500mm/min
     sendGcode(`$J=G91 G21 F500 ${axis}${dir * 5}`);
+    
+    // Movement invalidates homing status for the purpose of the wizard verification
+    if (hasHomed) setHasHomed(false);
   };
 
   const handleStop = () => {
@@ -232,7 +237,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
             }}
             disabled={isTestingConnection || (settings.connection.preferredMode === 'serial' && !settings.connection.serialPort)}
             className={`
-              w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 cursor-pointer
+              w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 cursor-pointer btn-3d
               ${isTestingConnection ? 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]' : 'bg-[var(--accent-primary)] text-white hover:opacity-90 shadow-[var(--accent-primary)]/20'}
             `}
           >
@@ -430,17 +435,17 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                <button 
                 onClick={() => handleJog('X', -1)}
                 disabled={!isIdle}
-                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
+                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
                >
                  <ArrowLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
                  X -
                </button>
                
                <div className="flex flex-col gap-3">
-                  <button 
+                   <button 
                     onClick={handleHome}
                     disabled={!isIdle}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 font-bold text-xs
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95
                       ${hasHomed 
                         ? 'bg-green-600 shadow-lg shadow-green-500/20 text-white border-green-500/50' 
                         : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'}
@@ -450,7 +455,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   </button>
                   <button 
                     onClick={handleStop}
-                    className="p-3 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-xs"
+                    className="p-3 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95"
                   >
                     <AlertTriangle className="w-4 h-4" /> STOP
                   </button>
@@ -459,7 +464,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                <button 
                 onClick={() => handleJog('X', 1)}
                 disabled={!isIdle}
-                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
+                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
                >
                  <ArrowRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
                  X +
@@ -558,7 +563,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   <button 
                     onClick={handleHome}
                     disabled={!isIdle}
-                    className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs
+                    className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95
                       ${hasHomed 
                         ? 'bg-green-600 shadow-lg shadow-green-500/20 text-white border-green-500/50' 
                         : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'}
@@ -568,7 +573,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   </button>
                   <button 
                     onClick={handleStop}
-                    className="p-4 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs"
+                    className="p-4 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95"
                   >
                     <AlertTriangle className="w-5 h-5" /> STOP
                   </button>
@@ -667,7 +672,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   <button 
                     onClick={handleHome}
                     disabled={!isIdle}
-                    className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs
+                    className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95
                       ${hasHomed 
                         ? 'bg-green-600 shadow-lg shadow-green-500/20 text-white border-green-500/50' 
                         : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'}
@@ -677,7 +682,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   </button>
                   <button 
                     onClick={handleStop}
-                    className="p-4 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs"
+                    className="p-4 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95"
                   >
                     <AlertTriangle className="w-5 h-5" /> STOP
                   </button>
@@ -725,13 +730,17 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
     {
       id: 'homing',
       title: 'Homing',
+      canProceed: hasHomed,
       component: (
         <div className="space-y-6 py-4">
           <div className="text-center space-y-2">
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">Ready to Home</h4>
+            <h4 className="text-lg font-bold text-[var(--text-primary)]">
+              {hasHomed ? 'Homing Complete!' : 'Ready to Home'}
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Now we will home the machine to establish the coordinate system.
-              This will move all axes to their limit switches.
+              {hasHomed 
+                ? 'Your machine coordinate system is now established and verified.' 
+                : 'Now we will home the machine to establish the coordinate system. This will move all axes to their limit switches.'}
             </p>
           </div>
 
@@ -739,25 +748,34 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
             <button 
               onClick={() => {
                 sendGcode('$H');
-                // Homing success detection is handled by machineStatusStore 
-                // but for the wizard we can just let them proceed after click
               }}
-              className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+              disabled={!isIdle || machine.status === 'Home'}
+              className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all btn-3d active:scale-95
+                ${hasHomed 
+                    ? 'bg-green-600 hover:bg-green-500 text-white shadow-green-500/20' 
+                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'}
+                ${(!isIdle || machine.status === 'Home') ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
             >
-              <Home className="w-6 h-6" />
-              RUN HOMING CYCLE ($H)
+              {hasHomed ? <CheckCircle2 className="w-6 h-6" /> : <Home className="w-6 h-6" />}
+              {hasHomed ? 'HOMING SUCCESSFUL' : 'RUN HOMING CYCLE ($H)'}
             </button>
             
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold text-center max-w-xs">
-              Ensure there are no obstructions on the machine bed before homing.
-            </p>
+            {machine.status === 'Home' && (
+                <div className="flex items-center gap-2 text-blue-400 animate-pulse font-bold text-sm">
+                    <RotateCw className="w-4 h-4 animate-spin" />
+                    HOMING IN PROGRESS...
+                </div>
+            )}
+
+            {!hasHomed && machine.status !== 'Home' && (
+                <p className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold text-center max-w-xs">
+                  Ensure there are no obstructions on the machine bed before homing.
+                </p>
+            )}
           </div>
         </div>
-      ),
-      onExit: () => {
-        // We assume they ran it if they clicked the button and moved next
-        // In a real scenario we'd wait for the machine to report Home status
-      }
+      )
     },
     {
       id: 'finish',

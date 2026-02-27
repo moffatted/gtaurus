@@ -203,19 +203,18 @@ export function ControlsPanel() {
   const handleJog = (x: number, y: number, z: number) => {
     if (!isIdle) return;
 
+    const moveX = x * stepSize;
+    const moveY = y * stepSize;
+    const moveZ = z * stepSize;
+
     // --- Safety Limits Check ---
-    // Always enforce limits using machine position data from FluidNC.
-    // Uses the homingPosition setting to determine coordinate space direction.
     {
         const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
-        const margin = 0.5; // mm margin to avoid triggering hard limits/endstops
+        const margin = 0.5;
         
-        // 'min': Endstop at 0, travel positive → valid range [0+margin, +bedSize-margin]
-        // 'max': Endstop at 0, travel negative → valid range [-bedSize+margin, 0-margin]
         const check = (current: number, delta: number, limit: number, homing: 'min' | 'max'): boolean => {
             if (delta === 0) return true;
-            const target = current + delta;
-            
+            const target = current + (delta * (isMetric ? 1 : 25.4));
             if (homing === 'min') {
                 return target >= 0 + margin && target <= limit - margin;
             } else {
@@ -223,13 +222,9 @@ export function ControlsPanel() {
             }
         };
 
-        const dx = x * stepSize * (isMetric ? 1 : 25.4);
-        const dy = y * stepSize * (isMetric ? 1 : 25.4);
-        const dz = z * stepSize * (isMetric ? 1 : 25.4);
-
-        const xOk = check(state.x.mpos, dx, bedSizeX, homingPositionX);
-        const yOk = check(state.y.mpos, dy, bedSizeY, homingPositionY);
-        const zOk = check(state.z.mpos, dz, bedSizeZ, homingPositionZ);
+        const xOk = check(state.x.mpos, x * stepSize, bedSizeX, homingPositionX);
+        const yOk = check(state.y.mpos, y * stepSize, bedSizeY, homingPositionY);
+        const zOk = check(state.z.mpos, z * stepSize, bedSizeZ, homingPositionZ);
 
         if (!xOk || !yOk || !zOk) {
             const blocked = [!xOk && 'X', !yOk && 'Y', !zOk && 'Z'].filter(Boolean).join('/');
@@ -240,9 +235,9 @@ export function ControlsPanel() {
     }
 
     let cmd = `$J=G91 G21 F${jogFeedRate}`;
-    if (x !== 0) cmd += ` X${(x * stepSize).toFixed(3)}`;
-    if (y !== 0) cmd += ` Y${(y * stepSize).toFixed(3)}`;
-    if (z !== 0) cmd += ` Z${(z * stepSize).toFixed(3)}`;
+    if (x !== 0) cmd += ` X${moveX.toFixed(3)}`;
+    if (y !== 0) cmd += ` Y${moveY.toFixed(3)}`;
+    if (z !== 0) cmd += ` Z${moveZ.toFixed(3)}`;
     sendGcode(cmd);
   };
 
@@ -366,7 +361,7 @@ export function ControlsPanel() {
       );
   };
 
-  const jogBtnClass = "p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--accent-primary)] active:bg-[var(--accent-primary)] active:text-white transition-all duration-150 flex items-center justify-center shadow-sm";
+  const jogBtnClass = "jog-button transition-all duration-100 flex items-center justify-center p-3";
 
   return (
     <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[420px] overflow-y-auto custom-scrollbar">

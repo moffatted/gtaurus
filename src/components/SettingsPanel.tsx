@@ -15,6 +15,7 @@ import { useUIStore } from '../stores/uiStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
 import { MachineSetupWizard } from './wizards/MachineSetupWizard';
+import { useMachineStore } from '../stores/machineStore';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -1886,6 +1887,7 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
 
 export function SettingsPanel() {
   const { settingsOpen, settingsTab, settingsSection, closeSettings, setSettingsTab } = useUIStore();
+  const { hasHomed } = useMachineStore();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -1970,7 +1972,7 @@ export function SettingsPanel() {
                   className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-1.5 shrink-0"
                 >
                   <Play className="w-3 h-3" />
-                  Start
+                  {hasHomed ? 'Restart' : 'Start'}
                 </button>
             </div>
 
