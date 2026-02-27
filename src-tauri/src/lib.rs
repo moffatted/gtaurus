@@ -293,9 +293,16 @@ fn start_probing(
     max_x: f64,
     max_y: f64,
     spacing: f64,
+    safe_z: Option<f64>,
+    max_depth: Option<f64>,
+    feedrate: Option<f64>,
 ) -> Result<String, String> {
     let cols = ((max_x - min_x) / spacing).ceil() as usize + 1;
     let rows = ((max_y - min_y) / spacing).ceil() as usize + 1;
+
+    let sz = safe_z.unwrap_or(2.0);
+    let md = max_depth.unwrap_or(-10.0);
+    let fr = feedrate.unwrap_or(50.0);
 
     let map = autolevel::height_map::HeightMap::new(min_x, min_y, spacing, cols, rows);
 
@@ -337,7 +344,7 @@ fn start_probing(
                 // 1. Move safely in XY plane to probe point and drop to Z=1 (just slightly above board)
                 {
                     if let Ok(mut driver) = driver_clone.lock() {
-                        let _ = driver.send_command(format!("G0 X{:.3} Y{:.3} Z2.0", x, y));
+                        let _ = driver.send_command(format!("G0 X{:.3} Y{:.3} Z{:.3}", x, y, sz));
                     }
                 }
 
@@ -347,7 +354,7 @@ fn start_probing(
                 // 2. Descend using probe cycle to Z = -10 at slow feed F50
                 {
                     if let Ok(mut driver) = driver_clone.lock() {
-                        let _ = driver.send_command("G38.2 Z-10 F50".to_string());
+                        let _ = driver.send_command(format!("G38.2 Z{:.3} F{:.1}", md, fr));
                     }
                 }
 
@@ -382,7 +389,7 @@ fn start_probing(
                 // 5. Retract up slightly above 0 point to clear for travel to next XY
                 {
                     if let Ok(mut driver) = driver_clone.lock() {
-                        let _ = driver.send_command("G0 Z2.0".to_string());
+                        let _ = driver.send_command(format!("G0 Z{:.3}", sz));
                     }
                 }
             }

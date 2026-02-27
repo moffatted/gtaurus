@@ -4,17 +4,19 @@ import { useMachineStatusStore } from '../../stores/machineStatusStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useGcodeStore } from '../../stores/gcodeStore';
-import { useToolStore } from '../../stores/toolStore';
 import { useWizardStore } from '../../stores/wizardStore';
+import { useMeshStore } from '../../stores/meshStore';
 import { transport } from '../../services/transportService';
 import { BasicProbeUI } from '../shared/BasicProbeUI';
+import { BasicAutolevelUI } from '../shared/BasicAutolevelUI';
 import { 
-  CheckCircle2, AlertTriangle, Play, 
+  CheckCircle2, Play, 
   Box, FileCode, Target, AlignVerticalSpaceAround,
   Info, Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  CheckSquare
+  CheckSquare, Wrench, XCircle
 } from 'lucide-react';
+import { useToolStore, ToolType } from '../../stores/toolStore';
 
 export function CarveWizard() {
   const { isCarveWizardOpen, closeCarveWizard } = useWizardStore();
@@ -22,20 +24,27 @@ export function CarveWizard() {
   const { settings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasZeroed } = useMachineStore();
   const { activeFileName, activeFilePath, bounds } = useGcodeStore();
-  const { tools, activeToolId } = useToolStore();
+  const { tools, activeToolId, setActiveTool } = useToolStore();
+  const { mapData, isProbing: isMeshProbing } = useMeshStore();
   
   // Wizard specific states
   const [hasPlacedWorkpiece, setHasPlacedWorkpiece] = useState(false);
   const [zeroMethod, setZeroMethod] = useState<'manual' | 'probe'>('manual');
-  const [hasMockProbed, setHasMockProbed] = useState(false);
+  const [hasProbed, setHasProbed] = useState(false);
   const [wantsAutoLevel, setWantsAutoLevel] = useState(false);
-  const [hasMockAutoLeveled, setHasMockAutoLeveled] = useState(false);
   const [safetyChecks, setSafetyChecks] = useState({
     eyeProtection: false,
     secureWorkpiece: false,
     clearPath: false,
     vacuumOn: false
   });
+
+  // Tool Quick Add state
+  const [isAddingTool, setIsAddingTool] = useState(false);
+  const [newToolName, setNewToolName] = useState('');
+  const [newToolDiameter, setNewToolDiameter] = useState(3.175);
+  const [newToolNumber, setNewToolNumber] = useState(1);
+  const [newToolType, setNewToolType] = useState<ToolType>('endmill');
 
   // Local files state for selection
   const [localFiles, setLocalFiles] = useState<{name: string, size: number, modified: number}[]>([]);
@@ -71,10 +80,10 @@ export function CarveWizard() {
   useEffect(() => {
     if (isCarveWizardOpen) {
       setHasPlacedWorkpiece(false);
-      setHasMockProbed(false);
-      setHasMockAutoLeveled(false);
+      setHasProbed(false);
       setWantsAutoLevel(false);
       setSafetyChecks({ eyeProtection: false, secureWorkpiece: false, clearPath: false, vacuumOn: false });
+      setIsAddingTool(false);
     }
   }, [isCarveWizardOpen]);
 
@@ -96,12 +105,25 @@ export function CarveWizard() {
     if (settings.general.reverseX) dirX *= -1;
     if (settings.general.reverseY) dirY *= -1;
     if (settings.general.reverseZ) dirZ *= -1;
+    
+    sendGcode(`$J=G91 G21 X${dirX * stepSize} Y${dirY * stepSize} Z${dirZ * stepSize} F${feed}`);
+  };
 
-    let cmd = `$J=G91 G21 F${feed}`;
-    if (x !== 0) cmd += ` X${(dirX * stepSize).toFixed(3)}`;
-    if (y !== 0) cmd += ` Y${(dirY * stepSize).toFixed(3)}`;
-    if (z !== 0) cmd += ` Z${(dirZ * stepSize).toFixed(3)}`;
-    sendGcode(cmd);
+  const handleQuickAddTool = () => {
+    const { addTool } = useToolStore.getState();
+    addTool({
+      name: newToolName || `Tool ${newToolNumber}`,
+      diameter: newToolDiameter,
+      number: newToolNumber,
+      type: newToolType,
+      fluteCount: 2,
+      material: 'Carbide'
+    });
+    
+    // We need to wait for the next render or find the tool by ID, but addTool doesn't return ID.
+    // Actually addTool in store uses a randomUUID too, but let's just wait and pick the latest one or let the list update.
+    setIsAddingTool(false);
+    setNewToolName('');
   };
 
   const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
@@ -285,14 +307,110 @@ export function CarveWizard() {
              {activeTool && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
            </div>
 
-           {!activeTool && (
-             <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 flex gap-3">
-               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-               <p className="text-sm text-amber-200">
-                 Please close this wizard and ensure you have selected the correct tool in the Tool Library.
-               </p>
-             </div>
-           )}
+            {/* Tool Selection List */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-[var(--text-primary)] text-sm ml-1 uppercase tracking-wider opacity-60">Selection Library</h4>
+              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                {tools.map(tool => (
+                  <button
+                    key={tool.id}
+                    onClick={() => setActiveTool(tool.id)}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left
+                      ${activeToolId === tool.id 
+                        ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
+                        : 'border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:border-[var(--text-tertiary)]'}
+                    `}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeToolId === tool.id ? 'bg-[var(--accent-primary)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'}`}>
+                      <Box size={14} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm font-bold ${activeToolId === tool.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                          {tool.name}
+                        </span>
+                        <span className="text-[10px] font-mono opacity-50 uppercase">T{tool.number}</span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">
+                        {tool.type} • {tool.diameter}mm
+                      </div>
+                    </div>
+                    {activeToolId === tool.id && <CheckCircle2 size={16} className="text-[var(--accent-primary)]" />}
+                  </button>
+                ))}
+              </div>
+
+              {!isAddingTool ? (
+                <button
+                  onClick={() => setIsAddingTool(true)}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-dashed border-[var(--border-color)] rounded-xl text-xs font-bold transition-all group"
+                >
+                  <Wrench size={14} className="group-hover:rotate-12 transition-transform" />
+                  QUICK ADD NEW BIT
+                </button>
+              ) : (
+                <div className="p-4 bg-[var(--bg-tertiary)] border border-[var(--accent-primary)]/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex justify-between items-center">
+                    <h5 className="text-[10px] font-bold text-[var(--accent-primary)] uppercase tracking-widest">New Bit Details</h5>
+                    <button onClick={() => setIsAddingTool(false)} className="text-[var(--text-tertiary)] hover:text-white">
+                      <XCircle size={14} />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-1">
+                       <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Name</span>
+                       <input 
+                         type="text" 
+                         value={newToolName}
+                         placeholder="e.g. 1/8 Downcut"
+                         onChange={(e) => setNewToolName(e.target.value)}
+                         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-[var(--accent-primary)]"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Diameter (mm)</span>
+                       <input 
+                         type="number" 
+                         value={newToolDiameter}
+                         onChange={(e) => setNewToolDiameter(parseFloat(e.target.value))}
+                         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white font-mono outline-none focus:border-[var(--accent-primary)]"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Tool Number</span>
+                       <input 
+                         type="number" 
+                         value={newToolNumber}
+                         onChange={(e) => setNewToolNumber(parseInt(e.target.value))}
+                         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white font-mono outline-none focus:border-[var(--accent-primary)]"
+                       />
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Type</span>
+                      <select 
+                        value={newToolType}
+                        onChange={(e) => setNewToolType(e.target.value as ToolType)}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-[var(--accent-primary)]"
+                      >
+                        <option value="endmill">Endmill</option>
+                        <option value="v-bit">V-Bit</option>
+                        <option value="ballnose">Ballnose</option>
+                        <option value="surfacing">Surfacing</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleQuickAddTool}
+                    className="w-full py-2 bg-[var(--accent-primary)] text-white text-xs font-bold rounded-lg hover:brightness-110 shadow-lg"
+                  >
+                    SAVE & ADD TO LIBRARY
+                  </button>
+                </div>
+              )}
+            </div>
 
            <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-3">
              <Info className="w-5 h-5 text-blue-500 shrink-0" />
@@ -335,7 +453,6 @@ export function CarveWizard() {
              </button>
 
              <button
-               // TODO: Once Probe is fully implemented, remove mock status
                onClick={() => setZeroMethod('probe')}
                className={`
                  p-6 rounded-xl border-2 text-left transition-all flex flex-col gap-3
@@ -352,7 +469,7 @@ export function CarveWizard() {
                </div>
                <div>
                   <h4 className={`font-bold flex items-center gap-2 ${zeroMethod === 'probe' ? 'text-purple-500' : 'text-[var(--text-primary)]'}`}>
-                    Use Touch Probe <span className="text-[9px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">MOCKED</span>
+                    Use Touch Probe
                   </h4>
                   <p className="text-xs text-[var(--text-secondary)] mt-1">Use a conductivity probe to precisely set the Z height.</p>
                </div>
@@ -405,7 +522,7 @@ export function CarveWizard() {
     {
       id: 'perform-zero',
       title: 'Set Zero',
-      canProceed: zeroMethod === 'manual' ? hasZeroed : hasMockProbed,
+      canProceed: zeroMethod === 'manual' ? hasZeroed : hasProbed,
       component: (
         <div className="space-y-6 text-center py-4">
            {zeroMethod === 'manual' ? (
@@ -444,22 +561,26 @@ export function CarveWizard() {
                    Ensure the alligator clip is attached to the collet and the puck is positioned correctly. 
                 </p>
                 <div className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]">
-                  <BasicProbeUI />
+                  <BasicProbeUI onComplete={() => {
+                    setHasProbed(true);
+                    setHasZeroed(true);
+                  }} />
                 </div>
                 <div className="mt-6 flex flex-col items-center">
-                  <button 
-                      onClick={() => {
-                        setHasMockProbed(true);
-                        setHasZeroed(true);
-                      }}
-                      className={`px-8 py-2 rounded-full transition-all text-xs font-bold border ${
-                          hasMockProbed 
-                          ? "bg-green-500/10 text-green-500 border-green-500" 
-                          : "bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]"
-                      }`}
-                  >
-                      {hasMockProbed ? "✓ Probe Step Verified" : "Skip/Mark Verified Internally"}
-                  </button>
+                  <div className={`px-8 py-2 rounded-full transition-all text-xs font-bold border flex items-center gap-2 ${
+                      hasProbed 
+                      ? "bg-green-500/10 text-green-500 border-green-500" 
+                      : "bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-color)]"
+                  }`}>
+                      {hasProbed ? (
+                        <>
+                          <CheckCircle2 size={14} />
+                          PROBE SUCCESSFUL
+                        </>
+                      ) : (
+                        "Awaiting Probe Result..."
+                      )}
+                  </div>
                 </div>
              </>
            )}
@@ -467,23 +588,24 @@ export function CarveWizard() {
       )
     },
     {
-      id: 'auto-level',
-      title: 'Auto Level',
-      canProceed: wantsAutoLevel ? hasMockAutoLeveled : true,
-      component: (
+       id: 'auto-level',
+       title: 'Surface Calibration',
+       canProceed: !wantsAutoLevel || (mapData !== null && !isMeshProbing),
+       component: (
         <div className="space-y-6 text-center py-4">
            <h3 className="text-xl font-bold text-[var(--text-primary)]">Auto Level Mesh</h3>
-           <p className="text-sm text-[var(--text-secondary)] mb-8">
+           <p className="text-sm text-[var(--text-secondary)] mb-6">
               Auto leveling probes a grid across the workpiece to compensate for uneven surfaces (e.g., for PCB milling).
            </p>
 
            {!wantsAutoLevel ? (
-             <div className="flex flex-col gap-4">
+             <div className="flex flex-col gap-4 max-w-sm mx-auto">
                 <button
                    onClick={() => setWantsAutoLevel(true)}
-                   className="p-4 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-blue-500 font-bold transition-all text-[var(--text-primary)] flex-1"
+                   className="p-6 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-blue-500 hover:bg-blue-500/5 group font-bold transition-all text-[var(--text-primary)] flex flex-col items-center gap-2"
                 >
-                  Yes, map surface
+                  <AlignVerticalSpaceAround className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
+                  <span>Yes, map surface</span>
                 </button>
                 <div className="flex flex-col gap-2">
                   <div className="p-4 rounded-xl border border-[var(--border-color)] border-dashed bg-[var(--bg-tertiary)] flex flex-col justify-center items-center">
@@ -493,28 +615,54 @@ export function CarveWizard() {
                 </div>
              </div>
            ) : (
-             <div className="space-y-4 border border-[var(--border-color)] rounded-2xl p-6 bg-[var(--bg-secondary)]">
-                <h4 className="font-bold text-[var(--text-primary)]">Auto-Level Configuration</h4>
-                <div className="p-4 bg-amber-500/10 text-amber-500 rounded-xl text-xs border border-amber-500/20 text-left">
-                  <strong>Notice:</strong> Mesh generation & application logic is pending implementation. This button triggers a mock completion.
+             <div className="space-y-6">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-xl">
+                  <div className="flex items-center gap-3 mb-6 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <Box className="w-5 h-5 text-blue-500" />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-blue-500 uppercase">Workpiece Dimensions</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">Verify dimensions match your stock for accurate mapping.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="flex flex-col text-left">
+                      <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1">Width (X)</label>
+                      <div className="flex items-center gap-2 bg-[var(--bg-tertiary)] rounded-lg p-2 border border-[var(--border-color)]">
+                        <input 
+                          type="number"
+                          value={settings.stock.width}
+                          onChange={(e) => useSettingsStore.getState().setStockSettings({ width: Number(e.target.value) })}
+                          className="bg-transparent text-sm font-mono w-full focus:outline-none"
+                        />
+                        <span className="text-[10px] text-[var(--text-tertiary)]">mm</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1">Height (Y)</label>
+                      <div className="flex items-center gap-2 bg-[var(--bg-tertiary)] rounded-lg p-2 border border-[var(--border-color)]">
+                        <input 
+                          type="number"
+                          value={settings.stock.height}
+                          onChange={(e) => useSettingsStore.getState().setStockSettings({ height: Number(e.target.value) })}
+                          className="bg-transparent text-sm font-mono w-full focus:outline-none"
+                        />
+                        <span className="text-[10px] text-[var(--text-tertiary)]">mm</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <BasicAutolevelUI />
                 </div>
-                <button 
-                    onClick={() => setHasMockAutoLeveled(true)}
-                    className={`w-full py-4 rounded-xl transition-all font-bold text-lg flex items-center justify-center gap-3 border-2 ${
-                        hasMockAutoLeveled 
-                        ? "bg-green-500/10 text-green-500 border-green-500" 
-                        : "bg-blue-600 hover:bg-blue-500 text-white border-blue-600 active:scale-95"
-                    }`}
-                >
-                    {hasMockAutoLeveled ? <CheckCircle2 className="w-6 h-6" /> : <Target className="w-6 h-6" />}
-                    {hasMockAutoLeveled ? "Mesh Generated" : "Run Auto-Level Sequence (MOCK)"}
-                </button>
-                <button 
-                  onClick={() => { setWantsAutoLevel(false); setHasMockAutoLeveled(false); }}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:underline mt-4 transition-colors"
-                >
-                  Cancel auto-leveling
-                </button>
+
+                <div className="flex flex-col gap-4">
+                  <button 
+                    onClick={() => setWantsAutoLevel(false)}
+                    className="text-xs text-[var(--text-tertiary)] hover:text-red-400 hover:underline transition-colors"
+                  >
+                    Cancel and skip calibration
+                  </button>
+                </div>
              </div>
            )}
         </div>

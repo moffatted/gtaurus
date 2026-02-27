@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import { Plus, Minus, Trash } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { useToolStore } from '../stores/toolStore';
 import { useThemeStore } from '../stores/themeStore';
+import { useMeshStore, type HeightMapData } from '../stores/meshStore';
 import { Tooltip } from './ui/Tooltip';
 import { transport } from '../services/transportService';
 
@@ -292,20 +293,11 @@ function RealtimePathTracker() {
   return null;
 }
 
-// ─── Mock Autolevel Mesh ───────────────────────────────────────────────────
-
-interface HeightMapData {
-  min_x: number;
-  min_y: number;
-  spacing: number;
-  cols: number;
-  rows: number;
-  grid: number[];
-}
+// ─── Autolevel Mesh ───────────────────────────────────────────────────
 
 function AutolevelMesh() {
   const { settings } = useSettingsStore();
-  const [mapData, setMapData] = useState<HeightMapData | null>(null);
+  const { mapData, setMapData } = useMeshStore();
 
   useEffect(() => {
     // Listen for the "autolevel:grid_update" event from the Rust backend
@@ -610,8 +602,8 @@ export function BedVisualizer() {
         />
 
         <GizmoHelper
-          alignment="bottom-left"
-          margin={[60, 120]}
+          alignment="top-right"
+          margin={[60, 60]}
         >
           <GizmoViewcube 
             opacity={1}

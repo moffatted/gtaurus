@@ -6,8 +6,11 @@ import { transport } from '../../services/transportService';
 import { ProbeService, ProbeCorner } from '../../services/ProbeService';
 
 type ProbeMethod = 'z-only' | '3-axis';
+interface BasicProbeUIProps {
+  onComplete?: () => void;
+}
 
-export function BasicProbeUI() {
+export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const { settings, setProbeSettings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
   const prb = settings.probe;
@@ -18,7 +21,8 @@ export function BasicProbeUI() {
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
 
-  const canProbe = machine.status === 'Idle' || machine.status === 'Alarm';
+  const canProbe = machine.status === 'Idle';
+  const isAlarm = machine.status === 'Alarm';
 
   const handleProbe = async () => {
     if (!canProbe || isProbing) return;
@@ -37,6 +41,7 @@ export function BasicProbeUI() {
         await transport.invoke('send_gcode', { cmd });
       }
       setProgress('Probe Complete!');
+      onComplete?.();
       setTimeout(() => setProgress(null), 3000);
     } catch (err) {
       console.error("[BasicProbeUI] Probe failed:", err);
@@ -44,6 +49,10 @@ export function BasicProbeUI() {
     } finally {
       setIsProbing(false);
     }
+  };
+
+  const handleUnlock = () => {
+    transport.invoke('send_gcode', { cmd: '$X' });
   };
 
   const CornerDot = ({ pos, active }: { pos: ProbeCorner, active: boolean }) => (
@@ -89,38 +98,38 @@ export function BasicProbeUI() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 items-center">
-        {/* Visual for 3-Axis or Z-Only */}
-        <div className="flex justify-center p-4">
-          {method === 'z-only' ? (
-            <div className="relative w-24 h-24 border-b-4 border-[var(--text-tertiary)] flex items-center justify-center">
-              <div className="w-16 h-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-sm absolute bottom-0 shadow-inner" />
-              <div className="w-2 h-16 bg-gradient-to-b from-gray-400 to-gray-600 rounded-t-full transform translate-y-[-10px] animate-pulse-slow" />
-            </div>
-          ) : (
-            <div className="relative w-24 h-24 bg-[var(--bg-tertiary)] border-2 border-[var(--border-color)] rounded-lg shadow-inner">
-               <div className="absolute inset-4 border border-[var(--border-color)] border-dashed rounded opacity-30" />
-               <CornerDot pos="back-left" active={corner === 'back-left'} />
-               <CornerDot pos="back-right" active={corner === 'back-right'} />
-               <CornerDot pos="front-left" active={corner === 'front-left'} />
-               <CornerDot pos="front-right" active={corner === 'front-right'} />
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Travel</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="number"
-                value={prb.maxTravel}
-                onChange={(e) => setProbeSettings({ maxTravel: Number(e.target.value) })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-              />
-              <span className="text-xs text-[var(--text-tertiary)]">mm</span>
-            </div>
+        <div className="grid grid-cols-2 gap-4 items-center">
+          {/* Visual for 3-Axis or Z-Only */}
+          <div className="flex justify-center p-4">
+            {method === 'z-only' ? (
+              <div className="relative w-24 h-24 border-b-4 border-[var(--text-tertiary)] flex items-center justify-center">
+                <div className="w-16 h-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-sm absolute bottom-0 shadow-inner" />
+                <div className="w-2 h-16 bg-gradient-to-b from-gray-400 to-gray-600 rounded-t-full transform translate-y-[-10px] animate-pulse-slow" />
+              </div>
+            ) : (
+              <div className="relative w-24 h-24 bg-[var(--bg-tertiary)] border-2 border-[var(--border-color)] rounded-lg shadow-inner">
+                 <div className="absolute inset-4 border border-[var(--border-color)] border-dashed rounded opacity-30" />
+                 <CornerDot pos="back-left" active={corner === 'back-left'} />
+                 <CornerDot pos="back-right" active={corner === 'back-right'} />
+                 <CornerDot pos="front-left" active={corner === 'front-left'} />
+                 <CornerDot pos="front-right" active={corner === 'front-right'} />
+              </div>
+            )}
           </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex flex-col">
+              <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Travel</label>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number"
+                  value={prb.maxTravel}
+                  onChange={(e) => setProbeSettings({ maxTravel: Number(e.target.value) })}
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                />
+                <span className="text-xs text-[var(--text-tertiary)]">mm</span>
+              </div>
+            </div>
           
           <div className="flex flex-col">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Plate Offset</label>
@@ -132,6 +141,32 @@ export function BasicProbeUI() {
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
               />
               <span className="text-xs text-[var(--text-tertiary)]">mm</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Search Feed</label>
+            <div className="flex items-center gap-2">
+              <input 
+                type="number"
+                value={prb.fastFeedrate}
+                onChange={(e) => setProbeSettings({ fastFeedrate: Number(e.target.value) })}
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+              <span className="text-[10px] text-[var(--text-tertiary)]">F</span>
+            </div>
+          </div>
+          
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Probe Feed</label>
+            <div className="flex items-center gap-2">
+              <input 
+                type="number"
+                value={prb.slowFeedrate}
+                onChange={(e) => setProbeSettings({ slowFeedrate: Number(e.target.value) })}
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+              <span className="text-[10px] text-[var(--text-tertiary)]">F</span>
             </div>
           </div>
         </div>
@@ -148,10 +183,26 @@ export function BasicProbeUI() {
       </div>
 
       {/* Status / Error */}
-      {!canProbe && (
-        <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+      {isAlarm ? (
+        <div className="flex flex-col gap-2 p-3 bg-red-500/10 rounded-xl border border-red-500/30">
+          <div className="flex items-center gap-2 text-red-500">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Machine is Locked (Alarm)</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-tertiary)] text-left mb-1">
+            An alarm was triggered (likely a limit switch or soft reset). You must unlock before probing.
+          </p>
+          <button 
+            onClick={handleUnlock}
+            className="w-full py-2 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-red-500/10"
+          >
+            UNLOCK MACHINE ($X)
+          </button>
+        </div>
+      ) : !canProbe && (
+        <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
           <AlertCircle className="w-4 h-4" />
-          <span className="text-[10px] font-bold">MACHINE MUST BE IDLE TO PROBE</span>
+          <span className="text-xs font-bold uppercase">Ready the machine (Status: {machine.status})</span>
         </div>
       )}
 
