@@ -55,10 +55,10 @@ class TransportService {
   }
 
   private initWebSocket() {
-    this.currentHost = window.location.hostname || "localhost";
+    this.currentHost = import.meta.env.VITE_BACKEND_HOST || window.location.hostname || "localhost";
     const envPort = import.meta.env.VITE_BACKEND_PORT;
     this.currentPort = envPort ? Number(envPort) : 9001;
-    this.createSocket(this.currentHost, this.currentPort);
+    this.createSocket(this.currentHost as string, this.currentPort);
   }
 
   private createSocket(host: string, port: number) {

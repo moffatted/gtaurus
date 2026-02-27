@@ -6,9 +6,9 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { transport } from '../../services/transportService';
 import { 
   CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, 
-  ArrowUp, ArrowDown, Info, Home, Settings2, Wrench, 
+  ArrowUp, ArrowDown, Info, Settings2, Wrench, 
   Cpu, MousePointer2, Thermometer, Play, AlertTriangle,
-  RotateCcw, RotateCw, RefreshCw, Unlock
+  RotateCcw, RotateCw, Unlock, Home
 } from 'lucide-react';
 
 export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {

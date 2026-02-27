@@ -52,12 +52,23 @@ export function Tooltip({ content, children, delay = 300, className = "", positi
 
   const handleMouseLeave = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setVisible(false);
+    timeoutRef.current = window.setTimeout(() => {
+      setVisible(false);
+    }, 100);
   };
 
-  // Close on scroll or unmount
+  // Close on scroll only if the scrolling element is a parent of the trigger
   useEffect(() => {
-      const handleScroll = () => { if(visible) setVisible(false); };
+      const handleScroll = (e: Event) => { 
+          if(visible && triggerRef.current) {
+              const target = e.target as Node;
+              // If the element that scrolled contains our trigger, it means our trigger is moving.
+              // Otherwise, it's some other unrelated container (like the console log) scrolling.
+              if (target.contains && target.contains(triggerRef.current)) {
+                  setVisible(false); 
+              }
+          }
+      };
       window.addEventListener('scroll', handleScroll, true);
       return () => {
           window.removeEventListener('scroll', handleScroll, true);

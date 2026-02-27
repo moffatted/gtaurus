@@ -16,7 +16,7 @@ import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
 import { useRef } from 'react';
-import { CarveWizard } from './wizards/CarveWizard';
+import { useWizardStore } from '../stores/wizardStore';
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings } = useSettingsStore();
@@ -30,7 +30,7 @@ export function ControlsPanel() {
     clearSimulation, clearActualPath 
   } = useGcodeStore();
   const { tools, activeToolId } = useToolStore();
-  const [isCarveWizardOpen, setIsCarveWizardOpen] = useState(false);
+  const openCarveWizard = useWizardStore(state => state.openCarveWizard);
 
   // Popover State
   const [popover, setPopover] = useState<{
@@ -78,7 +78,7 @@ export function ControlsPanel() {
     if (isHold) {
        transport.invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
     } else if (isIdle && activeFilePath) {
-        setIsCarveWizardOpen(true);
+        openCarveWizard();
     }
   };
 
@@ -457,12 +457,6 @@ export function ControlsPanel() {
                         {isHold ? "Resume" : "Start"}
                     </button>
                 </Tooltip>
-                
-                <CarveWizard 
-                    isOpen={isCarveWizardOpen} 
-                    onClose={() => setIsCarveWizardOpen(false)} 
-                />
-
                 
                 <Tooltip content={!isRun ? "Machine is not running" : "Pause Job (!)"} position="top">
                     <button 

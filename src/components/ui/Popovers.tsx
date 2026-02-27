@@ -1,4 +1,4 @@
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, AlertTriangle, AlertCircle, CheckCircle, X } from 'lucide-react';
 
