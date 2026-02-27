@@ -5,7 +5,7 @@ import {
   Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
   Wifi, UsbIcon, RefreshCw, Power, Activity,
-  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode,
+  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -14,6 +14,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
+import { MachineSetupWizard } from './wizards/MachineSetupWizard';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ function GeneralContent() {
 
   return (
     <div className="space-y-6">
+
       {/* Carving Units */}
       <div className="space-y-3">
         <label className={labelCls}>Carving Units</label>
@@ -1884,6 +1886,7 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
 
 export function SettingsPanel() {
   const { settingsOpen, settingsTab, settingsSection, closeSettings, setSettingsTab } = useUIStore();
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1949,6 +1952,26 @@ export function SettingsPanel() {
               >
                 <X className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
+            </div>
+
+            {/* Quick Setup Wizard Banner */}
+            <div className="mx-4 mt-4 p-3 bg-blue-600/10 rounded-xl border border-blue-500/30 flex items-center justify-between gap-4 group hover:bg-blue-600/15 transition-all duration-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500 shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)] leading-tight">Quick Setup Wizard</h4>
+                    <p className="text-[10px] text-[var(--text-tertiary)] line-clamp-1">Connection, Axis Direction & Homing Calibration.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsWizardOpen(true)}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-1.5 shrink-0"
+                >
+                  <Play className="w-3 h-3" />
+                  Start
+                </button>
             </div>
 
             {/* Search and Tabs Container */}
@@ -2039,6 +2062,11 @@ export function SettingsPanel() {
           </div>
         </div>
       )}
+
+      <MachineSetupWizard 
+        isOpen={isWizardOpen} 
+        onClose={() => setIsWizardOpen(false)} 
+      />
     </>
   );
 }

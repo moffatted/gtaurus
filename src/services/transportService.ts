@@ -37,17 +37,18 @@ class TransportService {
   public setMode(mode: 'native' | 'websocket') {
     const nextUseWS = mode === 'websocket' || !isTauri;
     if (this.useWebSocket !== nextUseWS) {
+      console.log(`[TransportService] Switching transport mode to: ${nextUseWS ? 'WebSocket' : 'Native'}`);
       this.useWebSocket = nextUseWS;
-      if (this.useWebSocket) {
-        if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
-          this.initWebSocket();
-        }
-      } else {
+      if (!this.useWebSocket) {
         if (this.socket) {
+          console.log("[TransportService] Disconnecting WebSocket as we switched to Native mode.");
           this.socket.onclose = null;
           this.socket.close();
           this.socket = null;
-          if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+        }
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
         }
       }
     }
@@ -68,21 +69,66 @@ class TransportService {
     this.setupHandlers();
   }
 
-  public reconnect(host: string, port: number) {
+  public async waitForConnection(timeoutMs = 5000): Promise<boolean> {
+    if (this.socket?.readyState === WebSocket.OPEN) return true;
+    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) return false;
+    
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (!this.socket || this.socket.readyState === WebSocket.OPEN) {
+          const isOpen = this.socket?.readyState === WebSocket.OPEN;
+          if (isOpen) console.log("[TransportService] WebSocket connection established successfully.");
+          resolve(isOpen);
+        } else if (this.socket.readyState === WebSocket.CLOSED) {
+          console.warn("[TransportService] WebSocket connection failed (CLOSED state).");
+          resolve(false);
+        } else if (Date.now() - start > timeoutMs) {
+          console.warn("[TransportService] WebSocket connection timed out.");
+          resolve(false);
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+
+  public async reconnect(host: string, port: number) {
     this.useWebSocket = true;
     console.log(
       `[TransportService] Manually reconnecting to bridge at ws://${host}:${port}`,
     );
     this.currentHost = host;
     this.currentPort = port;
+    
     if (this.socket) {
-      this.socket.onclose = null; // Prevent the default reconnect logic
+      console.log("[TransportService] Closing existing socket for reconnection...");
+      this.socket.onopen = null;
+      this.socket.onmessage = null;
+      this.socket.onerror = null;
+      this.socket.onclose = null;
       this.socket.close();
+      this.socket = null;
     }
-    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    // Clear and reject stale state
+    const staleCount = this.pendingRequests.size;
+    this.pendingRequests.forEach(req => req.reject(new Error("Connection reset due to manual reconnection.")));
+    this.pendingRequests.clear();
+    this.messageQueue = [];
+    if (staleCount > 0) {
+        console.log(`[TransportService] Rejected ${staleCount} stale pending requests.`);
+    }
 
     // Create new connection
     this.createSocket(host, port);
+    return this.waitForConnection();
   }
 
   private setupHandlers() {

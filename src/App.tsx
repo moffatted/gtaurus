@@ -24,6 +24,9 @@ import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
 import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
 import { transport } from "./services/transportService";
+import { Play } from "lucide-react";
+import { CarveWizard } from "./components/wizards/CarveWizard";
+import { useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +35,7 @@ function App() {
   const initSettings = useSettingsStore((state) => state.initSettings);
   const initTools = useToolStore((state) => state.initTools);
   const initialized = useSettingsStore((state) => state.initialized);
+  const [isCarveWizardOpen, setIsCarveWizardOpen] = useState(false);
 
   useEffect(() => {
     initTheme();
@@ -96,8 +100,20 @@ function App() {
               data-tauri-drag-region
               className="flex-1 h-full flex items-center"
             >
-              {/* Visual handle indicator only visible on hover? Optional */}
+              <button
+                onClick={() => setIsCarveWizardOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Carve
+              </button>
             </div>
+
+            <CarveWizard 
+              isOpen={isCarveWizardOpen} 
+              onClose={() => setIsCarveWizardOpen(false)} 
+            />
+
 
             <div className="flex items-center gap-3">
               <AlarmIndicator />

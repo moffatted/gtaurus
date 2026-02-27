@@ -57,6 +57,9 @@ export interface GeneralSettings {
   homingPositionX: "min" | "max";
   homingPositionY: "min" | "max";
   homingPositionZ: "min" | "max";
+  reverseX: boolean;
+  reverseY: boolean;
+  reverseZ: boolean;
 }
 
 export interface ProbeSettings {
@@ -245,6 +248,9 @@ export const DEFAULT_SETTINGS: Settings = {
     homingPositionX: "min",
     homingPositionY: "min",
     homingPositionZ: "max",
+    reverseX: false,
+    reverseY: false,
+    reverseZ: false,
   },
   probe: {
     fastFeedrate: 500,

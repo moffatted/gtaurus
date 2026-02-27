@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { 
-  Activity, Move, Zap, Home, Play, Pause, XCircle, Target,
+  Activity, Play, Pause, XCircle, Target, Home, Move, Zap,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
   RotateCcw, Eye, Trash2, FileCode, AlertTriangle, Power
@@ -16,6 +16,7 @@ import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
 import { useRef } from 'react';
+import { CarveWizard } from './wizards/CarveWizard';
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings } = useSettingsStore();
@@ -24,11 +25,12 @@ export function ControlsPanel() {
   const { appendLine } = useConsoleStore();
   const [jogLimitWarning, setJogLimitWarning] = useState<string | null>(null);
   const { 
-    gcode, activeFileName, activeFilePath, fileToolNumber, bounds,
+    gcode, activeFileName, activeFilePath, fileToolNumber,
     simulate, cancelSimulation, isSimulating, simulationSpeed, setSimulationSpeed,
     clearSimulation, clearActualPath 
   } = useGcodeStore();
   const { tools, activeToolId } = useToolStore();
+  const [isCarveWizardOpen, setIsCarveWizardOpen] = useState(false);
 
   // Popover State
   const [popover, setPopover] = useState<{
@@ -76,123 +78,10 @@ export function ControlsPanel() {
     if (isHold) {
        transport.invoke('send_realtime', { byte: 0x7E }).catch(console.error); // ~ (Resume)
     } else if (isIdle && activeFilePath) {
-        // 1. Home Check
-        if (!hasHomed) {
-            setPopover({
-                isOpen: true,
-                type: 'alert',
-                title: "Safety Lock",
-                message: "Machine must be Homed ($H) before starting a job for safety.",
-                kind: "warning",
-                position: 'top'
-            });
-            return;
-        }
-
-        // 2. Bounds Check (Safety Limits)
-        if (bounds) {
-            const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
-            const margin = 0.5;
-            
-            const isAxisOut = (min: number, max: number, limit: number, homing: 'min' | 'max') => {
-                if (homing === 'min') {
-                    // Positive coordinate space: valid range [0, +limit]
-                    return min < 0 || max > limit - margin;
-                } else {
-                    // Negative coordinate space: valid range [-limit, 0]
-                    return min < -limit + margin || max > 0;
-                }
-            };
-
-            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, homingPositionX);
-            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, homingPositionY);
-            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, homingPositionZ);
-
-            if (outX || outY || outZ) {
-                setPopover({
-                    isOpen: true,
-                    type: 'confirm',
-                    title: "Safety Warning: Out of Bounds",
-                    message: "The current job's toolpath appears to exceed your machine's bed limits based on the current Work Zero. Running it may cause a crash.\n\nAre you sure you want to proceed?",
-                    kind: "warning",
-                    okLabel: "Proceed Anyway",
-                    cancelLabel: "Abort",
-                    onConfirm: async () => {
-                        // Logic moved to a closure or called directly if needed, 
-                        // but handleStart is async, so we'll need to wrap the rest.
-                        continueStart();
-                    },
-                    position: 'top'
-                });
-                return;
-            }
-        }
-
-        const continueStart = async () => {
-            // 3. Tool Safety Check
-            if (fileToolNumber !== null) {
-                const activeTool = tools.find(t => t.id === activeToolId);
-                if (!activeTool || activeTool.number !== fileToolNumber) {
-                    setPopover({
-                        isOpen: true,
-                        type: 'confirm',
-                        title: 'Tool Mismatch Warning',
-                        message: `The G-code file requests Tool T${fileToolNumber}, but the active tool in Gtaurus is ${activeTool ? `T${activeTool.number} (${activeTool.name})` : 'None'}.\n\nAre you sure you want to proceed with the WRONG tool?`,
-                        kind: 'warning',
-                        okLabel: 'Proceed Anyway',
-                        cancelLabel: 'Cancel Job',
-                        onConfirm: () => performStreamExecute(),
-                        position: 'top'
-                    });
-                    return;
-                }
-            }
-            performStreamExecute();
-        };
-
-        const performStreamExecute = async () => {
-            try {
-                await transport.invoke('stream_local_gcode', { path: activeFilePath });
-            } catch (err) {
-                console.error("Failed to start stream:", err);
-                setPopover({
-                    isOpen: true,
-                    type: 'alert',
-                    title: "Streaming Error",
-                    message: "Streaming failed to start.",
-                    kind: "error",
-                    position: 'top'
-                });
-            }
-        };
-
-        if (bounds) {
-            const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
-            const margin = 0.5;
-            
-            const isAxisOut = (min: number, max: number, limit: number, homing: 'min' | 'max') => {
-                if (homing === 'min') {
-                    // Positive coordinate space: valid range [0, +limit]
-                    return min < 0 || max > limit - margin;
-                } else {
-                    // Negative coordinate space: valid range [-limit, 0]
-                    return min < -limit + margin || max > 0;
-                }
-            };
-
-            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, homingPositionX);
-            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, homingPositionY);
-            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, homingPositionZ);
-
-            if (outX || outY || outZ) {
-                // Already handled above
-                return;
-            }
-        }
-
-        continueStart();
+        setIsCarveWizardOpen(true);
     }
   };
+
 
   // Jog State
   const isMetric = settings.general.carvingUnits === 'mm';
@@ -573,6 +462,12 @@ export function ControlsPanel() {
                         {isHold ? "Resume" : "Start"}
                     </button>
                 </Tooltip>
+                
+                <CarveWizard 
+                    isOpen={isCarveWizardOpen} 
+                    onClose={() => setIsCarveWizardOpen(false)} 
+                />
+
                 
                 <Tooltip content={!isRun ? "Machine is not running" : "Pause Job (!)"} position="top">
                     <button 
