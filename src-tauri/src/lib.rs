@@ -419,10 +419,31 @@ fn warp_gcode(
 }
 
 pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Result<String, String> {
-    let content =
-        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    eprintln!("[GTaurus] Received request to stream local G-code: {:?}", path);
+    
+    // 1. Verify file existence
+    if !std::path::Path::new(&path).exists() {
+        eprintln!("[GTaurus] ERR: File does not exist at path: {:?}", path);
+        return Err(format!("File does not exist: {}", path));
+    }
 
-    // Check if we have an active height map and warp the content if we do!
+    // 2. Read content
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| {
+            eprintln!("[GTaurus] ERR: Failed to read file {:?}: {}", path, e);
+            format!("Failed to read file: {}", e)
+        })?;
+
+    // 3. Verify connection
+    let status = {
+        let driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
+        driver.get_status()
+    };
+    if status == "Disconnected" {
+        return Err("Machine is not connected. Please connect via Serial or WiFi first.".to_string());
+    }
+
+    // 4. Apply warping if height map is active
     let final_gcode = {
         let hm_lock = state
             .height_map
@@ -441,21 +462,30 @@ pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Resul
 
     let driver_clone = Arc::clone(&state.driver);
 
+    // 5. Spawn background thread for streaming
     std::thread::spawn(move || {
-        println!("[GTaurus] Starting G-code stream job...");
-        for line in final_gcode.lines() {
+        println!("[GTaurus] >>> Starting G-code stream job ({} lines) <<<", final_gcode.lines().count());
+        for (i, line) in final_gcode.lines().enumerate() {
             let l = line.trim();
             if l.is_empty() || l.starts_with(';') || l.starts_with('(') {
                 continue;
             }
             if let Ok(mut driver) = driver_clone.lock() {
-                let _ = driver.send_command(l.to_string());
+                if let Err(e) = driver.send_command(l.to_string()) {
+                    eprintln!("[GTaurus] Stream Aborted: Failed to send line {}: {}", i, e);
+                    break;
+                }
+            }
+            
+            // Tiny sleep to prevent slamming the mpsc channel too hard for massive files
+            if i % 50 == 0 {
+                std::thread::sleep(std::time::Duration::from_millis(5));
             }
         }
-        println!("[GTaurus] Finished streaming G-code job.");
+        println!("[GTaurus] >>> Finished streaming G-code job. <<<");
     });
 
-    Ok(format!("Streaming started"))
+    Ok(format!("Successfully started streaming {}", path))
 }
 
 #[tauri::command]

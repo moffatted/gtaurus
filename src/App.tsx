@@ -28,6 +28,7 @@ import { Play } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
 import { useWizardStore } from "./stores/wizardStore";
 import { Tooltip } from "./components/ui/Tooltip";
+import { useMachineStatusStore } from "./stores/machineStatusStore";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,8 @@ function App() {
     return () => window.removeEventListener('dragover', handleDragOver);
   }, []);
 
+  const { machine } = useMachineStatusStore();
+  
   // Use the openCarveWizard from the store.
   const openCarveWizard = useWizardStore((state) => state.openCarveWizard);
 
@@ -138,6 +141,14 @@ function App() {
 
 
             <div className="flex items-center gap-3">
+              <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
+                machine.status === 'Run' ? 'bg-green-500/10 border-green-500/30 text-green-500 animate-pulse' :
+                machine.status === 'Alarm' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
+                machine.status === 'Idle' ? 'bg-blue-500/10 border-blue-500/30 text-blue-500' :
+                'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+              }`}>
+                {machine.status || 'Offline'}
+              </div>
               <AlarmIndicator />
               <EStopButton />
               <div className="w-px h-6 bg-[var(--border-color)]" />

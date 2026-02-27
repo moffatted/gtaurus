@@ -14,7 +14,7 @@ import {
   Box, FileCode, Target, AlignVerticalSpaceAround,
   Info, Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  CheckSquare, Wrench, XCircle
+  CheckSquare, Wrench, XCircle, XOctagon, AlertCircle
 } from 'lucide-react';
 import { useToolStore, ToolType } from '../../stores/toolStore';
 
@@ -170,7 +170,17 @@ export function CarveWizard() {
               </button>
             </div>
           )}
-
+          {/* Footer Branding/Info */}
+          <div className="px-4 py-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-tighter">Settings Synced</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className={`w-1.5 h-1.5 rounded-full ${settings.stock.enabled ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+               <span className="text-[10px] text-[var(--text-secondary)] font-mono">{settings.stock.enabled ? 'VISIBLE' : 'HIDDEN'}</span>
+            </div>
+          </div>
           <div className="p-4 bg-[var(--bg-tertiary)]/30 rounded-xl border border-[var(--border-color)] space-y-2">
             <h5 className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Machine Status</h5>
             <div className="flex justify-between items-center">
@@ -264,25 +274,82 @@ export function CarveWizard() {
           </div>
 
           {bounds && activeFileName && (
-            <div className="space-y-3">
-              <h5 className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] px-1">G-Code Job Bounds</h5>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">X Width</span>
-                  <span className="text-sm font-mono text-[var(--text-primary)]">{(bounds.maxX - bounds.minX).toFixed(2)} mm</span>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-3 p-4 bg-blue-500/5 rounded-2xl border border-blue-500/30 shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                <h5 className="text-[10px] uppercase font-bold text-blue-400 px-1 flex items-center gap-2">
+                   <Target size={12} />
+                   Actual Workpiece Dimensions (Editable)
+                </h5>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase mb-1 ml-1">Width (X)</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={settings.stock.width || ''}
+                        onChange={(e) => useSettingsStore.getState().setStockSettings({ width: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 text-xs text-white font-mono outline-none focus:border-blue-500 transition-colors"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase mb-1 ml-1">Depth (Y)</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={settings.stock.height || ''}
+                        onChange={(e) => useSettingsStore.getState().setStockSettings({ height: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 text-xs text-white font-mono outline-none focus:border-blue-500 transition-colors"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase mb-1 ml-1">Thick (Z)</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={settings.stock.thickness || ''}
+                        onChange={(e) => useSettingsStore.getState().setStockSettings({ thickness: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 text-xs text-white font-mono outline-none focus:border-blue-500 transition-colors"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Y Depth</span>
-                  <span className="text-sm font-mono text-[var(--text-primary)]">{(bounds.maxY - bounds.minY).toFixed(2)} mm</span>
-                </div>
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Z Height</span>
-                  <span className="text-sm font-mono text-[var(--text-primary)]">{(bounds.maxZ - bounds.minZ).toFixed(2)} mm</span>
+                
+                {(bounds.maxX - bounds.minX > settings.stock.width || bounds.maxY - bounds.minY > settings.stock.height) && (
+                  <div className="flex gap-2 items-center text-[10px] text-amber-500 font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                    <Info size={12} />
+                    <span>Warning: G-code bounds exceed workpiece!</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h5 className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] px-1 flex items-center gap-2">
+                   <Box size={12} />
+                   G-Code Job Bounds (Fixed from File)
+                </h5>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
+                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">X Width</span>
+                    <span className="text-sm font-mono text-[var(--text-primary)] font-bold">{(bounds.maxX - bounds.minX).toFixed(2)} mm</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
+                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Y Depth</span>
+                    <span className="text-sm font-mono text-[var(--text-primary)] font-bold">{(bounds.maxY - bounds.minY).toFixed(2)} mm</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
+                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Z Height</span>
+                    <span className="text-sm font-mono text-[var(--text-primary)] font-bold">{(bounds.maxZ - bounds.minZ).toFixed(2)} mm</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-[var(--text-secondary)] italic pt-2">
-                Verify these dimensions fit within your actual secured workpiece.
-              </p>
             </div>
           )}
         </div>
@@ -373,8 +440,9 @@ export function CarveWizard() {
                        <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Diameter (mm)</span>
                        <input 
                          type="number" 
-                         value={newToolDiameter}
-                         onChange={(e) => setNewToolDiameter(parseFloat(e.target.value))}
+                         value={newToolDiameter || ''}
+                         onChange={(e) => setNewToolDiameter(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                         onFocus={(e) => e.target.select()}
                          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white font-mono outline-none focus:border-[var(--accent-primary)]"
                        />
                     </div>
@@ -382,8 +450,9 @@ export function CarveWizard() {
                        <span className="text-[9px] text-[var(--text-tertiary)] ml-1 uppercase">Tool Number</span>
                        <input 
                          type="number" 
-                         value={newToolNumber}
-                         onChange={(e) => setNewToolNumber(parseInt(e.target.value))}
+                         value={newToolNumber || ''}
+                         onChange={(e) => setNewToolNumber(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                         onFocus={(e) => e.target.select()}
                          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-1.5 text-xs text-white font-mono outline-none focus:border-[var(--accent-primary)]"
                        />
                     </div>
@@ -599,24 +668,32 @@ export function CarveWizard() {
            </p>
 
            {!wantsAutoLevel ? (
-             <div className="flex flex-col gap-4 max-w-sm mx-auto">
+             <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
                 <button
                    onClick={() => setWantsAutoLevel(true)}
-                   className="p-6 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-blue-500 hover:bg-blue-500/5 group font-bold transition-all text-[var(--text-primary)] flex flex-col items-center gap-2"
+                   className="p-8 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-blue-500 hover:bg-blue-500/5 group font-bold transition-all text-[var(--text-primary)] flex flex-col items-center gap-3"
                 >
-                  <AlignVerticalSpaceAround className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
-                  <span>Yes, map surface</span>
-                </button>
-                <div className="flex flex-col gap-2">
-                  <div className="p-4 rounded-xl border border-[var(--border-color)] border-dashed bg-[var(--bg-tertiary)] flex flex-col justify-center items-center">
-                    <p className="text-sm font-bold text-[var(--text-secondary)]">Skip this step?</p>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Click "Next" to skip auto leveling</p>
+                  <AlignVerticalSpaceAround className="w-10 h-10 text-blue-500 group-hover:scale-110 transition-transform" />
+                  <div className="text-center">
+                    <span className="block text-base">Yes, map surface</span>
+                    <span className="block text-[10px] text-[var(--text-tertiary)] font-normal mt-1">Recommended for PCBs</span>
                   </div>
-                </div>
+                </button>
+                
+                <button
+                   onClick={() => setWantsAutoLevel(false)}
+                   className="p-8 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-blue-500 hover:bg-blue-500/5 group font-bold transition-all text-[var(--text-secondary)] flex flex-col items-center gap-3"
+                >
+                  <XCircle className="w-10 h-10 text-[var(--text-tertiary)] group-hover:text-amber-500 transition-colors" />
+                  <div className="text-center">
+                    <span className="block text-base">No, skip this</span>
+                    <span className="block text-[10px] text-[var(--text-tertiary)] font-normal mt-1">Click "Next" after selecting this</span>
+                  </div>
+                </button>
              </div>
            ) : (
              <div className="space-y-6">
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-xl">
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-xl relative">
                   <div className="flex items-center gap-3 mb-6 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
                     <Box className="w-5 h-5 text-blue-500" />
                     <div className="text-left">
@@ -631,8 +708,9 @@ export function CarveWizard() {
                       <div className="flex items-center gap-2 bg-[var(--bg-tertiary)] rounded-lg p-2 border border-[var(--border-color)]">
                         <input 
                           type="number"
-                          value={settings.stock.width}
-                          onChange={(e) => useSettingsStore.getState().setStockSettings({ width: Number(e.target.value) })}
+                          value={settings.stock.width || ''}
+                          onChange={(e) => useSettingsStore.getState().setStockSettings({ width: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                          onFocus={(e) => e.target.select()}
                           className="bg-transparent text-sm font-mono w-full focus:outline-none"
                         />
                         <span className="text-[10px] text-[var(--text-tertiary)]">mm</span>
@@ -643,8 +721,9 @@ export function CarveWizard() {
                       <div className="flex items-center gap-2 bg-[var(--bg-tertiary)] rounded-lg p-2 border border-[var(--border-color)]">
                         <input 
                           type="number"
-                          value={settings.stock.height}
-                          onChange={(e) => useSettingsStore.getState().setStockSettings({ height: Number(e.target.value) })}
+                          value={settings.stock.height || ''}
+                          onChange={(e) => useSettingsStore.getState().setStockSettings({ height: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                          onFocus={(e) => e.target.select()}
                           className="bg-transparent text-sm font-mono w-full focus:outline-none"
                         />
                         <span className="text-[10px] text-[var(--text-tertiary)]">mm</span>
@@ -658,8 +737,9 @@ export function CarveWizard() {
                 <div className="flex flex-col gap-4">
                   <button 
                     onClick={() => setWantsAutoLevel(false)}
-                    className="text-xs text-[var(--text-tertiary)] hover:text-red-400 hover:underline transition-colors"
+                    className="flex items-center justify-center gap-2 mx-auto px-6 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold hover:bg-red-500/20 transition-all uppercase tracking-widest"
                   >
+                    <XCircle size={14} />
                     Cancel and skip calibration
                   </button>
                 </div>
@@ -704,18 +784,31 @@ export function CarveWizard() {
     {
       id: 'confirm',
       title: 'Ready to Carve',
+      canProceed: machine.status === 'Idle' || machine.status === 'Alarm', // Basic readiness check
       component: (
         <div className="flex flex-col items-center text-center space-y-6 py-4">
-           <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-600 animate-pulse">
-            <Play className="w-10 h-10 fill-blue-600 translate-x-1" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Commence Carving</h3>
-            <p className="text-sm text-[var(--text-tertiary)] max-w-sm">
-              All checks passed. Clicking "Start Carve" will send the G-code to the machine and close this wizard.
-              <strong> Stay present throughout the entire operation.</strong>
-            </p>
-          </div>
+           {machine.status === 'Disconnected' ? (
+             <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-2xl flex flex-col items-center gap-4">
+               <XOctagon className="w-12 h-12 text-red-500" />
+               <div>
+                 <h3 className="text-lg font-bold text-red-500">Machine Disconnected</h3>
+                 <p className="text-xs text-[var(--text-tertiary)] mt-1">Please connect to your machine before starting the carve.</p>
+               </div>
+             </div>
+           ) : (
+             <>
+               <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-600 animate-pulse">
+                <Play className="w-10 h-10 fill-blue-600 translate-x-1" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-[var(--text-primary)]">Commence Carving</h3>
+                <p className="text-sm text-[var(--text-tertiary)] max-w-sm">
+                  All checks passed. Clicking "Start Carve" will send the G-code to the machine and close this wizard.
+                  <strong> Stay present throughout the entire operation.</strong>
+                </p>
+              </div>
+            </>
+           )}
 
           <div className="w-full grid grid-cols-2 gap-3 p-4 bg-[var(--bg-tertiary)] rounded-2xl border border-[var(--border-color)] text-left">
             <div className="space-y-1">
@@ -727,12 +820,35 @@ export function CarveWizard() {
                <p className="text-sm font-bold text-[var(--text-primary)]">{settings.spindle.maxRPM} RPM</p>
             </div>
           </div>
+          
+          {machine.status === 'Alarm' && (
+             <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 w-full text-left">
+                <AlertCircle size={14} />
+                <span className="text-[10px] font-bold uppercase">Note: Machine is in ALARM state. Resetting before start...</span>
+             </div>
+          )}
         </div>
       ),
-      onExit: () => {
-        closeCarveWizard();
-        if (activeFilePath) {
-          transport.invoke('stream_local_gcode', { path: activeFilePath }).catch(console.error);
+      onExit: async () => {
+        if (!activeFilePath) return;
+
+        try {
+          // If in alarm, try to clear it first automatically
+          if (machine.status === 'Alarm') {
+            await transport.invoke('send_gcode', { cmd: '$X' });
+          }
+
+          const result = await transport.invoke<string>('stream_local_gcode', { path: activeFilePath });
+          console.log("[CarveWizard] Stream result:", result);
+          
+          // Provide a tiny visual feedback before closing
+          // Since we don't have a toast system, we'll use a local state or just close
+          // but we'll log it for debugging and use alert if it fails.
+        } catch (err) {
+          console.error("[CarveWizard] Failed to start carve:", err);
+          alert(`Failed to start carve: ${err}`);
+        } finally {
+          closeCarveWizard();
         }
       }
     }

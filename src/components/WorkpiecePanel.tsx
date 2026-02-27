@@ -48,10 +48,11 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.width}
-                  onChange={(e) => setStockSettings({ width: parseFloat(e.target.value) || 0 })}
+                  value={stock.width || ''}
+                  onChange={(e) => setStockSettings({ width: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   className={inputCls}
-                  min={1}
+                  min={0}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>
@@ -61,10 +62,11 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.height}
-                  onChange={(e) => setStockSettings({ height: parseFloat(e.target.value) || 0 })}
+                  value={stock.height || ''}
+                  onChange={(e) => setStockSettings({ height: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   className={inputCls}
-                  min={1}
+                  min={0}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>
@@ -74,10 +76,11 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.thickness}
-                  onChange={(e) => setStockSettings({ thickness: parseFloat(e.target.value) || 0 })}
+                  value={stock.thickness || ''}
+                  onChange={(e) => setStockSettings({ thickness: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                   className={inputCls}
-                  min={1}
+                  min={0}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>
@@ -97,8 +100,9 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Offset X</label>
               <input
                 type="number"
-                value={stock.offsetX}
-                onChange={(e) => setStockSettings({ offsetX: parseFloat(e.target.value) || 0 })}
+                value={stock.offsetX || ''}
+                onChange={(e) => setStockSettings({ offsetX: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                onFocus={(e) => e.target.select()}
                 className={inputCls}
               />
             </div>
@@ -106,8 +110,9 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Offset Y</label>
               <input
                 type="number"
-                value={stock.offsetY}
-                onChange={(e) => setStockSettings({ offsetY: parseFloat(e.target.value) || 0 })}
+                value={stock.offsetY || ''}
+                onChange={(e) => setStockSettings({ offsetY: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                onFocus={(e) => e.target.select()}
                 className={inputCls}
               />
             </div>
@@ -165,7 +170,10 @@ export function WorkpiecePanel() {
       
       {/* Footer Branding/Info */}
       <div className="px-4 py-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between">
-        <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-tighter">Workpiece Controls</span>
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-tighter">Settings Synced</span>
+        </div>
         <div className="flex items-center gap-1.5">
            <div className={`w-1.5 h-1.5 rounded-full ${stock.enabled ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{stock.enabled ? 'VISIBLE' : 'HIDDEN'}</span>
