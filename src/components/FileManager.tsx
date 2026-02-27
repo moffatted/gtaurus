@@ -4,6 +4,8 @@ import {
   RefreshCw, HardDrive, FileCode, MoreVertical,
   Clock, Database, Eye
 } from 'lucide-react';
+import { ConfirmPopover, AlertPopover } from './ui/Popovers';
+import { useRef } from 'react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useGcodeStore } from '../stores/gcodeStore';
@@ -25,6 +27,31 @@ export default function FileManager() {
   const [error, setError] = useState<string | null>(null);
   const [isWebSocket, setIsWebSocket] = useState(transport.isWebSocketMode());
   const [isDragging, setIsDragging] = useState(false);
+
+  // Popover State
+  const [popover, setPopover] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'alert';
+    title: string;
+    message: string;
+    kind: 'info' | 'warning' | 'error' | 'success';
+    okLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+    position?: 'top' | 'bottom' | 'left' | 'right';
+    triggerRef?: React.RefObject<HTMLElement | null>;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    kind: 'info'
+  });
+
+  const uploadButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const sdRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Watch for transport mode changes
   useEffect(() => {
@@ -63,8 +90,25 @@ export default function FileManager() {
   const saveFileContent = async (fileName: string, fileContent: string) => {
     if (!settings.gcodeStoragePath) return;
     const isGcode = ['G','M','X','Y','Z','$','F','S','T'].some(char => fileContent.includes(char));
-    if (!isGcode && !confirm("This file doesn't look like valid G-code. Upload anyway?")) return;
+    if (!isGcode) {
+        setPopover({
+            isOpen: true,
+            type: 'confirm',
+            title: "Validation Warning",
+            message: "This file doesn't look like valid G-code. Upload anyway?",
+            kind: "warning",
+            okLabel: "Upload Anyway",
+            onConfirm: () => performSave(fileName, fileContent),
+            triggerRef: uploadButtonRef,
+            position: 'bottom'
+        });
+        return;
+    }
 
+    await performSave(fileName, fileContent);
+  };
+
+  const performSave = async (fileName: string, fileContent: string) => {
     await transport.invoke('save_local_file', {
       path: settings.gcodeStoragePath,
       filename: fileName,
@@ -118,10 +162,23 @@ export default function FileManager() {
         });
         if (selected && typeof selected === 'string') {
           let isValid = true;
-          try {
-            isValid = await transport.invoke<boolean>('validate_gcode_file', { path: selected });
-          } catch (valErr) {}
-          if (!isValid && !confirm("This file doesn't look like valid G-code. Upload anyway?")) return;
+          if (!isValid) {
+              setPopover({
+                    isOpen: true,
+                    type: 'confirm',
+                    title: "Validation Warning",
+                    message: "This file doesn't look like valid G-code. Upload anyway?",
+                    kind: "warning",
+                    okLabel: "Upload Anyway",
+                    onConfirm: async () => {
+                        await transport.invoke('copy_to_storage', { sourcePath: selected, destDir: settings.gcodeStoragePath });
+                        refreshFiles();
+                    },
+                    triggerRef: uploadButtonRef,
+                    position: 'bottom'
+              });
+              return;
+          }
           await transport.invoke('copy_to_storage', { sourcePath: selected, destDir: settings.gcodeStoragePath });
           refreshFiles();
         }
@@ -155,11 +212,27 @@ export default function FileManager() {
       if (msg.toLowerCase().includes("no such file")) {
           const newPath = await healStoragePath();
           if (newPath) {
-              alert("Storage path updated. Please try again.");
+              setPopover({
+                  isOpen: true,
+                  type: 'alert',
+                  title: "Path Updated",
+                  message: "Storage path was missing but has been recovered. Please try again.",
+                  kind: "info",
+                  triggerRef: uploadButtonRef,
+                  position: 'bottom'
+              });
               return;
           }
       }
-      alert(`Upload failed: ${msg}`);
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Upload Failed",
+          message: `Reason: ${msg}`,
+          kind: "error",
+          triggerRef: uploadButtonRef,
+          position: 'bottom'
+      });
     }
   };
 
@@ -169,20 +242,39 @@ export default function FileManager() {
   const simulate = useGcodeStore(state => state.simulate);
 
   const handleDelete = async (filename: string) => {
-    if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
-    try {
-      await transport.invoke('delete_local_file', { 
-        path: settings.gcodeStoragePath,
-        filename 
-      });
-      if (activeFileName === filename) {
-        resetGcode();
-      }
-      refreshFiles();
-    } catch (err) {
-      console.error("[FileManager] Delete failed:", err);
-      alert("Failed to delete file.");
-    }
+    setPopover({
+        isOpen: true,
+        type: 'confirm',
+        title: "Delete File",
+        message: `Are you sure you want to delete ${filename}?`,
+        kind: "error",
+        okLabel: "Delete Permanently",
+        onConfirm: async () => {
+            try {
+                await transport.invoke('delete_local_file', { 
+                  path: settings.gcodeStoragePath,
+                  filename 
+                });
+                if (activeFileName === filename) {
+                  resetGcode();
+                }
+                refreshFiles();
+              } catch (err) {
+                console.error("[FileManager] Delete failed:", err);
+                setPopover({
+                    isOpen: true,
+                    type: 'alert',
+                    title: "Delete Failed",
+                    message: "Failed to delete file.",
+                    kind: "error",
+                    triggerRef: { current: deleteRefs.current[filename] },
+                    position: 'left'
+                });
+              }
+        },
+        triggerRef: { current: deleteRefs.current[filename] },
+        position: 'left'
+    });
   };
 
 
@@ -198,7 +290,15 @@ export default function FileManager() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[FileManager] Preview failed:", msg);
-      alert(`Failed to load file preview:\n${msg}`);
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Preview Failed",
+          message: msg,
+          kind: "error",
+          triggerRef: uploadButtonRef, // Fallback
+          position: 'left'
+      });
     }
   };
 
@@ -213,7 +313,15 @@ export default function FileManager() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[FileManager] Select failed:", msg);
-      alert(`Failed to load file:\n${msg}`);
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Load Failed",
+          message: msg,
+          kind: "error",
+          triggerRef: uploadButtonRef, // Fallback
+          position: 'left'
+      });
     }
   };
 
@@ -230,10 +338,26 @@ export default function FileManager() {
         filename,
         content
       });
-      alert(`Synchronized ${filename} to machine SD card.`);
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Sync Successful",
+          message: `Synchronized ${filename} to machine SD card.`,
+          kind: "success",
+          triggerRef: { current: sdRefs.current[filename] },
+          position: 'left'
+      });
     } catch (err) {
       console.error("[FileManager] SD Upload failed:", err);
-      alert("Failed to upload to machine. Check connection.");
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Sync Failed",
+          message: "Failed to upload to machine. Check connection and SD card status.",
+          kind: "error",
+          triggerRef: { current: sdRefs.current[filename] },
+          position: 'left'
+      });
     }
   };
 
@@ -252,6 +376,7 @@ export default function FileManager() {
 
   return (
     <div 
+      ref={dropZoneRef}
       className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[300px] relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -315,6 +440,7 @@ export default function FileManager() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button 
+              ref={uploadButtonRef}
               onClick={handleUpload}
               className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
             >
@@ -412,6 +538,7 @@ export default function FileManager() {
                     <Play className={`w-4 h-4 ${activeFileName === file.name ? 'fill-current' : ''}`} />
                   </button>
                   <button 
+                    ref={el => { sdRefs.current[file.name] = el; }}
                     onClick={(e) => { e.stopPropagation(); handleUploadToSD(file.name); }}
                     className="p-2 text-[var(--text-secondary)] hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
                     title="Send to Machine SD Card"
@@ -419,6 +546,7 @@ export default function FileManager() {
                     <HardDrive className="w-4 h-4" />
                   </button>
                   <button 
+                    ref={el => { deleteRefs.current[file.name] = el; }}
                     onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
                     className="p-2 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                     title="Delete file"
@@ -453,6 +581,32 @@ export default function FileManager() {
           <span>G-code Files</span>
         </div>
       </div>
+
+      {popover.type === 'confirm' ? (
+        <ConfirmPopover
+            isOpen={popover.isOpen}
+            onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
+            onConfirm={popover.onConfirm || (() => {})}
+            title={popover.title}
+            message={popover.message}
+            kind={popover.kind}
+            okLabel={popover.okLabel}
+            cancelLabel={popover.cancelLabel}
+            triggerRef={(popover.triggerRef as React.RefObject<HTMLElement | null>) || uploadButtonRef}
+            position={popover.position || 'bottom'}
+        />
+      ) : (
+        <AlertPopover
+            isOpen={popover.isOpen}
+            onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
+            title={popover.title}
+            message={popover.message}
+            kind={popover.kind}
+            okLabel={popover.okLabel}
+            triggerRef={(popover.triggerRef as React.RefObject<HTMLElement | null>) || uploadButtonRef}
+            position={popover.position || 'bottom'}
+        />
+      )}
     </div>
   );
 }

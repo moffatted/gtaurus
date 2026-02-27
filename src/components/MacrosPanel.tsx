@@ -5,12 +5,24 @@ import { useUIStore } from "../stores/uiStore";
 import { Tooltip } from "./ui/Tooltip";
 import clsx from "clsx";
 import { transport } from '../services/transportService';
+import { ConfirmPopover } from './ui/Popovers';
+import { useRef, useState } from 'react';
 
 export function MacrosPanel() {
     const { settings, deleteMacro } = useSettingsStore();
     const { machine } = useMachineStatusStore();
     const { openSettings } = useUIStore();
     const connected = machine.status !== "Disconnected";
+
+    const [popover, setPopover] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        triggerRef: React.RefObject<HTMLButtonElement | null>;
+    } | null>(null);
+
+    const deleteRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
     const runMacro = async (macro: Macro) => {
         if (!connected) return;
@@ -102,11 +114,16 @@ export function MacrosPanel() {
                                             <Edit className="w-3.5 h-3.5" />
                                         </button>
                                         <button
+                                            ref={el => { deleteRefs.current[macro.id] = el; }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (window.confirm(`Delete macro "${macro.name}"?`)) {
-                                                    deleteMacro(macro.id);
-                                                }
+                                                setPopover({
+                                                    isOpen: true,
+                                                    title: "Delete Macro",
+                                                    message: `Are you sure you want to delete "${macro.name}"?`,
+                                                    onConfirm: () => deleteMacro(macro.id),
+                                                    triggerRef: { current: deleteRefs.current[macro.id] }
+                                                });
                                             }}
                                             className="p-1.5 text-[var(--text-tertiary)] hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all cursor-pointer"
                                         >
@@ -146,6 +163,20 @@ export function MacrosPanel() {
                     </p>
                 </div>
             </div>
+
+            {popover && (
+                <ConfirmPopover
+                    isOpen={popover.isOpen}
+                    onClose={() => setPopover(null)}
+                    onConfirm={popover.onConfirm}
+                    title={popover.title}
+                    message={popover.message}
+                    kind="error"
+                    okLabel="Delete"
+                    triggerRef={popover.triggerRef}
+                    position="left"
+                />
+            )}
         </div>
     );
 }

@@ -19,7 +19,9 @@ import {
 import { useToolStore, Bit, ToolType } from '../stores/toolStore';
 import { Tooltip } from './ui/Tooltip';
 import { BitVisualizer } from './ui/BitVisualizer';
+import { ConfirmPopover, AlertPopover } from './ui/Popovers';
 import { isTauriApp } from '../utils/platform';
+import { useRef } from 'react';
 import clsx from 'clsx';
 
 export function ToolLibraryPanel() {
@@ -27,6 +29,20 @@ export function ToolLibraryPanel() {
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [popover, setPopover] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'alert';
+    title: string;
+    message: string;
+    kind: 'info' | 'warning' | 'error' | 'success';
+    okLabel?: string;
+    onConfirm?: () => void;
+    triggerRef: React.RefObject<HTMLButtonElement | null>;
+  } | null>(null);
+
+  const libraryHeaderRef = useRef<HTMLDivElement>(null);
+  const deleteRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Form State
   const [formData, setFormData] = useState<Omit<Bit, 'id' | 'usageTimeSec' | 'usageDistanceMm' | 'lastMaintenanceDate'>>({
@@ -111,7 +127,14 @@ export function ToolLibraryPanel() {
           importFromJSON(text);
         }
       } catch (err) {
-        alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setPopover({
+            isOpen: true,
+            type: 'alert',
+            title: "Import Failed",
+            message: err instanceof Error ? err.message : 'Unknown error',
+            kind: 'error',
+            triggerRef: { current: null } // Will fallback to default in renderer
+        });
       }
     };
     input.click();
@@ -148,7 +171,14 @@ export function ToolLibraryPanel() {
         imported++;
       }
     }
-    alert(`Imported ${imported} tool${imported !== 1 ? 's' : ''} successfully.`);
+    setPopover({
+        isOpen: true,
+        type: 'alert',
+        title: "Import Successful",
+        message: `Imported ${imported} tool${imported !== 1 ? 's' : ''} successfully.`,
+        kind: 'success',
+        triggerRef: { current: null }
+    });
   };
 
   const importFromCSV = (text: string) => {
@@ -186,7 +216,14 @@ export function ToolLibraryPanel() {
       });
       imported++;
     }
-    alert(`Imported ${imported} tool${imported !== 1 ? 's' : ''} from CSV.`);
+    setPopover({
+        isOpen: true,
+        type: 'alert',
+        title: "CSV Import Successful",
+        message: `Imported ${imported} tool${imported !== 1 ? 's' : ''} from CSV.`,
+        kind: 'success',
+        triggerRef: { current: null }
+    });
   };
 
   const handleExport = () => {
@@ -236,14 +273,21 @@ export function ToolLibraryPanel() {
         // importFromJSON already shows its own alert
       }
     } catch (err) {
-      alert(`Fusion scan failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setPopover({
+          isOpen: true,
+          type: 'alert',
+          title: "Fusion Scan Failed",
+          message: err instanceof Error ? err.message : 'Unknown error',
+          kind: 'error',
+          triggerRef: { current: null }
+      });
     }
   };
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-x-auto min-w-[320px]">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
+      <div ref={libraryHeaderRef} className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-[var(--accent-primary)]" />
@@ -556,10 +600,18 @@ export function ToolLibraryPanel() {
                 </Tooltip>
                 <Tooltip content="Delete from Library" position="top">
                   <button 
+                    ref={el => { deleteRefs.current[tool.id] = el; }}
                     onClick={() => {
-                      if (confirm(`Delete "${tool.name}" from your library?`)) {
-                        deleteTool(tool.id);
-                      }
+                      setPopover({
+                          isOpen: true,
+                          type: 'confirm',
+                          title: "Delete Tool",
+                          message: `Are you sure you want to delete "${tool.name}" from your library?`,
+                          kind: 'error',
+                          okLabel: "Delete",
+                          onConfirm: () => deleteTool(tool.id),
+                          triggerRef: { current: deleteRefs.current[tool.id] }
+                      });
                     }}
                     className="p-1.5 bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-red-400 rounded-lg transition-colors border border-[var(--border-color)]"
                   >
@@ -583,17 +635,43 @@ export function ToolLibraryPanel() {
 
         {/* ── Reference & Identification Links ─────────────────────── */}
         <ReferenceLinks />
-      </div>
 
-      {/* Persistence Notice */}
-      <div className="p-3 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)] flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)] italic">
-          <History className="w-3 h-3" />
-          Changes persist across sessions
+        {/* Persistence Notice */}
+        <div className="p-3 bg-[var(--bg-tertiary)] border-t border-[var(--border-color)] flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)] italic">
+            <History className="w-3 h-3" />
+            Changes persist across sessions
+          </div>
+          <div className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+            Gtaurus Tools
+          </div>
         </div>
-        <div className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
-          Gtaurus Tools
-        </div>
+
+        {popover?.isOpen && (
+          popover.type === 'confirm' ? (
+            <ConfirmPopover
+              isOpen={popover.isOpen}
+              onClose={() => setPopover(null)}
+              onConfirm={popover.onConfirm || (() => {})}
+              title={popover.title}
+              message={popover.message}
+              kind={popover.kind}
+              okLabel={popover.okLabel}
+              triggerRef={popover.triggerRef}
+              position="left"
+            />
+          ) : (
+            <AlertPopover
+              isOpen={popover.isOpen}
+              onClose={() => setPopover(null)}
+              title={popover.title}
+              message={popover.message}
+              kind={popover.kind}
+              triggerRef={popover.triggerRef}
+              position="bottom"
+            />
+          )
+        )}
       </div>
     </div>
   );

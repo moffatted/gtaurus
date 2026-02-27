@@ -14,7 +14,8 @@ import { Tooltip } from './ui/Tooltip';
 import { AlarmIndicator } from './AlarmIndicator';
 import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
-import { ask, message } from '../utils/dialogs';
+import { ConfirmPopover, AlertPopover } from './ui/Popovers';
+import { useRef } from 'react';
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings } = useSettingsStore();
@@ -28,6 +29,28 @@ export function ControlsPanel() {
     clearSimulation, clearActualPath 
   } = useGcodeStore();
   const { tools, activeToolId } = useToolStore();
+
+  // Popover State
+  const [popover, setPopover] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'alert';
+    title: string;
+    message: string;
+    kind: 'info' | 'warning' | 'error' | 'success';
+    okLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+    position?: 'top' | 'bottom' | 'left' | 'right';
+  }>({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    kind: 'info'
+  });
+
+  const startButtonRef = useRef<HTMLButtonElement>(null);
+  const spindleButtonRef = useRef<HTMLButtonElement>(null);
 
   // Reset prerequisites (hasHomed, hasZeroed) on Disconnected status for safety.
   // Interaction remains restricted via isIdle/isRun/isHold derived from status.
@@ -55,7 +78,14 @@ export function ControlsPanel() {
     } else if (isIdle && activeFilePath) {
         // 1. Home Check
         if (!hasHomed) {
-            await message("Machine must be Homed ($H) before starting a job for safety.", { title: "Safety Lock", kind: "warning" });
+            setPopover({
+                isOpen: true,
+                type: 'alert',
+                title: "Safety Lock",
+                message: "Machine must be Homed ($H) before starting a job for safety.",
+                kind: "warning",
+                position: 'top'
+            });
             return;
         }
 
@@ -79,37 +109,88 @@ export function ControlsPanel() {
             const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, homingPositionZ);
 
             if (outX || outY || outZ) {
-                const confirmed = await ask(
-                    "The current job's toolpath appears to exceed your machine's bed limits based on the current Work Zero. Running it may cause a crash.\n\nAre you sure you want to proceed?",
-                    { title: "Safety Warning: Out of Bounds", kind: "warning", okLabel: "Proceed Anyway", cancelLabel: "Abort" }
-                );
-                if (!confirmed) return;
+                setPopover({
+                    isOpen: true,
+                    type: 'confirm',
+                    title: "Safety Warning: Out of Bounds",
+                    message: "The current job's toolpath appears to exceed your machine's bed limits based on the current Work Zero. Running it may cause a crash.\n\nAre you sure you want to proceed?",
+                    kind: "warning",
+                    okLabel: "Proceed Anyway",
+                    cancelLabel: "Abort",
+                    onConfirm: async () => {
+                        // Logic moved to a closure or called directly if needed, 
+                        // but handleStart is async, so we'll need to wrap the rest.
+                        continueStart();
+                    },
+                    position: 'top'
+                });
+                return;
             }
         }
 
-        // 3. Tool Safety Check
-        if (fileToolNumber !== null) {
-            const activeTool = tools.find(t => t.id === activeToolId);
-            if (!activeTool || activeTool.number !== fileToolNumber) {
-                const confirmed = await ask(
-                    `The G-code file requests Tool T${fileToolNumber}, but the active tool in Gtaurus is ${activeTool ? `T${activeTool.number} (${activeTool.name})` : 'None'}.\n\nAre you sure you want to proceed with the WRONG tool?`,
-                    { 
+        const continueStart = async () => {
+            // 3. Tool Safety Check
+            if (fileToolNumber !== null) {
+                const activeTool = tools.find(t => t.id === activeToolId);
+                if (!activeTool || activeTool.number !== fileToolNumber) {
+                    setPopover({
+                        isOpen: true,
+                        type: 'confirm',
                         title: 'Tool Mismatch Warning',
+                        message: `The G-code file requests Tool T${fileToolNumber}, but the active tool in Gtaurus is ${activeTool ? `T${activeTool.number} (${activeTool.name})` : 'None'}.\n\nAre you sure you want to proceed with the WRONG tool?`,
                         kind: 'warning',
                         okLabel: 'Proceed Anyway',
-                        cancelLabel: 'Cancel Job'
-                    }
-                );
-                if (!confirmed) return;
+                        cancelLabel: 'Cancel Job',
+                        onConfirm: () => performStreamExecute(),
+                        position: 'top'
+                    });
+                    return;
+                }
+            }
+            performStreamExecute();
+        };
+
+        const performStreamExecute = async () => {
+            try {
+                await transport.invoke('stream_local_gcode', { path: activeFilePath });
+            } catch (err) {
+                console.error("Failed to start stream:", err);
+                setPopover({
+                    isOpen: true,
+                    type: 'alert',
+                    title: "Streaming Error",
+                    message: "Streaming failed to start.",
+                    kind: "error",
+                    position: 'top'
+                });
+            }
+        };
+
+        if (bounds) {
+            const { bedSizeX, bedSizeY, bedSizeZ, homingPositionX, homingPositionY, homingPositionZ } = settings.general;
+            const margin = 0.5;
+            
+            const isAxisOut = (min: number, max: number, limit: number, homing: 'min' | 'max') => {
+                if (homing === 'min') {
+                    // Positive coordinate space: valid range [0, +limit]
+                    return min < 0 || max > limit - margin;
+                } else {
+                    // Negative coordinate space: valid range [-limit, 0]
+                    return min < -limit + margin || max > 0;
+                }
+            };
+
+            const outX = isAxisOut(bounds.minX + state.x.wco, bounds.maxX + state.x.wco, bedSizeX, homingPositionX);
+            const outY = isAxisOut(bounds.minY + state.y.wco, bounds.maxY + state.y.wco, bedSizeY, homingPositionY);
+            const outZ = isAxisOut(bounds.minZ + state.z.wco, bounds.maxZ + state.z.wco, bedSizeZ, homingPositionZ);
+
+            if (outX || outY || outZ) {
+                // Already handled above
+                return;
             }
         }
 
-        try {
-            await transport.invoke('stream_local_gcode', { path: activeFilePath });
-        } catch (err) {
-            console.error("Failed to start stream:", err);
-            alert("Streaming failed to start.");
-        }
+        continueStart();
     }
   };
 
@@ -317,30 +398,34 @@ export function ControlsPanel() {
     } else {
         // --- ACTION: START ---
         if (!hasHomed) {
-            await message("Machine must be Homed before starting the spindle for safety.", { title: "Safety Lock", kind: "warning" });
+            setPopover({
+                isOpen: true,
+                type: 'alert',
+                title: "Safety Lock",
+                message: "Machine must be Homed before starting the spindle for safety.",
+                kind: "warning",
+                position: 'left'
+            });
             (window as any)._spindlePendingUntil = 0;
             return;
         }
 
-        const confirmed = await ask(
-            `Start spindle motor at ${spindleRPM} RPM?`,
-            { title: 'Spindle Start', kind: 'warning', okLabel: 'Start Motor', cancelLabel: 'Cancel' }
-        );
-
-        if (confirmed) {
-            console.log(`[GTaurus] Spindle START initiated: ${spindleRPM} RPM`);
-            
-            // If Spindle was stopped via Realtime 0x9E, sending M3 again 
-            // might be ignored if the override is still active.
-            // FluidNC/Grbl requires another 0x9E to release the override, 
-            // OR we just send M3 and see. Usually M3/M4 releases it.
-            
-            sendGcode(`M3 S${spindleRPM}`);
-            appendLine(`[GTaurus] Spindle Motor START requested: ${spindleRPM} RPM`, 'sys');
-            updateMachine({ spindle: spindleRPM, isSpindleActive: true });
-        } else {
-            (window as any)._spindlePendingUntil = 0;
-        }
+        setPopover({
+            isOpen: true,
+            type: 'confirm',
+            title: 'Spindle Start',
+            message: `Start spindle motor at ${spindleRPM} RPM?`,
+            kind: 'warning',
+            okLabel: 'Start Motor',
+            cancelLabel: 'Cancel',
+            onConfirm: () => {
+                console.log(`[GTaurus] Spindle START initiated: ${spindleRPM} RPM`);
+                sendGcode(`M3 S${spindleRPM}`);
+                appendLine(`[GTaurus] Spindle Motor START requested: ${spindleRPM} RPM`, 'sys');
+                updateMachine({ spindle: spindleRPM, isSpindleActive: true });
+            },
+            position: 'left'
+        });
     }
   };
 
@@ -475,6 +560,7 @@ export function ControlsPanel() {
                     position="top"
                 >
                     <button 
+                        ref={startButtonRef}
                         onClick={handleStart} 
                         disabled={!activeFileName || (!isIdle && !isHold) || !hasHomed || !hasZeroed}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-bold text-xs ${
@@ -714,6 +800,7 @@ export function ControlsPanel() {
                             position="left"
                         >
                             <button 
+                                ref={spindleButtonRef}
                                 onClick={handleSpindleToggle}
                                 disabled={!isSpindleOn && !hasHomed}
                                 className={`p-4 rounded-full transition-all duration-300 shadow-lg flex items-center justify-center ${
@@ -797,6 +884,33 @@ export function ControlsPanel() {
                 </div>
             </div>
         </div>
+
+        {/* Popovers */}
+        {popover.type === 'confirm' ? (
+            <ConfirmPopover
+                isOpen={popover.isOpen}
+                onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
+                onConfirm={popover.onConfirm || (() => {})}
+                title={popover.title}
+                message={popover.message}
+                kind={popover.kind}
+                okLabel={popover.okLabel}
+                cancelLabel={popover.cancelLabel}
+                triggerRef={popover.title === 'Spindle Start' ? spindleButtonRef : startButtonRef}
+                position={popover.position}
+            />
+        ) : (
+            <AlertPopover
+                isOpen={popover.isOpen}
+                onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
+                title={popover.title}
+                message={popover.message}
+                kind={popover.kind}
+                okLabel={popover.okLabel}
+                triggerRef={popover.title === "Safety Lock" && popover.position === 'left' ? spindleButtonRef : startButtonRef}
+                position={popover.position}
+            />
+        )}
 
         {/* Info / Footer */}
         <div className="text-center text-[10px] text-[var(--text-tertiary)] font-mono italic shrink-0 py-4 border-t border-[var(--border-color)]/30 mt-2">
