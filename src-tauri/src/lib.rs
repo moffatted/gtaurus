@@ -431,11 +431,12 @@ pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Resul
     }
 
     // 2. Read content
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| {
-            eprintln!("[GTaurus] ERR: Failed to read file {:?}: {}", path, e);
-            format!("Failed to read file: {}", e)
-        })?;
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        eprintln!("[GTaurus] ERR: Failed to read file {:?}: {}", path, e);
+        format!("Failed to read file: {}", e)
+    })?;
+
+    let feed_override: Option<f64> = args["feedRateOverride"].as_f64();
 
     // 3. Verify connection
     let status = {
@@ -467,14 +468,52 @@ pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Resul
 
     // 5. Spawn background thread for streaming
     std::thread::spawn(move || {
-        println!("[GTaurus] >>> Starting G-code stream job ({} lines) <<<", final_gcode.lines().count());
+        println!(
+            "[GTaurus] >>> Starting G-code stream job ({} lines) <<<",
+            final_gcode.lines().count()
+        );
+
+        let mut current_f: Option<f64> = None;
+        let mut has_sent_initial_f = false;
+
         for (i, line) in final_gcode.lines().enumerate() {
             let l = line.trim();
             if l.is_empty() || l.starts_with(';') || l.starts_with('(') {
                 continue;
             }
+
+            let mut final_line = l.to_string();
+
+            // Apply Feedrate Override logic
+            if let Some(target_f) = feed_override {
+                // 1. If line contains an F command, replace it
+                if l.contains('F') || l.contains('f') {
+                    // Simple regex/parsing to find the F value
+                    let parts: Vec<&str> = l.split_whitespace().collect();
+                    let mut new_parts = Vec::new();
+                    for p in parts {
+                        if p.starts_with('F') || p.starts_with('f') {
+                            new_parts.push(format!("F{:.1}", target_f));
+                            current_f = Some(target_f);
+                        } else {
+                            new_parts.push(p.to_string());
+                        }
+                    }
+                    final_line = new_parts.join(" ");
+                    has_sent_initial_f = true;
+                }
+                // 2. If it's a movement line (G1/G2/G3) but has no F, and we haven't sent the override yet
+                else if (l.contains("G1") || l.contains("G2") || l.contains("G3"))
+                    && !has_sent_initial_f
+                {
+                    final_line = format!("{} F{:.1}", l, target_f);
+                    current_f = Some(target_f);
+                    has_sent_initial_f = true;
+                }
+            }
+
             if let Ok(mut driver) = driver_clone.lock() {
-                if let Err(e) = driver.send_command(l.to_string()) {
+                if let Err(e) = driver.send_command(final_line) {
                     eprintln!("[GTaurus] Stream Aborted: Failed to send line {}: {}", i, e);
                     break;
                 }

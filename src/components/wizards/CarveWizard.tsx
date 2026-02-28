@@ -18,7 +18,7 @@ import {
   Box, FileCode, Target, AlignVerticalSpaceAround,
   Info, Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  CheckSquare, Wrench, XCircle, XOctagon, AlertCircle
+  CheckSquare, Wrench, XCircle, XOctagon, AlertCircle, RotateCcw
 } from 'lucide-react';
 import { useToolStore, ToolType } from '../../stores/toolStore';
 
@@ -823,6 +823,26 @@ export function CarveWizard() {
                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)]">Target RPM</span>
                <p className="text-sm font-bold text-[var(--text-primary)]">{settings.spindle.maxRPM} RPM</p>
             </div>
+            <div className="col-span-2 space-y-2 pt-2 border-t border-[var(--border-color)]">
+              <div className="flex justify-between items-center px-0.5">
+                  <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Target Carve Speed</label>
+                  <span className="text-[10px] font-mono text-cyan-400">{settings.general.carveSpeed} <span className="text-[var(--text-tertiary)]">{settings.general.carvingUnits}/min</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                  <input 
+                      type="range" min="100" max="10000" step="100" 
+                      value={settings.general.carveSpeed}
+                      onChange={(e) => useSettingsStore.getState().setGeneralSettings({ carveSpeed: parseInt(e.target.value) })}
+                      className="accent-cyan-400 flex-1 h-1.5 bg-[var(--bg-secondary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
+                  />
+                  <button 
+                      onClick={() => useSettingsStore.getState().setGeneralSettings({ carveSpeed: 1000 })}
+                      className="p-1 text-[var(--text-tertiary)] hover:text-cyan-400"
+                  >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+              </div>
+            </div>
           </div>
           
           {machine.status === 'Alarm' && (
@@ -842,7 +862,10 @@ export function CarveWizard() {
             await transport.invoke('send_gcode', { cmd: '$X' });
           }
 
-          const result = await transport.invoke<string>('stream_local_gcode', { path: activeFilePath });
+          const result = await transport.invoke<string>('stream_local_gcode', { 
+            path: activeFilePath,
+            feedRateOverride: settings.general.carveSpeed
+          });
           console.log("[CarveWizard] Stream result:", result);
           
           // Provide a tiny visual feedback before closing
