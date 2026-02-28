@@ -1,3 +1,7 @@
+/**
+ * @file ErrorBoundary.tsx
+ * @purpose React error boundary to catch and display unhandled component errors.
+ */
 import { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {

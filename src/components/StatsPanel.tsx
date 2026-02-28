@@ -1,3 +1,7 @@
+/**
+ * @file StatsPanel.tsx
+ * @purpose Displays historical mission statistics and machine usage metrics.
+ */
 import { BarChart3, Clock, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { useSettingsStore } from '../stores/settingsStore';

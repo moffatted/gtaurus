@@ -1,3 +1,7 @@
+/**
+ * @file SettingsPanel.tsx
+ * @purpose Comprehensive configuration interface for application, UI, and machine-specific settings.
+ */
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import {
   Settings, X, Sun, Moon, Search, Bot,

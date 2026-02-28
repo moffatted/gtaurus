@@ -1,3 +1,7 @@
+/**
+ * @file transportService.ts
+ * @purpose Unified communication layer for interacting with the machine via either Tauri native commands or WebSocket bridge.
+ */
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import {
   listen as tauriListen,

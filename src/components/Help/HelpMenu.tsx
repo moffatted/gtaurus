@@ -1,3 +1,7 @@
+/**
+ * @file HelpMenu.tsx
+ * @purpose Dropdown menu for accessing documentation, keyboard shortcuts, and relative help resources.
+ */
 import { useState, useRef, useEffect } from 'react';
 import { HelpCircle, FileText, Keyboard, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { useHelpStore } from '../../stores/helpStore';

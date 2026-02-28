@@ -1,3 +1,7 @@
+/**
+ * @file DashboardLayout.tsx
+ * @purpose Root layout component for the machine dashboard, managing the responsive grid of control panels.
+ */
 import { ReactNode } from 'react';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 // useDefaultLayout is not exported from the main index? d.ts showed it export declare function useDefaultLayout.

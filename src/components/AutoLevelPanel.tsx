@@ -1,3 +1,7 @@
+/**
+ * @file AutoLevelPanel.tsx
+ * @purpose Specialized UI panel for managing surface calibration and auto-leveling probes.
+ */
 import { Crosshair } from 'lucide-react';
 import { BasicAutolevelUI } from './shared/BasicAutolevelUI';
 

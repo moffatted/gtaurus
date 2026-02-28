@@ -1,3 +1,7 @@
+/**
+ * @file parser.ts
+ * @purpose Specialized regex-based parser for decoding real-time machine status reports (GRBL/FluidNC).
+ */
 export interface ControllerStatus {
   state: string;
   mpos: { x: number; y: number; z: number };

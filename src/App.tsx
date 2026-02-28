@@ -1,3 +1,7 @@
+/**
+ * @file App.tsx
+ * @purpose Main application component that initializes the theme, settings, and layout providers.
+ */
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";

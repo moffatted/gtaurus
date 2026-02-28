@@ -1,6 +1,6 @@
 /**
- * Platform detection utilities for Gtaurus
- * Detects whether the app is running in Tauri (desktop) or web browser
+ * @file platform.ts
+ * @purpose Utility functions for detecting the execution environment (Tauri vs. Browser).
  */
 
 /**

@@ -1,3 +1,7 @@
+/**
+ * @file CarveWizard.tsx
+ * @purpose A step-by-step wizard to guide the user through machine homing, workpiece placement, tool selection, and zeroing before starting a carve.
+ */
 import { useState, useEffect } from 'react';
 import { Wizard, WizardStep } from '../ui/Wizard';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';

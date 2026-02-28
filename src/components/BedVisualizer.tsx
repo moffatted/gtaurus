@@ -1,3 +1,7 @@
+/**
+ * @file BedVisualizer.tsx
+ * @purpose 3D visualization component for the machine bed, G-code path, and real-time machine position.
+ */
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';

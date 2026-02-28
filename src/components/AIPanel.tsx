@@ -1,3 +1,7 @@
+/**
+ * @file AIPanel.tsx
+ * @purpose Provides a chat interface for AI-assisted G-code generation and machine troubleshooting.
+ */
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Trash2, Code } from "lucide-react";
 import { useSettingsStore } from "../stores/settingsStore";

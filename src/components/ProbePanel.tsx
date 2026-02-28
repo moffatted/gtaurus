@@ -1,3 +1,7 @@
+/**
+ * @file ProbePanel.tsx
+ * @purpose UI panel for managing probing operations and calibration.
+ */
 import { Crosshair, Settings } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { BasicProbeUI } from './shared/BasicProbeUI';

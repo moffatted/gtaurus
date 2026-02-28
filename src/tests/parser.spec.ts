@@ -1,3 +1,7 @@
+/**
+ * @file parser.spec.ts
+ * @purpose Tests for the G-code status report parser, ensuring accurate state and coordinate extraction.
+ */
 import { describe, it, expect } from 'vitest';
 import { parseStatusReport } from '../utils/parser';
 

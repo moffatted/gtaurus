@@ -1,3 +1,7 @@
+/**
+ * @file machineStore.ts
+ * @purpose Tracks high-level machine workflow state, such as homing status and coordinate zeroing status.
+ */
 import { create } from 'zustand';
 
 interface MachineState {

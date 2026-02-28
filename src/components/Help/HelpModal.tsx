@@ -1,3 +1,7 @@
+/**
+ * @file HelpModal.tsx
+ * @purpose Interactive modal window for displaying granular help topics and user documentation.
+ */
 import { X, ChevronRight, BookOpen } from 'lucide-react';
 import { useHelpStore } from '../../stores/helpStore';
 import { HELP_TOPICS } from './helpContent';

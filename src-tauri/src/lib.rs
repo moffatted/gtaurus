@@ -1,3 +1,6 @@
+//! lib.rs
+//! Purpose: Main entry point for the Tauri backend, defining state and invokable commands.
+
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 

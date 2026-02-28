@@ -1,3 +1,7 @@
+/**
+ * @file MacrosPanel.tsx
+ * @purpose UI panel for defining and executing custom G-code macros.
+ */
 import { Play, FileCode, Zap, Settings, Plus, Edit, Trash } from "lucide-react";
 import { useSettingsStore, Macro } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";

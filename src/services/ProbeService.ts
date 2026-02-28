@@ -1,3 +1,7 @@
+/**
+ * @file ProbeService.ts
+ * @purpose Logic for generating G-code sequences for various machine probing and calibration routines.
+ */
 import { ProbeSettings } from '../stores/settingsStore';
 
 export type ProbeCorner = 'front-left' | 'front-right' | 'back-left' | 'back-right';

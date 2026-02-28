@@ -1,3 +1,7 @@
+/**
+ * @file streamer.spec.ts
+ * @purpose Quality assurance for the G-code streaming engine, testing character counting and serial buffer management.
+ */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GCodeStreamer } from '../utils/streamer';
 

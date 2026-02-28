@@ -1,3 +1,7 @@
+/**
+ * @file setupTests.ts
+ * @purpose Global test configuration and mocks for Vitest/JSDOM, including Tauri API stubbing.
+ */
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 

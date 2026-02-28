@@ -1,3 +1,7 @@
+/**
+ * @file machineStatusStore.ts
+ * @purpose Stores real-time machine hardware status (axes positions, feed rate, spindle speed, firmware info).
+ */
 import { create } from 'zustand';
 
 interface AxisState {

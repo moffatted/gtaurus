@@ -1,3 +1,7 @@
+/**
+ * @file GcodeConsole.tsx
+ * @purpose Specialized terminal interface for sending manual G-code commands and viewing machine responses.
+ */
 import {
   useEffect,
   useRef,

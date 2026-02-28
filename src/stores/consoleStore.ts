@@ -1,3 +1,7 @@
+/**
+ * @file consoleStore.ts
+ * @purpose Manages the G-code console history, including command/response logging and line classification.
+ */
 import { create } from 'zustand';
 
 export type LineType = 'cmd' | 'ok' | 'error' | 'status' | 'msg' | 'alarm' | 'info' | 'sys';

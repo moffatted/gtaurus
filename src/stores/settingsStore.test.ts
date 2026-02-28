@@ -1,3 +1,7 @@
+/**
+ * @file settingsStore.test.ts
+ * @purpose Unit tests for the settings store, verifying persistence and incremental updates.
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSettingsStore, DEFAULT_SETTINGS } from './settingsStore';
 

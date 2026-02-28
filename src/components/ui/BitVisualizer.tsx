@@ -1,3 +1,7 @@
+/**
+ * @file BitVisualizer.tsx
+ * @purpose SVG-based visualization component for CNC bits, displaying different geometries and dimensions.
+ */
 import React from 'react';
 import { type ToolType } from '../../stores/toolStore';
 

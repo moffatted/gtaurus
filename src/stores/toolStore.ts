@@ -1,3 +1,7 @@
+/**
+ * @file toolStore.ts
+ * @purpose Manages the CNC bit library, including tool dimensions, types, and usage/maintenance tracking.
+ */
 import { create } from "zustand";
 import { Store } from "@tauri-apps/plugin-store";
 import { isTauriApp } from "../utils/platform";

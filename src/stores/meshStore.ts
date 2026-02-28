@@ -1,3 +1,7 @@
+/**
+ * @file meshStore.ts
+ * @purpose Manages the height map data used for auto-leveling and the state of relevant probing routines.
+ */
 import { create } from 'zustand';
 
 export interface HeightMapData {

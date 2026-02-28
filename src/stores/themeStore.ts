@@ -1,3 +1,7 @@
+/**
+ * @file themeStore.ts
+ * @purpose Manages the application's visual theme (light/dark mode) and persists the selection.
+ */
 import { create } from 'zustand';
 import { Store } from '@tauri-apps/plugin-store';
 import { isTauriApp } from '../utils/platform';

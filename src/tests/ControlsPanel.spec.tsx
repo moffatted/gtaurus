@@ -1,3 +1,7 @@
+/**
+ * @file ControlsPanel.spec.tsx
+ * @purpose Unit and integration tests for the ControlsPanel component, verifying DRO and Jog logic.
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '../utils/testUtils';
 import { ControlsPanel } from '../components/ControlsPanel';

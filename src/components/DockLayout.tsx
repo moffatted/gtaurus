@@ -1,3 +1,7 @@
+/**
+ * @file DockLayout.tsx
+ * @purpose Implements the flexible docking system for UI panels using Dockview.
+ */
 import { ReactNode, useState, useMemo, createContext, useContext, useEffect, useRef, useCallback } from 'react';
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
 import 'dockview-core/dist/styles/dockview.css';

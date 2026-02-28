@@ -1,3 +1,7 @@
+/**
+ * @file Popovers.tsx
+ * @purpose Reusable popover components for confirmation dialogs and alerts with anchor-based positioning.
+ */
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, AlertTriangle, AlertCircle, CheckCircle, X } from 'lucide-react';

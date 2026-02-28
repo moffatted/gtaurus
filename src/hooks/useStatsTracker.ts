@@ -1,3 +1,7 @@
+/**
+ * @file useStatsTracker.ts
+ * @purpose Custom hook for tracking machine performance, job history, and OEE metrics in real-time.
+ */
 import { useEffect, useRef } from 'react';
 import { useSettingsStore, JobHistoryEntry } from '../stores/settingsStore';
 import { transport } from '../services/transportService';

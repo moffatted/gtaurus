@@ -1,3 +1,7 @@
+/**
+ * @file SettingsPanel.test.tsx
+ * @purpose Basic accessibility and rendering tests for the SettingsPanel component.
+ */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SettingsPanel } from './SettingsPanel';

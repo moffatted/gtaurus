@@ -1,3 +1,7 @@
+/**
+ * @file FluidNCManager.tsx
+ * @purpose Specialized management interface for FluidNC-specific commands and settings.
+ */
 import { useState } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { 

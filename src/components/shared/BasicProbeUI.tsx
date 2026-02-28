@@ -1,3 +1,7 @@
+/**
+ * @file BasicProbeUI.tsx
+ * @purpose Shared UI component for executing Z-axis and corner probing routines.
+ */
 import { useState } from 'react';
 import { Crosshair, HelpCircle, AlertCircle } from 'lucide-react';
 import { useSettingsStore } from '../../stores/settingsStore';

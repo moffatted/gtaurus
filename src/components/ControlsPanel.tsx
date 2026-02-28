@@ -1,3 +1,7 @@
+/**
+ * @file ControlsPanel.tsx
+ * @purpose Main machine control interface, providing jogging, homing, and coordinate zeroing features.
+ */
 import { useEffect, useState } from 'react';
 import { 
   Activity, Play, Pause, XCircle, Target, Home, Move, Zap,

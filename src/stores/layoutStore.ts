@@ -1,3 +1,7 @@
+/**
+ * @file layoutStore.ts
+ * @purpose Manages and persists the state of UI layout components, such as sidebar collapse and panel visibility.
+ */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 

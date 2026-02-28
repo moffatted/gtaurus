@@ -1,3 +1,7 @@
+/**
+ * @file helpContent.tsx
+ * @purpose Definitions and content for help topics, including safety checklists and UI overview.
+ */
 import { ReactNode } from 'react';
 
 export interface HelpTopic {

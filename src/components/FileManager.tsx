@@ -1,3 +1,7 @@
+/**
+ * @file FileManager.tsx
+ * @purpose Manages G-code file browsing, uploads, and deletions on the CNC controller and local storage.
+ */
 import { useEffect, useState, useCallback } from 'react';
 import { 
   FileText, Upload, Trash2, Play, Search, 

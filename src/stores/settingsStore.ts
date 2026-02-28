@@ -1,15 +1,7 @@
 /**
- * Central settings store for Gtaurus.
- *
- * All user-configurable settings live here. They are persisted to
- * `settings.json` via the Tauri plugin-store (or localStorage in web mode).
- *
- * To add a new settings section:
- *   1. Add its type to the `Settings` interface.
- *   2. Add a default value to `DEFAULT_SETTINGS`.
- *   3. Read/write from `useSettingsStore` in your component.
+ * @file settingsStore.ts
+ * @purpose Central configuration store for all user-defined application and hardware settings.
  */
-
 import { create } from "zustand";
 import { Store } from "@tauri-apps/plugin-store";
 import { isTauriApp } from "../utils/platform";

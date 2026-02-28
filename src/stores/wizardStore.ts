@@ -1,3 +1,7 @@
+/**
+ * @file wizardStore.ts
+ * @purpose Manages the open/close state of setup wizards like the Carve Wizard.
+ */
 import { create } from 'zustand';
 
 interface WizardState {

@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+/**
+ * @file BasicAutolevelUI.tsx
+ * @purpose Shared UI component for configuring and executing auto-leveling mesh probes.
+ */
+import { useState, useEffect } from "react";
 import { 
   Play, 
   AlertCircle, 

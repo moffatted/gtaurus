@@ -1,3 +1,7 @@
+/**
+ * @file wdio.conf.ts
+ * @purpose WebdriverIO configuration for automated browser and UI testing.
+ */
 /// <reference types="@wdio/globals/types" />
 import * as path from 'node:path'
 

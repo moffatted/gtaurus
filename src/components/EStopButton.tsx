@@ -1,3 +1,7 @@
+/**
+ * @file EStopButton.tsx
+ * @purpose Specialized button for sending emergency stop (soft reset) commands to the machine.
+ */
 import { OctagonAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from './ui/Tooltip';

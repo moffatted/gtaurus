@@ -1,3 +1,7 @@
+/**
+ * @file WorkpiecePanel.tsx
+ * @purpose UI panel for configuring workpiece dimensions, position offsets, and material appearance.
+ */
 import { useSettingsStore } from '../stores/settingsStore';
 import { Box, Layers, MousePointer2 } from 'lucide-react';
 

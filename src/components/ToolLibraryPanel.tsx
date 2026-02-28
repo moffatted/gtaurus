@@ -1,3 +1,7 @@
+/**
+ * @file ToolLibraryPanel.tsx
+ * @purpose Management interface for the CNC bit library, including tool creation, editing, and selection.
+ */
 import { useState } from 'react';
 import { 
   Wrench, 

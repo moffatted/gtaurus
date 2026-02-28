@@ -1,3 +1,7 @@
+/**
+ * @file AlarmIndicator.tsx
+ * @purpose Displays a visual alarm indicator when the machine is in an alarmed state.
+ */
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { TriangleAlert } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';

@@ -1,3 +1,7 @@
+/**
+ * @file Sidebar.tsx
+ * @purpose Main navigation and connection status sidebar for the application.
+ */
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, PlugZap, Usb, Wifi, Power, ChevronLeft, ChevronRight } from "lucide-react";

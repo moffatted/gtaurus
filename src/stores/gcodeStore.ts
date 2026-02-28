@@ -1,3 +1,7 @@
+/**
+ * @file gcodeStore.ts
+ * @purpose Handles G-code file data, including bounds calculation, path simulation, and real-time position tracking.
+ */
 import { create } from 'zustand';
 
 export interface GcodePoint {

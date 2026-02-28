@@ -1,3 +1,7 @@
+/**
+ * @file dialogs.ts
+ * @purpose Cross-platform utilities for displaying native or browser-based alert and confirmation dialogs.
+ */
 import { ask as tauriAsk, message as tauriMessage } from '@tauri-apps/plugin-dialog';
 import { isTauriApp } from './platform';
 

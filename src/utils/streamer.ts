@@ -1,3 +1,7 @@
+/**
+ * @file streamer.ts
+ * @purpose Core G-code streaming logic, managing the controller's receive buffer and command queuing.
+ */
 export class GCodeStreamer {
   private rxBufferMax = 127; // DLC32 standard is 128, stay 1 safe
   private currentBufferFill = 0;

@@ -1,3 +1,7 @@
+/**
+ * @file testUtils.tsx
+ * @purpose Specialized testing utilities for rendering components with global providers and mocking Tauri APIs.
+ */
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

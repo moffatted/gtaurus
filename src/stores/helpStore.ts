@@ -1,3 +1,7 @@
+/**
+ * @file helpStore.ts
+ * @purpose Controls the visibility and active content of the application's help system.
+ */
 import { create } from 'zustand';
 
 interface HelpState {

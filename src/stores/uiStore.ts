@@ -1,3 +1,7 @@
+/**
+ * @file uiStore.ts
+ * @purpose Controls global UI states such as settings modal visibility and active tab selection.
+ */
 import { create } from 'zustand';
 
 export type SettingsTab = 'dashboard' | 'ui' | 'machine';

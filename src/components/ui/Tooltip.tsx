@@ -1,3 +1,7 @@
+/**
+ * @file Tooltip.tsx
+ * @purpose Lightweight tooltip component using Portals for consistent overlay positioning without z-index conflicts.
+ */
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 

@@ -1,3 +1,7 @@
+/**
+ * @file MachineSetupWizard.tsx
+ * @purpose Multi-step wizard for initial machine calibration, connection testing, and axis verification.
+ */
 import { useState, useEffect } from 'react';
 import { Wizard, WizardStep } from '../ui/Wizard';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';

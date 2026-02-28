@@ -1,3 +1,7 @@
+/**
+ * @file Wizard.tsx
+ * @purpose Reusable multi-step wizard framework with progress tracking and navigation logic.
+ */
 import { ReactNode, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
