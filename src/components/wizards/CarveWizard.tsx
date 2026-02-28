@@ -13,6 +13,7 @@ import { useMeshStore } from '../../stores/meshStore';
 import { transport } from '../../services/transportService';
 import { BasicProbeUI } from '../shared/BasicProbeUI';
 import { BasicAutolevelUI } from '../shared/BasicAutolevelUI';
+import { Tooltip } from '../ui/Tooltip';
 import { 
   CheckCircle2, Play, 
   Box, FileCode, Target, AlignVerticalSpaceAround,
@@ -25,7 +26,7 @@ import { useToolStore, ToolType } from '../../stores/toolStore';
 export function CarveWizard() {
   const { isCarveWizardOpen, closeCarveWizard } = useWizardStore();
   const { machine } = useMachineStatusStore();
-  const { settings } = useSettingsStore();
+  const { settings, setStockSettings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasZeroed } = useMachineStore();
   const { activeFileName, activeFilePath, bounds } = useGcodeStore();
   const { tools, activeToolId, setActiveTool } = useToolStore();
@@ -326,12 +327,58 @@ export function CarveWizard() {
                   </div>
                 </div>
                 
-                {(bounds.maxX - bounds.minX > settings.stock.width || bounds.maxY - bounds.minY > settings.stock.height) && (
-                  <div className="flex gap-2 items-center text-[10px] text-amber-500 font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                    <Info size={12} />
-                    <span>Warning: G-code bounds exceed workpiece!</span>
-                  </div>
-                )}
+                {(() => {
+                  const { width, height, zeroPosition } = settings.stock;
+                  let stockMinX = 0, stockMaxX = width, stockMinY = 0, stockMaxY = height;
+                  
+                  if (zeroPosition === 'bottom-right') { stockMinX = -width; stockMaxX = 0; }
+                  else if (zeroPosition === 'top-left') { stockMinY = -height; stockMaxY = 0; }
+                  else if (zeroPosition === 'top-right') { stockMinX = -width; stockMaxX = 0; stockMinY = -height; stockMaxY = 0; }
+                  else if (zeroPosition === 'center') { stockMinX = -width/2; stockMaxX = width/2; stockMinY = -height/2; stockMaxY = height/2; }
+                  
+                  const isOutOfBounds = bounds.minX < stockMinX || bounds.maxX > stockMaxX || 
+                                       bounds.minY < stockMinY || bounds.maxY > stockMaxY;
+                  
+                  if (!isOutOfBounds) return null;
+                  
+                  return (
+                    <div className="flex gap-2 items-center text-[10px] text-amber-500 font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                      <Info size={12} />
+                      <span>Warning: G-code coordinates exceed workpiece bounds!</span>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="space-y-3 p-4 bg-purple-500/5 rounded-2xl border border-purple-500/30 shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                <h5 className="text-[10px] uppercase font-bold text-purple-400 px-1 flex items-center gap-2">
+                   <AlignVerticalSpaceAround size={12} />
+                   Zero Position Relative to Workpiece
+                </h5>
+                <div className="grid grid-cols-3 gap-2 w-32 mx-auto pt-2">
+                  {(['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const).map((pos, idx) => {
+                    const isSelectable = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'].includes(pos);
+                    const isActive = settings.stock.zeroPosition === pos;
+                    const label = pos.replace('-', ' ');
+                    
+                    if (!isSelectable) return <div key={idx} />;
+                    
+                    return (
+                      <Tooltip key={pos} content={label} position="top">
+                        <button
+                          onClick={() => useSettingsStore.getState().setStockSettings({ zeroPosition: pos as any })}
+                          className={`w-full aspect-square rounded-lg border-2 transition-all flex items-center justify-center ${
+                            isActive 
+                            ? 'bg-purple-500 border-purple-500 text-white shadow-lg scale-110' 
+                            : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-purple-500/50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-current opacity-30'}`} />
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-[var(--text-tertiary)] text-center font-bold uppercase tracking-widest mt-2">{settings.stock.zeroPosition.replace('-', ' ')}</p>
               </div>
 
               <div className="space-y-3 pt-2">
@@ -609,7 +656,15 @@ export function CarveWizard() {
                 </p>
                 <div className="flex flex-col gap-3">
                   <button 
-                      onClick={() => { sendGcode('G10 L20 P1 X0 Y0 Z0'); setHasZeroed(true); }}
+                      onClick={() => { 
+                        sendGcode('G10 L20 P1 X0 Y0 Z0'); 
+                        setHasZeroed(true);
+                        setStockSettings({
+                          offsetX: machine.x.mpos,
+                          offsetY: machine.y.mpos,
+                          offsetZ: machine.z.mpos
+                        });
+                      }}
                       disabled={!isIdle}
                       className={`py-4 rounded-xl transition-all font-bold text-lg flex items-center justify-center gap-3 border-2 ${
                           hasZeroed 
@@ -637,6 +692,11 @@ export function CarveWizard() {
                   <BasicProbeUI onComplete={() => {
                     setHasProbed(true);
                     setHasZeroed(true);
+                    setStockSettings({
+                      offsetX: machine.x.mpos,
+                      offsetY: machine.y.mpos,
+                      offsetZ: machine.z.mpos
+                    });
                   }} />
                 </div>
                 <div className="mt-6 flex flex-col items-center">

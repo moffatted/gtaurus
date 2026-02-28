@@ -162,8 +162,10 @@ export interface StockSettings {
   thickness: number;
   offsetX: number;
   offsetY: number;
+  offsetZ: number;
   material: 'pine' | 'mdf' | 'aluminum' | 'pvc' | 'pcb';
   opacity: number;
+  zeroPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
 }
 
 export interface Settings {
@@ -318,8 +320,10 @@ export const DEFAULT_SETTINGS: Settings = {
     thickness: 15,
     offsetX: 0,
     offsetY: 0,
+    offsetZ: 0,
     material: 'pine',
     opacity: 0.6,
+    zeroPosition: 'bottom-left',
   },
   macros: [
     { id: '1', name: 'Probe Z', content: 'G38.2 Z-50 F100\nG10 L20 P1 Z0\nG0 Z5' },

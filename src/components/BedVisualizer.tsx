@@ -202,6 +202,7 @@ function Toolpath() {
   const simulatedPath = useGcodeStore(state => state.simulatedPath);
   const actualPath = useGcodeStore(state => state.actualPath);
 
+  const stock = useSettingsStore(state => state.settings.stock);
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
 
   // Convert GcodePoint to THREE.Vector3 array for Drei Line
@@ -209,8 +210,8 @@ function Toolpath() {
   // CNC Y -> Three -Z
   // CNC Z -> Three Y (Offset)
   const simPoints = useMemo(() => 
-    simulatedPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
-  [simulatedPath, bedSizeZ]);
+    simulatedPath.map(p => new THREE.Vector3(p.x + stock.offsetX, p.z + stock.offsetZ + bedSizeZ, -(p.y + stock.offsetY))), 
+  [simulatedPath, bedSizeZ, stock.offsetX, stock.offsetY, stock.offsetZ]);
 
   const actPoints = useMemo(() => 
     actualPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
@@ -439,13 +440,43 @@ function StockMesh() {
   // CNC Y -> Three -Z
   // CNC Z -> Three Y (Up)
   
+  const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
+
   const width = Math.max(stock.width, 1);
   const thickness = Math.max(stock.thickness, 1);
   const depth = Math.max(stock.height, 1);
 
-  const posX = stock.offsetX + width / 2;
-  const posY = thickness / 2; 
-  const posZ = -(stock.offsetY + depth / 2);
+  let posX = 0;
+  let posZ = 0;
+
+  switch (stock.zeroPosition) {
+    case 'top-left': // Back Left
+      posX = width / 2;
+      posZ = depth / 2;
+      break;
+    case 'top-right': // Back Right
+      posX = -width / 2;
+      posZ = depth / 2;
+      break;
+    case 'bottom-left': // Front Left
+      posX = width / 2;
+      posZ = -depth / 2;
+      break;
+    case 'bottom-right': // Front Right
+      posX = -width / 2;
+      posZ = -depth / 2;
+      break;
+    case 'center':
+      posX = 0;
+      posZ = 0;
+      break;
+  }
+
+  posX += stock.offsetX;
+  posZ -= stock.offsetY;
+  // posY = (Machine Z of piece center) + bedSizeZ
+  // Machine Z of piece center = offsetZ - thickness/2
+  const posY = stock.offsetZ + bedSizeZ - thickness / 2;
 
   return (
     <group position={[posX, posY, posZ]}>

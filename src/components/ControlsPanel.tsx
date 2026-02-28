@@ -23,7 +23,7 @@ import { useRef } from 'react';
 import { useWizardStore } from '../stores/wizardStore';
 
 export function ControlsPanel() {
-  const { settings, setGeneralSettings } = useSettingsStore();
+  const { settings, setGeneralSettings, setStockSettings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
   const { appendLine } = useConsoleStore();
@@ -197,15 +197,54 @@ export function ControlsPanel() {
     transport.invoke('send_realtime', { byte }).catch(console.error);
   };
 
-  const sendGcode = (cmd: string) => {
-    appendLine(`> ${cmd}`, 'cmd');
+  const sendGcode = (cmd: string, silent = false) => {
+    if (!silent) appendLine(`> ${cmd}`, 'cmd');
     transport.invoke('send_gcode', { cmd }).catch(err => {
-        appendLine(`error: ${err}`, 'error');
+        if (!silent) appendLine(`error: ${err}`, 'error');
     });
   };
 
-  const handleJog = (x: number, y: number, z: number) => {
-    if (!isIdle) return;
+  const jogTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const totalJogMoveRef = useRef<number>(0);
+  const MAX_REPEAT_MOVE = 100; // Stop repeating after 100 units (mm or in)
+
+  const stopJogging = () => {
+    if (jogTimerRef.current) {
+        clearTimeout(jogTimerRef.current);
+        jogTimerRef.current = null;
+        totalJogMoveRef.current = 0;
+        // Send a real-time jog cancel (0x85) to FluidNC to stop immediately
+        sendRealtime(0x85);
+    }
+  };
+
+  const startJogging = (x: number, y: number, z: number) => {
+    if (state.status === 'Disconnected' || (jogTimerRef.current && totalJogMoveRef.current > 0)) return;
+
+    totalJogMoveRef.current = 0;
+    // Send first move immediately
+    handleJog(x, y, z, false);
+
+    // After a delay, start repeating
+    jogTimerRef.current = setTimeout(() => {
+        const repeat = () => {
+            if (totalJogMoveRef.current >= MAX_REPEAT_MOVE) {
+                stopJogging();
+                setJogLimitWarning("Max Rapid Dist");
+                setTimeout(() => setJogLimitWarning(null), 2000);
+                return;
+            }
+            handleJog(x, y, z, true);
+            totalJogMoveRef.current += stepSize;
+            jogTimerRef.current = setTimeout(repeat, 100);
+        };
+        repeat();
+    }, 400); // Initial delay before repeat
+  };
+
+  const handleJog = (x: number, y: number, z: number, silent = false) => {
+    const isActuallyIdle = state.status.startsWith('Idle') || state.status.startsWith('Jog');
+    if (!isActuallyIdle) return;
 
     const moveX = x * stepSize;
     const moveY = y * stepSize;
@@ -242,7 +281,42 @@ export function ControlsPanel() {
     if (x !== 0) cmd += ` X${moveX.toFixed(3)}`;
     if (y !== 0) cmd += ` Y${moveY.toFixed(3)}`;
     if (z !== 0) cmd += ` Z${moveZ.toFixed(3)}`;
-    sendGcode(cmd);
+    sendGcode(cmd, silent);
+  };
+
+  const handleZero = (axis: 'X' | 'Y' | 'Z' | 'XY' | 'ALL') => {
+      if (!isIdle) return;
+      
+      const { machine } = useMachineStatusStore.getState();
+      const patch: any = {};
+      let cmd = '';
+
+      if (axis === 'ALL') {
+          cmd = 'G10 L20 P1 X0 Y0 Z0';
+          patch.offsetX = machine.x.mpos;
+          patch.offsetY = machine.y.mpos;
+          patch.offsetZ = machine.z.mpos;
+      } else if (axis === 'XY') {
+          cmd = 'G10 L20 P1 X0 Y0';
+          patch.offsetX = machine.x.mpos;
+          patch.offsetY = machine.y.mpos;
+      } else if (axis === 'X') {
+          cmd = 'G10 L20 P1 X0';
+          patch.offsetX = machine.x.mpos;
+      } else if (axis === 'Y') {
+          cmd = 'G10 L20 P1 Y0';
+          patch.offsetY = machine.y.mpos;
+      } else if (axis === 'Z') {
+          cmd = 'G10 L20 P1 Z0';
+          patch.offsetZ = machine.z.mpos;
+      }
+
+      if (cmd) {
+          sendGcode(cmd);
+          setHasZeroed(true);
+          setStockSettings(patch);
+          appendLine(`[GTaurus] Workpiece Offset updated for ${axis} to current MPos`, 'sys');
+      }
   };
 
   const isSpindleOn = state.spindle > 0 || state.isSpindleActive;
@@ -342,7 +416,7 @@ export function ControlsPanel() {
                  </span>
                  <Tooltip content={isIdle ? `Zero ${label} Axis` : "Cannot zero while machine is busy"} position="left">
                     <button 
-                        onClick={() => { sendGcode(`G10 L20 P1 ${label}0`); setHasZeroed(true); }}
+                        onClick={() => handleZero(label as any)}
                         disabled={!isIdle}
                         className={`p-1 border rounded-lg transition-all shadow-sm shrink-0 ${
                             isIdle 
@@ -538,10 +612,9 @@ export function ControlsPanel() {
                 </Tooltip>
             </div>
 
-            {/* Zero Controls */}
             <div className="flex-[0.4] min-w-[160px] flex items-center gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl border border-[var(--border-color)] shadow-sm">
                 <button 
-                    onClick={() => { sendGcode('G10 L20 P1 X0 Y0 Z0'); setHasZeroed(true); }}
+                    onClick={() => handleZero('ALL')}
                     disabled={!isIdle}
                     className={`flex-1 py-2 border rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2 ${
                         isIdle 
@@ -553,7 +626,7 @@ export function ControlsPanel() {
                     Zero All
                 </button>
                 <button 
-                    onClick={() => { sendGcode('G10 L20 P1 X0 Y0'); setHasZeroed(true); }}
+                    onClick={() => handleZero('XY')}
                     disabled={!isIdle}
                     className={`flex-1 py-2 border rounded-lg transition-all font-bold text-xs flex items-center justify-center gap-2 ${
                         isIdle 
@@ -662,29 +735,84 @@ export function ControlsPanel() {
                 <div className="flex flex-col md:flex-row gap-8 items-center justify-center flex-shrink-0">
                     {/* XY Pad */}
                      <div className="grid grid-cols-3 gap-2 w-40 h-40">
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, 1, 0)}><ArrowUpLeft className="w-4 h-4" /></button>
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 1, 0)}><ArrowUp className="w-4 h-4" /></button>
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, 1, 0)}><ArrowUpRight className="w-4 h-4" /></button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(-1, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowUpLeft className="w-4 h-4" />
+                        </button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(0, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(1, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowUpRight className="w-4 h-4" />
+                        </button>
                         
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, 0, 0)}><ArrowLeft className="w-4 h-4" /></button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(-1, 0, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                        </button>
                         <div className="flex items-center justify-center">
-                            <div className="w-8 h-8 rounded-full border-2 border-[var(--border-color)] opacity-20" />
+                            <button 
+                                onClick={() => sendRealtime(0x85)}
+                                className="w-10 h-10 rounded-full border-2 border-red-500/50 text-red-500 flex items-center justify-center hover:bg-red-500/10 hover:border-red-500 transition-all font-bold text-[8px]"
+                            >
+                                STOP
+                            </button>
                         </div>
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, 0, 0)}><ArrowRight className="w-4 h-4" /></button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(1, 0, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
                         
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(-1, -1, 0)}><ArrowDownLeft className="w-4 h-4" /></button>
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, -1, 0)}><ArrowDown className="w-4 h-4" /></button>
-                        <button disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(1, -1, 0)}><ArrowDownRight className="w-4 h-4" /></button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(-1, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowDownLeft className="w-4 h-4" />
+                        </button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(0, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowDown className="w-4 h-4" />
+                        </button>
+                        <button 
+                            disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onPointerDown={() => startJogging(1, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                        >
+                            <ArrowDownRight className="w-4 h-4" />
+                        </button>
                     </div>
 
                     {/* Z Pad */}
                     <div className="flex flex-col gap-2 w-12 h-40 justify-between">
                         <Tooltip content="Z+" position="left">
-                            <button disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 0, 1)}><ArrowUp className="w-5 h-5" /></button>
+                            <button 
+                                disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onPointerDown={() => startJogging(0, 0, 1)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                            >
+                                <ArrowUp className="w-5 h-5" />
+                            </button>
                         </Tooltip>
                         <div className="text-[10px] font-bold text-center text-[var(--accent-primary)] uppercase">Z</div>
                         <Tooltip content="Z-" position="left">
-                            <button disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleJog(0, 0, -1)}><ArrowDown className="w-5 h-5" /></button>
+                            <button 
+                                disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onPointerDown={() => startJogging(0, 0, -1)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
+                            >
+                                <ArrowDown className="w-5 h-5" />
+                            </button>
                         </Tooltip>
                     </div>
 

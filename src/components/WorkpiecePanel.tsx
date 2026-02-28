@@ -121,8 +121,37 @@ export function WorkpiecePanel() {
               />
             </div>
           </div>
+          
+          <div className="pt-2">
+            <label className={labelCls}>Zero Position Relative to Piece</label>
+            <div className="grid grid-cols-3 gap-2 w-32 bg-[var(--bg-tertiary)] p-2 rounded-xl border border-[var(--border-color)]">
+              {(['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const).map((pos, idx) => {
+                const isSelectable = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'].includes(pos);
+                const isActive = stock.zeroPosition === pos;
+                
+                if (!isSelectable) return <div key={idx} />;
+                
+                return (
+                  <button
+                    key={pos}
+                    onClick={() => setStockSettings({ zeroPosition: pos as any })}
+                    title={pos.replace('-', ' ')}
+                    className={`w-full aspect-square rounded-md border-2 transition-all flex items-center justify-center ${
+                      isActive 
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-sm' 
+                      : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--text-secondary)]'
+                    }`}
+                  >
+                    <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-white' : 'bg-current opacity-30'}`} />
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase mt-1 ml-1">{stock.zeroPosition.replace('-', ' ')}</p>
+          </div>
+
           <p className="text-[10px] text-[var(--text-tertiary)] italic">
-            Offsets represent the distance from Machine Origin (0,0) to the bottom-left of the stock.
+            Visualizes where the Workpiece Zero (0,0) is located on the stock material.
           </p>
         </div>
 
