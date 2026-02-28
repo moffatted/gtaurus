@@ -421,9 +421,13 @@ fn warp_gcode(
     autolevel::warper::parse_and_warp(&gcode, &map)
 }
 
-pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Result<String, String> {
+pub(crate) fn shared_stream_local_gcode(
+    state: &AppState,
+    path: String,
+    feed_override: Option<f64>,
+) -> Result<String, String> {
     eprintln!("[GTaurus] Received request to stream local G-code: {:?}", path);
-    
+
     // 1. Verify file existence
     if !std::path::Path::new(&path).exists() {
         eprintln!("[GTaurus] ERR: File does not exist at path: {:?}", path);
@@ -435,8 +439,6 @@ pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Resul
         eprintln!("[GTaurus] ERR: Failed to read file {:?}: {}", path, e);
         format!("Failed to read file: {}", e)
     })?;
-
-    let feed_override: Option<f64> = args["feedRateOverride"].as_f64();
 
     // 3. Verify connection
     let status = {
@@ -531,8 +533,12 @@ pub(crate) fn shared_stream_local_gcode(state: &AppState, path: String) -> Resul
 }
 
 #[tauri::command]
-fn stream_local_gcode(state: State<'_, AppState>, path: String) -> Result<String, String> {
-    shared_stream_local_gcode(&*state, path)
+fn stream_local_gcode(
+    state: State<'_, AppState>,
+    path: String,
+    feed_rate_override: Option<f64>,
+) -> Result<String, String> {
+    shared_stream_local_gcode(&*state, path, feed_rate_override)
 }
 
 // ─── App bootstrap ───────────────────────────────────────────────────────────
