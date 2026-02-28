@@ -825,18 +825,18 @@ export function CarveWizard() {
             </div>
             <div className="col-span-2 space-y-2 pt-2 border-t border-[var(--border-color)]">
               <div className="flex justify-between items-center px-0.5">
-                  <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Target Carve Speed</label>
-                  <span className="text-[10px] font-mono text-cyan-400">{settings.general.carveSpeed} <span className="text-[var(--text-tertiary)]">{settings.general.carvingUnits}/min</span></span>
+                  <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Target Feed Rate</label>
+                  <span className="text-[10px] font-mono text-cyan-400">{settings.general.feedRate} <span className="text-[var(--text-tertiary)]">{settings.general.carvingUnits}/min</span></span>
               </div>
               <div className="flex items-center gap-2">
                   <input 
                       type="range" min="100" max="10000" step="100" 
-                      value={settings.general.carveSpeed}
-                      onChange={(e) => useSettingsStore.getState().setGeneralSettings({ carveSpeed: parseInt(e.target.value) })}
+                      value={settings.general.feedRate}
+                      onChange={(e) => useSettingsStore.getState().setGeneralSettings({ feedRate: parseInt(e.target.value) })}
                       className="accent-cyan-400 flex-1 h-1.5 bg-[var(--bg-secondary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
                   />
                   <button 
-                      onClick={() => useSettingsStore.getState().setGeneralSettings({ carveSpeed: 1000 })}
+                      onClick={() => useSettingsStore.getState().setGeneralSettings({ feedRate: 1000 })}
                       className="p-1 text-[var(--text-tertiary)] hover:text-cyan-400"
                   >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -864,7 +864,7 @@ export function CarveWizard() {
 
           const result = await transport.invoke<string>('stream_local_gcode', { 
             path: activeFilePath,
-            feedRateOverride: settings.general.carveSpeed
+            feedRateOverride: settings.general.feedRate
           });
           console.log("[CarveWizard] Stream result:", result);
           

@@ -638,18 +638,18 @@ export function ControlsPanel() {
 
                     <div className="space-y-2">
                         <div className="flex justify-between items-center px-0.5">
-                            <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Carve Speed</label>
-                            <span className="text-[10px] font-mono text-cyan-400">{settings.general.carveSpeed} <span className="text-[var(--text-tertiary)]">{unitLabel}/min</span></span>
+                            <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Feed Rate</label>
+                            <span className="text-[10px] font-mono text-cyan-400">{settings.general.feedRate} <span className="text-[var(--text-tertiary)]">{unitLabel}/min</span></span>
                         </div>
                         <div className="flex items-center gap-2">
                             <input 
                                 type="range" min="100" max="10000" step="100" 
-                                value={settings.general.carveSpeed}
-                                onChange={(e) => setGeneralSettings({ carveSpeed: parseInt(e.target.value) })}
+                                value={settings.general.feedRate}
+                                onChange={(e) => setGeneralSettings({ feedRate: parseInt(e.target.value) })}
                                 className="accent-cyan-400 flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
                             />
                             <button 
-                                onClick={() => setGeneralSettings({ carveSpeed: 1000 })}
+                                onClick={() => setGeneralSettings({ feedRate: 1000 })}
                                 className="p-1 text-[var(--text-tertiary)] hover:text-cyan-400"
                             >
                                 <RotateCcw className="w-3.5 h-3.5" />

@@ -52,7 +52,7 @@ export interface GeneralSettings {
   reverseX: boolean;
   reverseY: boolean;
   reverseZ: boolean;
-  carveSpeed: number;
+  feedRate: number;
 }
 
 export interface ProbeSettings {
@@ -244,7 +244,7 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseX: false,
     reverseY: false,
     reverseZ: false,
-    carveSpeed: 1000,
+    feedRate: 1000,
   },
   probe: {
     fastFeedrate: 500,
