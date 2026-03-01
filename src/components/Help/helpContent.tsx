@@ -3,10 +3,14 @@
  * @purpose Definitions and content for help topics, including safety checklists and UI overview.
  */
 import { ReactNode } from 'react';
+import { GcodeCheatSheet } from './GcodeCheatSheet';
+
+export type HelpCategory = 'general' | 'cheat-sheets';
 
 export interface HelpTopic {
   id: string;
   title: string;
+  category: HelpCategory;
   content: ReactNode;
 }
 
@@ -14,6 +18,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Welcome to Gtaurus</h2>
@@ -48,6 +53,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'console',
     title: 'G-code Console',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">G-code Console</h2>
@@ -70,6 +76,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'controls',
     title: 'Machine Controls',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Machine Controls</h2>
@@ -119,6 +126,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'workflow',
     title: 'Getting Ready to Carve',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Workflow: Getting Ready to Carve</h2>
@@ -171,6 +179,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'bit-management',
     title: 'Bit Library',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Bit Management System</h2>
@@ -194,6 +203,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'macros',
     title: 'Quick Macros',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Macro Management</h2>
@@ -219,6 +229,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'probing',
     title: 'Probing & Workpiece',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Probing & Setup</h2>
@@ -239,6 +250,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'visualizer',
     title: 'Bed Visualizer',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">3D Bed Visualizer</h2>
@@ -262,6 +274,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'stats',
     title: 'Machine Stats',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Machine Statistics</h2>
@@ -282,6 +295,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'shortcuts',
     title: 'Keyboard Shortcuts',
+    category: 'general',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Keyboard Shortcuts</h2>
@@ -307,6 +321,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'about',
     title: 'About',
+    category: 'general',
     content: (
       <div className="space-y-4 text-center">
         <h2 className="text-2xl font-bold mb-2">Gtaurus</h2>
@@ -320,5 +335,11 @@ export const HELP_TOPICS: HelpTopic[] = [
         </p>
       </div>
     ),
+  },
+  {
+    id: 'gcode-ref',
+    title: 'G-code Quick Reference',
+    category: 'cheat-sheets',
+    content: <GcodeCheatSheet />
   }
 ];

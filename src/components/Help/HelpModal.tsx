@@ -32,20 +32,45 @@ export function HelpModal() {
           </div>
           
           <div className="flex-1 overflow-y-auto py-2">
-             {HELP_TOPICS.map((topic) => (
-               <button
-                 key={topic.id}
-                 onClick={() => setTopic(topic.id)}
-                 className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center justify-between group ${
-                   activeTopic === topic.id
-                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
-                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
-                 }`}
-               >
-                 {topic.title}
-                 {activeTopic === topic.id && <ChevronRight className="w-4 h-4" />}
-               </button>
-             ))}
+            {/* General Section */}
+            <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+              General
+            </div>
+            {HELP_TOPICS.filter(t => t.category === 'general').map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => setTopic(topic.id)}
+                className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between group ${
+                  activeTopic === topic.id
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {topic.title}
+                {activeTopic === topic.id && <ChevronRight className="w-4 h-4" />}
+              </button>
+            ))}
+
+            <div className="my-2 border-t border-[var(--border-color)]/50" />
+
+            {/* Cheat Sheets Section */}
+            <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+              Cheat Sheets
+            </div>
+            {HELP_TOPICS.filter(t => t.category === 'cheat-sheets').map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => setTopic(topic.id)}
+                className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between group ${
+                  activeTopic === topic.id
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {topic.title}
+                {activeTopic === topic.id && <ChevronRight className="w-4 h-4" />}
+              </button>
+            ))}
           </div>
           
           <div className="p-4 border-t border-[var(--border-color)] text-xs text-[var(--text-tertiary)] text-center">

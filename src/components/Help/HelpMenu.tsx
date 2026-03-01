@@ -3,7 +3,7 @@
  * @purpose Dropdown menu for accessing documentation, keyboard shortcuts, and relative help resources.
  */
 import { useState, useRef, useEffect } from 'react';
-import { HelpCircle, FileText, Keyboard, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { HelpCircle, FileText, Keyboard, AlertCircle, Info, ExternalLink, ScrollText } from 'lucide-react';
 import { useHelpStore } from '../../stores/helpStore';
 import { Tooltip } from '../ui/Tooltip';
 
@@ -61,7 +61,15 @@ export function HelpMenu() {
             className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] flex items-center gap-3 transition-colors"
           >
             <FileText className="w-4 h-4 text-[var(--accent-primary)]" />
-            Documentation
+            Help Center
+          </button>
+
+          <button
+            onClick={() => handleAction(() => { setTopic('gcode-ref'); open(); })}
+            className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] flex items-center gap-3 transition-colors"
+          >
+            <ScrollText className="w-4 h-4 text-[var(--text-secondary)]" />
+            Cheat Sheets
           </button>
 
           <button
