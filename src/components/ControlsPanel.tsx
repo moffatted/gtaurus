@@ -7,7 +7,7 @@ import {
   Activity, Play, Pause, XCircle, Target, Home, Move, Zap, 
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  AlertTriangle, Power, FileCode, Square, Trash2, Eye
+  AlertTriangle, Power, FileCode, Square, Trash2, Eye, XOctagon
 } from 'lucide-react';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { useGcodeStore } from '../stores/gcodeStore';
@@ -170,9 +170,9 @@ export function ControlsPanel() {
   useEffect(() => {
     const interval = setInterval(() => {
       transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
-    }, 250);
+    }, settings.connection.statusPollInterval || 250);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.connection.statusPollInterval]);
 
   const handleStart = async () => {
     if (isHold) {
@@ -561,7 +561,14 @@ export function ControlsPanel() {
                             >
                                 <ArrowLeft className="w-4 h-4" />
                             </button>
-                            <div className="flex items-center justify-center text-[10px] font-black text-[var(--text-tertiary)]/50">XY</div>
+                            <Tooltip content="HALT JOGGING (0x85)" position="top">
+                                <button 
+                                    onClick={() => handleRealtime(0x85)}
+                                    className="jog-button bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-[0_4px_12px_rgba(220,38,38,0.3)] hover:shadow-[0_4px_15px_rgba(220,38,38,0.5)] active:scale-90 rounded-xl transition-all duration-150 flex items-center justify-center p-3 border-none group"
+                                >
+                                    <XOctagon className="w-6 h-6 drop-shadow-sm group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                                </button>
+                            </Tooltip>
                             <button 
                                 disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(1, 0, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}

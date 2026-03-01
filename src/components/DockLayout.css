@@ -38,18 +38,64 @@
 
 /* 
    The 'Sash' is the interactive grab area.
-   We make it light up with a subtle track background on hover.
+   We add a centered 'grab glyph' to make the resize area discoverable.
 */
+.dockview-theme-dark .dv-sash,
+.dockview-theme-light .dv-sash {
+  transition: background-color 0.2s, opacity 0.2s;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Vertical Sash Glyph (Horizontal Resize) */
+.dockview-theme-dark .dv-sash.vertical::after,
+.dockview-theme-light .dv-sash.vertical::after {
+  content: "";
+  width: 4px;
+  height: 24px;
+  background-color: var(--border-color);
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+/* Horizontal Sash Glyph (Vertical Resize) */
+.dockview-theme-dark .dv-sash.horizontal::after,
+.dockview-theme-light .dv-sash.horizontal::after {
+  content: "";
+  width: 24px;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.dockview-theme-dark .dv-sash:hover::after,
+.dockview-theme-light .dv-sash:hover::after {
+  background-color: var(--accent-primary);
+  opacity: 1;
+  box-shadow: 0 0 8px var(--accent-primary);
+}
+
 .dockview-theme-dark .dv-sash:hover,
 .dockview-theme-light .dv-sash:hover {
   background-color: var(--accent-primary);
-  opacity: 0.2;
+  opacity: 0.15;
 }
 
 .dockview-theme-dark .dv-sash.active,
 .dockview-theme-light .dv-sash.active {
   background-color: var(--accent-primary);
+  opacity: 0.3;
+}
+
+.dockview-theme-dark .dv-sash.active::after,
+.dockview-theme-light .dv-sash.active::after {
+  background-color: var(--accent-primary);
   opacity: 1;
+  transform: scale(1.2);
 }
 
 /* 

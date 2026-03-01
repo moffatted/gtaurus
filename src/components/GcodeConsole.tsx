@@ -267,6 +267,7 @@ function ConnectDialog({ onClose, onConnected }: ConnectDialogProps) {
 const MAX_HISTORY = 50;
 
 export function GcodeConsole() {
+  const { settings } = useSettingsStore();
   const { lines, appendLine } = useConsoleStore();
   const [input, setInput]             = useState('');
   const [connected, setConnected]     = useState(false);
@@ -322,9 +323,9 @@ export function GcodeConsole() {
     };
 
     syncStatus();
-    const interval = setInterval(syncStatus, 2000);
+    const interval = setInterval(syncStatus, settings.connection.statusPollInterval || 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.connection.statusPollInterval]);
 
   // Send a command
   async function sendCommand(cmd: string) {

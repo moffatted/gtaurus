@@ -617,7 +617,14 @@ export function CarveWizard() {
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(0, 1, 0)}><ArrowUp className="w-6 h-6" /></button>
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(1, 1, 0)}><ArrowUpRight className="w-6 h-6" /></button>
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(-1, 0, 0)}><ArrowLeft className="w-6 h-6" /></button>
-                  <div className="flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--border-color)] opacity-20" /></div>
+                  <Tooltip content="HALT JOGGING (0x85)" position="top">
+                    <button 
+                         onClick={() => transport.invoke('send_realtime', { byte: 0x85 })}
+                         className="w-full h-full bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-[0_4px_12px_rgba(220,38,38,0.3)] hover:shadow-[0_4px_15px_rgba(220,38,38,0.5)] active:scale-90 rounded-xl transition-all duration-150 flex items-center justify-center p-3 border-none group"
+                    >
+                        <XOctagon className="w-6 h-6 drop-shadow-sm group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                    </button>
+                  </Tooltip>
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(1, 0, 0)}><ArrowRight className="w-6 h-6" /></button>
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(-1, -1, 0)}><ArrowDownLeft className="w-6 h-6" /></button>
                   <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(0, -1, 0)}><ArrowDown className="w-6 h-6" /></button>
