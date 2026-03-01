@@ -109,15 +109,16 @@ export function DockLayout(props: DockLayoutProps) {
               };
 
               if (panelData.id === 'controls') {
-                  panelConfig.minimumWidth = 420;
-                  panelConfig.minimumHeight = 600;
+                  panelConfig.minimumWidth = 380;
+                  panelConfig.minimumHeight = 450;
               }
 
               if (index === 0) {
                  apiInstance.addPanel(panelConfig);
               } else {
                  panelConfig.position = { 
-                     direction: index % 2 === 1 ? 'right' : 'below' 
+                     direction: index % 2 === 1 ? 'right' : 'below',
+                     size: index % 2 === 1 ? panelData.defaultWidth : panelData.defaultHeight
                  };
                  apiInstance.addPanel(panelConfig);
               }
@@ -203,8 +204,10 @@ export function DockLayout(props: DockLayoutProps) {
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            const minH = id === 'controls' ? 600 : 100;
-            const minW = id === 'controls' ? 420 : 100;
+            const minH = id === 'controls' ? 450 : 100;
+            const minW = id === 'controls' ? 380 : 100;
+
+            const size = dir === 'right' ? defaultWidth : defaultHeight;
 
             api.addPanel({
                 id: id,
@@ -215,7 +218,10 @@ export function DockLayout(props: DockLayoutProps) {
                 minimumWidth: minW,
                 initialWidth: defaultWidth,
                 initialHeight: defaultHeight,
-                position: { direction: dir }
+                position: { 
+                    direction: dir,
+                    size: size
+                }
             });
         } else if (!visible && panel) {
             try {

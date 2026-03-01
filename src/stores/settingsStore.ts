@@ -201,7 +201,7 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "controls", label: "Controls", enabled: true, defaultWidth: 450 },
+  { id: "controls", label: "Controls", enabled: true, defaultWidth: 400, defaultHeight: 500 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
   { id: "manager", label: "FluidNC Manager", enabled: false, defaultWidth: 450 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },

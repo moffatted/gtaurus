@@ -849,12 +849,11 @@ function DashboardContent() {
                 step="10"
                 className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                 placeholder="Auto"
-                value={panel.defaultWidth || ''}
+                value={panel.defaultWidth ?? ''}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setDashboardPanelDimensions(panel.id, { defaultWidth: val ? parseInt(val, 10) : undefined });
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  setDashboardPanelDimensions(panel.id, { defaultWidth: val });
                 }}
-                disabled={!panel.enabled}
               />
             </div>
             <div className="flex items-center gap-1">
@@ -866,12 +865,11 @@ function DashboardContent() {
                 step="10"
                 className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                 placeholder="Auto"
-                value={panel.defaultHeight || ''}
+                value={panel.defaultHeight ?? ''}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setDashboardPanelDimensions(panel.id, { defaultHeight: val ? parseInt(val, 10) : undefined });
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  setDashboardPanelDimensions(panel.id, { defaultHeight: val });
                 }}
-                disabled={!panel.enabled}
               />
             </div>
           </div>
