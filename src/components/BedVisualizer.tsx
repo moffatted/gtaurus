@@ -76,11 +76,6 @@ function Spindle() {
     const isSimOn = (isSimulating && simPos) ? !simPos.isRapid : false;
     const isEnergized = !!(isRealOn || isSimOn);
 
-    if (machine.spindle > 0) {
-        // Just for debugging - verify the state is reaching the component
-        // console.log("[BedVisualizer] Spindle active:", machine.spindle, "isEnergized:", isEnergized);
-    }
-
     if (rotatingPartsRef.current) {
         if (isEnergized) {
             const rpm = (machine.spindle > 100) ? machine.spindle : 1200;
@@ -197,7 +192,6 @@ function Spindle() {
 
 // ─── Toolpath Components ───────────────────────────────────────────────────
 
-
 function Toolpath() {
   const simulatedPath = useGcodeStore(state => state.simulatedPath);
   const actualPath = useGcodeStore(state => state.actualPath);
@@ -205,10 +199,6 @@ function Toolpath() {
   const stock = useSettingsStore(state => state.settings.stock);
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
 
-  // Convert GcodePoint to THREE.Vector3 array for Drei Line
-  // CNC X -> Three X
-  // CNC Y -> Three -Z
-  // CNC Z -> Three Y (Offset)
   const simPoints = useMemo(() => 
     simulatedPath.map(p => new THREE.Vector3(p.x + stock.offsetX, p.z + stock.offsetZ + bedSizeZ, -(p.y + stock.offsetY))), 
   [simulatedPath, bedSizeZ, stock.offsetX, stock.offsetY, stock.offsetZ]);
@@ -219,11 +209,10 @@ function Toolpath() {
 
   return (
     <group>
-      {/* Simulation Path (Dashed) */}
       {simPoints.length > 1 && (
         <Line
           points={simPoints}
-          color="#ef4444" // Red
+          color="#ef4444"
           lineWidth={1.5}
           dashed
           dashSize={5}
@@ -232,12 +221,10 @@ function Toolpath() {
           transparent
         />
       )}
-
-      {/* Actual Cut Path (Solid) */}
       {actPoints.length > 1 && (
         <Line
           points={actPoints}
-          color="#10b981" // Emerald Green
+          color="#10b981"
           lineWidth={2.5}
         />
       )}
@@ -245,9 +232,6 @@ function Toolpath() {
   );
 }
 
-/**
- * Monitors machine position and adds to the actual path in the store
- */
 function RealtimePathTracker() {
   const addActualPoint = useGcodeStore(state => state.addActualPoint);
   const recordUsage = useToolStore(state => state.recordUsage);
@@ -264,13 +248,11 @@ function RealtimePathTracker() {
     if (isRunning) {
       const curPos = { x: machine.x.mpos, y: machine.y.mpos, z: machine.z.mpos };
       
-      // 1. Path Tracking
       addActualPoint({
         ...curPos,
         isRapid: false
       });
 
-      // 2. Usage Tracking (only if there's an active tool)
       if (activeToolId) {
           accumulatedTimeRef.current += delta;
           
@@ -282,7 +264,6 @@ function RealtimePathTracker() {
               accumulatedDistRef.current += dist;
           }
 
-          // Commit to store periodically (every 2 seconds) to avoid overhead
           if (accumulatedTimeRef.current >= 2) {
               recordUsage(activeToolId, accumulatedTimeRef.current, accumulatedDistRef.current);
               accumulatedTimeRef.current = 0;
@@ -305,27 +286,19 @@ function AutolevelMesh() {
   const { mapData, setMapData } = useMeshStore();
 
   useEffect(() => {
-    // Listen for the "autolevel:grid_update" event from the Rust backend
     const unlisten = transport.listen<HeightMapData>('autolevel:grid_update', (event: any) => {
-       console.log("Received new HeightMap data:", event.payload);
        setMapData(event.payload);
     });
-    
-    return () => {
-      unlisten.then(f => f());
-    };
+    return () => { unlisten.then(f => f()); };
   }, []);
 
   const geometry = useMemo(() => {
     if (!mapData) {
-      // Create a flat dense plane representation
       const geo = new THREE.PlaneGeometry(settings.general.bedSizeX, settings.general.bedSizeY, 20, 20);
       geo.rotateX(-Math.PI / 2);
       geo.translate(settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2);
-      
       const positions = geo.attributes.position;
       const colors = new Float32Array(positions.count * 3);
-      // Fill with default yellow-ish "level" color or a neutral color
       const defaultColor = new THREE.Color('#333333'); 
       for (let i = 0; i < positions.count; i++) {
          colors[i * 3] = defaultColor.r;
@@ -333,61 +306,39 @@ function AutolevelMesh() {
          colors[i * 3 + 2] = defaultColor.b;
       }
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      
       return geo;
     }
 
-    // Build geometry that strictly matches the heightmap bounds and resolution
     const width = (mapData.cols - 1) * mapData.spacing;
     const height = (mapData.rows - 1) * mapData.spacing;
-    
-    // PlaneGeometry is centered at origin. We need segments = cols-1 and rows-1
     const geo = new THREE.PlaneGeometry(width, height, mapData.cols - 1, mapData.rows - 1);
     geo.rotateX(-Math.PI / 2);
-    
-    // Shift it so its bottom-left is at (min_x, min_y) instead of (-width/2, -height/2)
     const offsetX = mapData.min_x + width / 2;
-    const offsetZ = -(mapData.min_y + height / 2); // Invert Y for depth
-
+    const offsetZ = -(mapData.min_y + height / 2);
     geo.translate(offsetX, 0, offsetZ);
 
     const positions = geo.attributes.position;
     const colors = new Float32Array(positions.count * 3);
     
-    // Find min and max Z to normalize colors
-    let minZ = 0;
-    let maxZ = 0;
+    let minZ = 0, maxZ = 0;
     if (mapData.grid.length > 0) {
         minZ = Math.min(...mapData.grid);
         maxZ = Math.max(...mapData.grid);
     }
-    // Prevent division by zero if completely flat
-    if (Math.abs(maxZ - minZ) < 0.001) {
-        maxZ = 1.0;
-        minZ = -1.0;
-    }
+    if (Math.abs(maxZ - minZ) < 0.001) { maxZ = 1.0; minZ = -1.0; }
 
-    const highColor = new THREE.Color('#ef4444'); // Red
-    const levelColor = new THREE.Color('#eab308'); // Yellow
-    const lowColor = new THREE.Color('#3b82f6'); // Blue
+    const highColor = new THREE.Color('#ef4444');
+    const levelColor = new THREE.Color('#eab308');
+    const lowColor = new THREE.Color('#3b82f6');
     const tempColor = new THREE.Color();
     
-    // Map the 1D grid array to the vertices
-    // ThreeJS PlaneGeometry vertices order: top-to-bottom, left-to-right
-    // Our HeightMap grid order: Y=min_y to max_y (bottom-to-top), X=min_x to max_x (left-to-right)
     for (let r = 0; r < mapData.rows; r++) {
       for (let c = 0; c < mapData.cols; c++) {
-         // ThreeJS vertex index from top-left
          const threeR = (mapData.rows - 1) - r; 
          const vIdx = threeR * mapData.cols + c;
-         
-         // HeightMap index from bottom-left
          const hmIdx = r * mapData.cols + c;
          const zValue = mapData.grid[hmIdx];
-         
          positions.setY(vIdx, zValue);
-
-         // Determine color based on height relative to zero
          if (zValue >= 0) {
              const t = Math.min(zValue / Math.max(maxZ, 0.001), 1.0);
              tempColor.lerpColors(levelColor, highColor, t);
@@ -395,36 +346,27 @@ function AutolevelMesh() {
              const t = Math.min(Math.abs(zValue) / Math.abs(Math.min(minZ, -0.001)), 1.0);
              tempColor.lerpColors(levelColor, lowColor, t);
          }
-
          colors[vIdx * 3] = tempColor.r;
          colors[vIdx * 3 + 1] = tempColor.g;
          colors[vIdx * 3 + 2] = tempColor.b;
       }
     }
-    
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
     return geo;
-  }, [mapData]);
+  }, [mapData, settings.general.bedSizeX, settings.general.bedSizeY]);
 
   return (
     <mesh geometry={geometry} position={[0, -0.1, 0]}>
-      <meshStandardMaterial 
-        vertexColors={true}
-        wireframe={true} 
-        transparent 
-        opacity={0.6} 
-      />
+      <meshStandardMaterial vertexColors={true} wireframe={true} transparent opacity={0.6} />
     </mesh>
   );
 }
 
 function StockMesh() {
   const stock = useSettingsStore(state => state.settings.stock);
-
   if (!stock.enabled) return null;
 
-  // Material property mapping for a more premium feel
   const materialProfiles: Record<string, { color: string; metalness: number; roughness: number; emissive?: string }> = {
     pine:     { color: "#f3d299", metalness: 0.0, roughness: 0.8 },
     mdf:      { color: "#b58d5a", metalness: 0.0, roughness: 0.9 },
@@ -434,79 +376,40 @@ function StockMesh() {
   };
 
   const profile = materialProfiles[stock.material] || materialProfiles.pine;
-
-  // CNC -> Three.js Mapping
-  // CNC X -> Three X
-  // CNC Y -> Three -Z
-  // CNC Z -> Three Y (Up)
-  
-  const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
-
   const width = Math.max(stock.width, 1);
   const thickness = Math.max(stock.thickness, 1);
   const depth = Math.max(stock.height, 1);
 
-  let posX = 0;
-  let posZ = 0;
-
+  let posX = 0, posZ = 0;
   switch (stock.zeroPosition) {
-    case 'top-left': // Back Left
-      posX = width / 2;
-      posZ = depth / 2;
-      break;
-    case 'top-right': // Back Right
-      posX = -width / 2;
-      posZ = depth / 2;
-      break;
-    case 'bottom-left': // Front Left
-      posX = width / 2;
-      posZ = -depth / 2;
-      break;
-    case 'bottom-right': // Front Right
-      posX = -width / 2;
-      posZ = -depth / 2;
-      break;
-    case 'center':
-      posX = 0;
-      posZ = 0;
-      break;
+    case 'top-left': posX = width / 2; posZ = depth / 2; break;
+    case 'top-right': posX = -width / 2; posZ = depth / 2; break;
+    case 'bottom-left': posX = width / 2; posZ = -depth / 2; break;
+    case 'bottom-right': posX = -width / 2; posZ = -depth / 2; break;
+    case 'center': posX = 0; posZ = 0; break;
   }
 
-  posX += stock.offsetX;
-  posZ -= stock.offsetY;
-  // posY = (Machine Z of piece center) + bedSizeZ
-  // Machine Z of piece center = offsetZ - thickness/2
-  const posY = stock.offsetZ + bedSizeZ - thickness / 2;
+  const finalX = posX + stock.offsetX;
+  const finalZ = posZ - stock.offsetY;
+  const finalY = thickness / 2 + 0.05;
 
   return (
-    <group position={[posX, posY, posZ]}>
-      {/* Main Volume */}
+    <group position={[finalX, finalY, finalZ]}>
       <mesh receiveShadow castShadow>
         <boxGeometry args={[width, thickness, depth]} />
         <meshStandardMaterial 
-          color={profile.color}
-          transparent
-          opacity={stock.opacity}
-          roughness={profile.roughness}
-          metalness={profile.metalness}
-          emissive={profile.emissive}
-          emissiveIntensity={profile.emissive ? 0.2 : 0}
+          color={profile.color} transparent opacity={stock.opacity}
+          roughness={profile.roughness} metalness={profile.metalness}
+          emissive={profile.emissive} emissiveIntensity={profile.emissive ? 0.2 : 0}
         />
       </mesh>
-      
-      {/* Edges / Wireframe (Always slightly more opaque for definition) */}
       <mesh>
         <boxGeometry args={[width + 0.2, thickness + 0.2, depth + 0.2]} />
         <meshStandardMaterial 
-          color={profile.color} 
-          wireframe 
-          transparent 
-          opacity={Math.min(stock.opacity + 0.2, 1.0)} 
-          depthWrite={false}
+          color={profile.color} wireframe transparent 
+          opacity={Math.min(stock.opacity + 0.2, 1.0)} depthWrite={false}
         />
       </mesh>
-      
-      {/* Corner indicator (bottom left of stock) */}
       <mesh position={[-width / 2, -thickness / 2, depth / 2]}>
         <sphereGeometry args={[2, 8, 8]} />
         <meshBasicMaterial color="#10b981" />
@@ -515,42 +418,25 @@ function StockMesh() {
   );
 }
 
-// ─── Machine Bed & Limits ──────────────────────────────────────────────────
-
 function MachineBed() {
   const bedX = useSettingsStore(state => state.settings.general.bedSizeX);
   const bedY = useSettingsStore(state => state.settings.general.bedSizeY);
 
   return (
     <group>
-      {/* Physical Bed Plate */}
       <mesh position={[bedX / 2, -1, -bedY / 2]} receiveShadow>
         <boxGeometry args={[bedX, 2, bedY]} />
         <meshStandardMaterial color="#1e293b" roughness={0.9} metalness={0.1} />
       </mesh>
-
-      {/* Grid on top of the plate */}
       <Grid 
-        args={[bedX, bedY]} 
-        position={[bedX / 2, 0.05, -bedY / 2]}
-        cellSize={10} 
-        cellThickness={1} 
-        cellColor="#334155" 
-        sectionSize={50} 
-        sectionThickness={1.5} 
-        sectionColor="#475569" 
-        fadeDistance={500}
-        infiniteGrid={false}
-        followCamera={false}
+        args={[bedX, bedY]} position={[bedX / 2, 0.05, -bedY / 2]}
+        cellSize={10} cellThickness={1} cellColor="#334155" 
+        sectionSize={50} sectionThickness={1.5} sectionColor="#475569" 
+        fadeDistance={500} infiniteGrid={false} followCamera={false}
       />
-
-      {/* Origin Axis Labels */}
       <group position={[0, 0, 0]}>
-        {/* X Axis Label */}
         <Line points={[[0, 0, 0], [50, 0, 0]]} color="#ef4444" lineWidth={2} />
-        {/* Y Axis Label (mapped to -Z) */}
         <Line points={[[0, 0, 0], [0, 0, -50]]} color="#3b82f6" lineWidth={2} />
-        {/* Z Axis Label */}
         <Line points={[[0, 0, 0], [0, 50, 0]]} color="#10b981" lineWidth={2} />
       </group>
     </group>
@@ -568,8 +454,6 @@ function SceneContent() {
       <MachineBed />
       <RealtimePathTracker />
       {settings.showAutolevelMesh && <AutolevelMesh />}
-      
-      {/* Machine Origin (0,0,0) Marker */}
       <group position={[0, 0, 0]}>
         <mesh>
           <sphereGeometry args={[2, 16, 16]} />
@@ -594,130 +478,70 @@ export function BedVisualizer() {
       const scale = direction === 'in' ? 0.8 : 1.2;
       const camera = controlsRef.current.object;
       const target = controlsRef.current.target;
-
       if (camera.isPerspectiveCamera) {
-        // Move camera closer/further along the vector to the target
         const offset = new THREE.Vector3().subVectors(camera.position, target);
         offset.multiplyScalar(scale);
         camera.position.addVectors(target, offset);
       } else {
-        // For orthographic camera
         camera.zoom /= scale;
         camera.updateProjectionMatrix();
       }
     }
   };
+
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
-      <Canvas 
-        shadows 
-        camera={{ position: [300, 300, 300], fov: 45 }}
-        gl={{ antialias: true, alpha: true }}
-        style={{ width: '100%', height: '100%' }}
-      >
+      <Canvas shadows camera={{ position: [300, 300, 300], fov: 45 }} gl={{ antialias: true, alpha: true }} style={{ width: '100%', height: '100%' }}>
         <color attach="background" args={['#0f172a']} />
-        
         <ambientLight intensity={0.4} />
         <hemisphereLight intensity={0.5} groundColor="#000000" />
-        <directionalLight 
-          position={[100, 150, 100]} 
-          intensity={1.5} 
-          castShadow 
-          shadow-mapSize={[1024, 1024]}
-        />
+        <directionalLight position={[100, 150, 100]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
         <pointLight position={[-100, 100, -100]} intensity={0.6} />
-        
-        <OrbitControls 
-          ref={controlsRef}
-          makeDefault 
-          enableDamping
-          dampingFactor={0.05}
-          maxPolarAngle={Math.PI / 2 - 0.05}
-          target={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} 
-        />
-
-        <GizmoHelper
-          alignment="top-right"
-          margin={[60, 60]}
-        >
+        <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI / 2 - 0.05} target={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} />
+        <GizmoHelper alignment="top-right" margin={[60, 60]}>
           <GizmoViewcube 
-            opacity={1}
-            color={theme === 'dark' ? "#334155" : "#e2e8f0"}
+            opacity={1} color={theme === 'dark' ? "#334155" : "#e2e8f0"}
             strokeColor={theme === 'dark' ? "#cbd5e1" : "#475569"}
             textColor={theme === 'dark' ? "#f8fafc" : "#0f172a"}
-            hoverColor="rgba(59, 130, 246, 0.5)"
-            font="bold 24px Inter, sans-serif"
+            hoverColor="rgba(59, 130, 246, 0.5)" font="bold 24px Inter, sans-serif"
           />
         </GizmoHelper>
-
         <SceneContent />
       </Canvas>
 
-      {/* Zoom Controls */}
       <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 z-10">
         <Tooltip content="Zoom In" position="right">
-          <button 
-            onClick={() => handleZoom('in')}
-            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all"
-          >
+          <button onClick={() => handleZoom('in')} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all">
             <Plus className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
         <Tooltip content="Zoom Out" position="right">
-          <button 
-            onClick={() => handleZoom('out')}
-            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all"
-          >
+          <button onClick={() => handleZoom('out')} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all">
             <Minus className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
       </div>
       
-      {/* Quick HUD overlay - Now moved to the bottom horizontal bar */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none bg-[var(--bg-tertiary)]/80 backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-xl shadow-lg flex items-center gap-6 z-10 transition-all max-w-[calc(100%-140px)] overflow-hidden">
         <div className="flex flex-col border-r border-[var(--border-color)]/30 pr-4 shrink-0">
           <h3 className="text-[9px] font-bold text-[var(--accent-primary)] uppercase tracking-widest leading-tight">Live View</h3>
           <span className="text-[9px] font-mono text-[var(--text-tertiary)] whitespace-nowrap">{settings.general.bedSizeX}×{settings.general.bedSizeY}mm</span>
         </div>
-
         <div className="flex items-center gap-5 overflow-hidden">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">X</span>
-            <span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.x.mpos.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Y</span>
-            <span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.y.mpos.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Z</span>
-            <span className="text-xs font-mono font-bold text-[var(--accent-primary)] min-w-[50px]">{machine.z.mpos.toFixed(2)}</span>
-          </div>
+          <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">X</span><span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.x.mpos.toFixed(2)}</span></div>
+          <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Y</span><span className="text-xs font-mono font-bold text-[var(--text-primary)] min-w-[50px]">{machine.y.mpos.toFixed(2)}</span></div>
+          <div className="flex items-center gap-2"><span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Z</span><span className="text-xs font-mono font-bold text-[var(--accent-primary)] min-w-[50px]">{machine.z.mpos.toFixed(2)}</span></div>
         </div>
-
         <div className="hidden sm:flex items-center gap-3 border-l border-[var(--border-color)]/30 pl-4 shrink-0">
-           <div className="flex items-center gap-1.5">
-             <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span>
-           </div>
-           <div className="flex items-center gap-1.5">
-             <div className="w-2.5 h-2.5 rounded-full bg-blue-500/80" />
-             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Y</span>
-           </div>
-           <div className="flex items-center gap-1.5">
-             <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
-             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Z</span>
-           </div>
+           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500/80" /><span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">X</span></div>
+           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500/80" /><span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Y</span></div>
+           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500/80" /><span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase font-mono">Z</span></div>
         </div>
       </div>
 
-      {/* Clear Toolpath Button */}
       <div className="absolute bottom-4 right-4 z-10">
         <Tooltip content="Clear Simulated Path" position="left">
-          <button 
-            onClick={clearSimulation}
-            className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg shadow-sm transition-all"
-          >
+          <button onClick={clearSimulation} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg shadow-sm transition-all">
             <Trash className="w-4 h-4" />
           </button>
         </Tooltip>
