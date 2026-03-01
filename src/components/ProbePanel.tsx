@@ -11,36 +11,39 @@ export function ProbePanel() {
   const prb = settings.probe;
 
   return (
-    <div className="h-full flex flex-col p-4 gap-6 select-none overflow-y-auto bg-[var(--bg-primary)]">
-      
-      {/* Header Info Banner */}
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-[var(--border-color)] bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] shadow-inner">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--accent-primary)]/10">
-            <Crosshair className="w-5 h-5 text-[var(--accent-primary)]" />
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden min-w-[320px]">
+      <div className="p-3 space-y-3 overflow-y-auto">
+        
+        {/* Header Info Banner - Compacted */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--border-color)] bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-[var(--accent-primary)]/10">
+              <Crosshair className="w-4 h-4 text-[var(--accent-primary)]" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Active Profile</span>
+              <span className="text-xs font-bold text-[var(--text-primary)]">{prb.probeType}</span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.2em]">Active Profile</span>
-            <span className="text-sm font-bold text-[var(--text-primary)]">{prb.probeType}</span>
-          </div>
+          <button className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors">
+            <Settings className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors">
-          <Settings className="w-4 h-4" />
-        </button>
-      </div>
 
-      <div className="flex-1">
         <BasicProbeUI />
+
+        {/* Footer Meta - Integrated into content flow */}
+        <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between opacity-60">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold">Hardware Connected</span>
+          </div>
+          <span className="text-[9px] text-[var(--text-tertiary)] font-mono">v1.0.4</span>
+        </div>
       </div>
 
-      {/* Footer Meta */}
-      <div className="flex items-center justify-between px-2 text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          Hardware: Connected
-        </div>
-        <span>v1.0.4-basic</span>
-      </div>
+      {/* Spacer to push everything up */}
+      <div className="flex-1" />
     </div>
   );
 }

@@ -40,7 +40,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         : ProbeService.generateCornerProbe(prb, corner, safeHeight);
 
       for (const cmd of result.gcode) {
-        setProgress(`Executing: ${cmd}`);
+        setProgress(`${cmd}`);
         console.log(`[BasicProbeUI] Sending: ${cmd}`);
         await transport.invoke('send_gcode', { cmd });
       }
@@ -49,7 +49,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       setTimeout(() => setProgress(null), 3000);
     } catch (err) {
       console.error("[BasicProbeUI] Probe failed:", err);
-      setProgress('Error: Check Console');
+      setProgress('Error: See Logs');
     } finally {
       setIsProbing(false);
     }
@@ -62,183 +62,166 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const CornerDot = ({ pos, active }: { pos: ProbeCorner, active: boolean }) => (
     <button
       onClick={() => setCorner(pos)}
-      className={`absolute w-4 h-4 rounded-full border-2 transition-all ${
+      className={`absolute w-3 h-3 rounded-full border transition-all ${
         active 
           ? 'bg-[var(--accent-primary)] border-white scale-125 shadow-lg' 
           : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)]'
       }`}
       style={{
-        top: pos.startsWith('back') ? '-8px' : 'auto',
-        bottom: pos.startsWith('front') ? '-8px' : 'auto',
-        left: pos.endsWith('left') ? '-8px' : 'auto',
-        right: pos.endsWith('right') ? '-8px' : 'auto',
+        top: pos.startsWith('back') ? '-6px' : 'auto',
+        bottom: pos.startsWith('front') ? '-6px' : 'auto',
+        left: pos.endsWith('left') ? '-6px' : 'auto',
+        right: pos.endsWith('right') ? '-6px' : 'auto',
       }}
     />
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Probe Method Selection */}
-      <div className="flex gap-2 p-1 bg-[var(--bg-tertiary)] rounded-lg">
+    <div className="flex flex-col gap-3">
+      {/* Method Toggle - Compacted */}
+      <div className="flex p-1 bg-[var(--bg-tertiary)] rounded-lg">
         <button
           onClick={() => setMethod('z-only')}
-          className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+          className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
             method === 'z-only' 
               ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
               : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
           }`}
         >
-          Z-ONLY TOUCH PLATE
+          Touch Plate
         </button>
         <button
           onClick={() => setMethod('3-axis')}
-          className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+          className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
             method === '3-axis' 
               ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
               : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
           }`}
         >
-          3-AXIS CORNER
+          3-Axis Corner
         </button>
       </div>
 
-        <div className="grid grid-cols-2 gap-4 items-center">
-          {/* Visual for 3-Axis or Z-Only */}
-          <div className="flex justify-center p-4">
-            {method === 'z-only' ? (
-              <div className="relative w-24 h-24 border-b-4 border-[var(--text-tertiary)] flex items-center justify-center">
-                <div className="w-16 h-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-sm absolute bottom-0 shadow-inner" />
-                <div className="w-2 h-16 bg-gradient-to-b from-gray-400 to-gray-600 rounded-t-full transform translate-y-[-10px] animate-pulse-slow" />
-              </div>
-            ) : (
-              <div className="relative w-24 h-24 bg-[var(--bg-tertiary)] border-2 border-[var(--border-color)] rounded-lg shadow-inner">
-                 <div className="absolute inset-4 border border-[var(--border-color)] border-dashed rounded opacity-30" />
-                 <CornerDot pos="back-left" active={corner === 'back-left'} />
-                 <CornerDot pos="back-right" active={corner === 'back-right'} />
-                 <CornerDot pos="front-left" active={corner === 'front-left'} />
-                 <CornerDot pos="front-right" active={corner === 'front-right'} />
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-2">
-            <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Travel</label>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number"
-                  value={prb.maxTravel}
-                  onChange={(e) => setProbeSettings({ maxTravel: Number(e.target.value) })}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                />
-                <span className="text-xs text-[var(--text-tertiary)]">mm</span>
-              </div>
+      <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/30 p-2 rounded-xl border border-[var(--border-color)]">
+        {/* Visual for 3-Axis or Z-Only */}
+        <div className="flex justify-center p-1 shrink-0 bg-[var(--bg-secondary)]/50 rounded-lg overflow-hidden border border-[var(--border-color)]/20 shadow-inner overflow-hidden">
+          {method === 'z-only' ? (
+            <img 
+              src="/probe_visual.png" 
+              alt="Probe Visual" 
+              className="w-16 h-16 object-contain mix-blend-screen opacity-90 brightness-110"
+            />
+          ) : (
+            <div className="relative w-16 h-16 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg shadow-inner">
+               <div className="absolute inset-2.5 border border-[var(--border-color)] border-dashed rounded opacity-30" />
+               <CornerDot pos="back-left" active={corner === 'back-left'} />
+               <CornerDot pos="back-right" active={corner === 'back-right'} />
+               <CornerDot pos="front-left" active={corner === 'front-left'} />
+               <CornerDot pos="front-right" active={corner === 'front-right'} />
             </div>
-          
+          )}
+        </div>
+
+        {/* Input Controls - Slimmed */}
+        <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1.5">
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Plate Offset</label>
-            <div className="flex items-center gap-2">
+            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Max Travel</label>
+            <div className="relative">
+              <input 
+                type="number"
+                value={prb.maxTravel}
+                onChange={(e) => setProbeSettings({ maxTravel: Number(e.target.value) })}
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+              />
+              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+            </div>
+          </div>
+        
+          <div className="flex flex-col">
+            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Plate Thick</label>
+            <div className="relative">
               <input 
                 type="number"
                 value={prb.zOffset}
                 onChange={(e) => setProbeSettings({ zOffset: Number(e.target.value) })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
               />
-              <span className="text-xs text-[var(--text-tertiary)]">mm</span>
+              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
             </div>
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Search Feed</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="number"
-                value={prb.fastFeedrate}
-                onChange={(e) => setProbeSettings({ fastFeedrate: Number(e.target.value) })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-              />
-              <span className="text-[10px] text-[var(--text-tertiary)]">F</span>
-            </div>
+            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Fast Feed</label>
+            <input 
+              type="number"
+              value={prb.fastFeedrate}
+              onChange={(e) => setProbeSettings({ fastFeedrate: Number(e.target.value) })}
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+            />
           </div>
           
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Probe Feed</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="number"
-                value={prb.slowFeedrate}
-                onChange={(e) => setProbeSettings({ slowFeedrate: Number(e.target.value) })}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-              />
-              <span className="text-[10px] text-[var(--text-tertiary)]">F</span>
-            </div>
+            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Slow Feed</label>
+            <input 
+              type="number"
+              value={prb.slowFeedrate}
+              onChange={(e) => setProbeSettings({ slowFeedrate: Number(e.target.value) })}
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+            />
           </div>
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-[var(--bg-tertiary)]/50 p-3 rounded-lg border border-[var(--border-color)] flex gap-3">
-        <HelpCircle className="w-5 h-5 text-[var(--accent-primary)] shrink-0" />
-        <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-          {method === 'z-only' 
-            ? "Place the touch plate flat on the workpiece. Position the bit directly above the plate before starting."
-            : "Place the corner finder over the workpiece corner. Position the bit inside the hole/over the marked center."}
-        </p>
+      {/* Instructions - Tighter */}
+      <div className="bg-[var(--bg-tertiary)]/20 p-2 rounded-lg border border-[var(--border-color)]/30">
+        <div className="flex gap-2 items-start">
+          <HelpCircle className="w-3.5 h-3.5 text-[var(--accent-primary)] shrink-0 mt-0.5" />
+          <p className="text-[10px] text-[var(--text-tertiary)] leading-tight italic">
+            {method === 'z-only' 
+              ? "Position bit directly above touch plate before starting."
+              : "Position bit inside hole or over marked center point."}
+          </p>
+        </div>
       </div>
 
-      {/* Status / Error */}
-      {isAlarm ? (
-        <div className="flex flex-col gap-2 p-3 bg-red-500/10 rounded-xl border border-red-500/30">
-          <div className="flex items-center gap-2 text-red-500">
-            <AlertCircle className="w-5 h-5" />
-            <span className="text-xs font-bold uppercase tracking-wider">Machine is Locked (Alarm)</span>
-          </div>
-          <p className="text-[10px] text-[var(--text-tertiary)] text-left mb-1">
-            An alarm was triggered (likely a limit switch or soft reset). You must unlock before probing.
-          </p>
+      {/* Status / Error - Integrated */}
+      {isAlarm && (
+        <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30">
           <button 
             onClick={handleUnlock}
-            className="w-full py-2 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-red-500/10"
+            className="w-full py-1.5 bg-red-500 hover:bg-red-400 text-white text-[10px] font-bold rounded flex items-center justify-center gap-2 transition-colors"
           >
+            <AlertCircle className="w-3.5 h-3.5" />
             UNLOCK MACHINE ($X)
           </button>
-        </div>
-      ) : !canProbe && (
-        <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
-          <AlertCircle className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase">Ready the machine (Status: {machine.status})</span>
         </div>
       )}
 
       {progress && (
-        <div className="bg-[var(--bg-secondary)] p-2 rounded border border-[var(--accent-primary)]/30 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-[var(--accent-primary)] uppercase">Status</span>
-            <div className="w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
-          </div>
-          <div className="text-[10px] font-mono text-[var(--text-secondary)] truncate">
+        <div className="bg-[var(--bg-secondary)] p-1.5 rounded border border-[var(--accent-primary)]/30">
+          <div className="text-[9px] font-mono text-[var(--accent-primary)] uppercase font-bold truncate">
             {progress}
           </div>
         </div>
       )}
 
-      {/* Action Button */}
+      {/* Action Button - Compacted */}
       <button
         disabled={!canProbe || isProbing}
         onClick={handleProbe}
-        className={`w-full py-4 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed ${
           isProbing 
-            ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)] cursor-wait' 
-            : 'bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]'
+            ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' 
+            : 'bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_4px_12px_rgba(var(--accent-rgb),0.2)]'
         }`}
       >
-        <Crosshair className={`w-5 h-5 ${isProbing ? 'animate-spin' : ''}`} />
-        {isProbing ? 'PROBING...' : 'START PROBE'}
+        <Crosshair className={`w-4 h-4 ${isProbing ? 'animate-spin' : ''}`} />
+        <span className="text-xs uppercase font-black">{isProbing ? 'PROBING...' : 'START PROBE'}</span>
       </button>
 
-      <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity">
-        <span className="text-[10px] text-[var(--text-tertiary)]">Bit: {prb.stylusDiameter}mm</span>
-        <span className="text-[10px] text-[var(--text-tertiary)]">Feed: F{prb.fastFeedrate} / F{prb.slowFeedrate}</span>
+      <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity px-1">
+        <span className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-tighter">Bit: {prb.stylusDiameter}mm</span>
+        <span className="text-[9px] text-[var(--text-tertiary)] font-mono">F{prb.fastFeedrate}/{prb.slowFeedrate}</span>
       </div>
     </div>
   );
