@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';
 import { transport } from '../../services/transportService';
 import { ProbeService, ProbeCorner } from '../../services/ProbeService';
+import { Tooltip } from '../ui/Tooltip';
 
 type ProbeMethod = 'z-only' | '3-axis';
 interface BasicProbeUIProps {
@@ -57,24 +58,36 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
 
   const handleUnlock = () => {
     transport.invoke('send_gcode', { cmd: '$X' });
+  };  const CornerDot = ({ pos, active }: { pos: ProbeCorner; active: boolean }) => {
+    const label = pos.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + " Corner";
+    
+    return (
+      <div 
+        className="absolute"
+        style={{
+          top: pos.startsWith('back') ? '-6px' : 'auto',
+          bottom: pos.startsWith('front') ? '-6px' : 'auto',
+          left: pos.endsWith('left') ? '-6px' : 'auto',
+          right: pos.endsWith('right') ? '-6px' : 'auto',
+        }}
+      >
+        <Tooltip 
+          content={label} 
+          delay={0}
+          position={pos.startsWith('back') ? 'top' : 'bottom'}
+        >
+          <button
+            onClick={() => setCorner(pos)}
+            className={`relative w-3.5 h-3.5 rounded-full border-2 transition-all z-20 ${
+              active
+                ? 'bg-[var(--accent-primary)] border-white scale-125 shadow-[0_0_12px_rgba(var(--accent-rgb),0.8)]'
+                : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)]'
+            }`}
+          />
+        </Tooltip>
+      </div>
+    );
   };
-
-  const CornerDot = ({ pos, active }: { pos: ProbeCorner, active: boolean }) => (
-    <button
-      onClick={() => setCorner(pos)}
-      className={`absolute w-3 h-3 rounded-full border transition-all ${
-        active 
-          ? 'bg-[var(--accent-primary)] border-white scale-125 shadow-lg' 
-          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)]'
-      }`}
-      style={{
-        top: pos.startsWith('back') ? '-6px' : 'auto',
-        bottom: pos.startsWith('front') ? '-6px' : 'auto',
-        left: pos.endsWith('left') ? '-6px' : 'auto',
-        right: pos.endsWith('right') ? '-6px' : 'auto',
-      }}
-    />
-  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -104,16 +117,14 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
 
       <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/30 p-2 rounded-xl border border-[var(--border-color)]">
         {/* Visual for 3-Axis or Z-Only */}
-        <div className="flex justify-center p-1 shrink-0 bg-[var(--bg-secondary)]/50 rounded-lg overflow-hidden border border-[var(--border-color)]/20 shadow-inner overflow-hidden">
-          {method === 'z-only' ? (
-            <img 
-              src="/probe_visual.png" 
-              alt="Probe Visual" 
-              className="w-16 h-16 object-contain mix-blend-screen opacity-90 brightness-110"
-            />
-          ) : (
-            <div className="relative w-16 h-16 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg shadow-inner">
-               <div className="absolute inset-2.5 border border-[var(--border-color)] border-dashed rounded opacity-30" />
+        <div className="relative flex justify-center p-1 shrink-0 bg-[var(--bg-secondary)]/50 rounded-lg border border-[var(--border-color)]/20 shadow-inner">
+          <img 
+            src={method === 'z-only' ? "/probe_z.png" : "/probe_corner.png"} 
+            alt="Probe Visual" 
+            className="w-16 h-16 object-contain mix-blend-screen opacity-90 brightness-110 transition-all duration-300"
+          />
+          {method === '3-axis' && (
+            <div className="absolute inset-1">
                <CornerDot pos="back-left" active={corner === 'back-left'} />
                <CornerDot pos="back-right" active={corner === 'back-right'} />
                <CornerDot pos="front-left" active={corner === 'front-left'} />
