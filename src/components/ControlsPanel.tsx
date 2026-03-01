@@ -7,7 +7,7 @@ import {
   Activity, Play, Pause, XCircle, Target, Home, Move, Zap,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  RotateCcw, Eye, Trash2, FileCode, AlertTriangle, Power
+  RotateCcw, Eye, Trash2, FileCode, AlertTriangle, Power, Square
 } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStore } from '../stores/machineStore';
@@ -791,6 +791,26 @@ export function ControlsPanel() {
                                         <Eye className="w-4 h-4" />
                                     </button>
                                 </Tooltip>
+                                
+                               <Tooltip 
+                                   content={
+                                       settings.general.postJobAction 
+                                       ? `Post-Job: ${settings.macros.find(m => m.id === settings.general.postJobMacroId)?.name || 'Enabled'}` 
+                                       : "Enable Post-Job Action"
+                                   } 
+                                   position="right"
+                               >
+                                   <button 
+                                       onClick={() => setGeneralSettings({ postJobAction: !settings.general.postJobAction })}
+                                       className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${
+                                           settings.general.postJobAction
+                                           ? "text-blue-400 bg-blue-500/10 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
+                                           : "text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] border border-transparent"
+                                       }`}
+                                   >
+                                       <Square className={`w-3.5 h-3.5 ${settings.general.postJobAction ? 'fill-blue-400/20' : ''}`} />
+                                   </button>
+                               </Tooltip>
 
                                 <Tooltip content="Clear visualization" position="right">
                                     <button 

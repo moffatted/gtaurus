@@ -19,7 +19,8 @@ import {
   Box, FileCode, Target, AlignVerticalSpaceAround,
   Info, Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  CheckSquare, Wrench, XCircle, XOctagon, AlertCircle, RotateCcw
+  CheckSquare, Wrench, XCircle, XOctagon, AlertCircle, RotateCcw,
+  Square
 } from 'lucide-react';
 import { useToolStore, ToolType } from '../../stores/toolStore';
 
@@ -813,6 +814,67 @@ export function CarveWizard() {
       )
     },
     {
+      id: 'end-job',
+      title: 'End Job Options',
+      component: (
+        <div className="space-y-6">
+          <p className="text-sm text-[var(--text-secondary)]">
+            What should the machine do once the carving job is finished?
+          </p>
+          
+          <div 
+            onClick={() => useSettingsStore.getState().setGeneralSettings({ postJobAction: !settings.general.postJobAction })}
+            className={`
+              flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all
+              ${settings.general.postJobAction 
+                ? 'bg-blue-500/10 border-blue-500 text-[var(--text-primary)]' 
+                : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]'}
+            `}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.general.postJobAction ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'}`}>
+              <Square size={20} />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold">Enable Post-Job Action</h4>
+              <p className="text-xs opacity-70">Automatically run a macro after the job finishes.</p>
+            </div>
+            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${settings.general.postJobAction ? 'border-blue-500' : 'border-[var(--border-color)]'}`}>
+              {settings.general.postJobAction && <div className="w-3 h-3 bg-blue-500 rounded-full" />}
+            </div>
+          </div>
+
+          {settings.general.postJobAction && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+              <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase ml-1">Select Macro to Run</label>
+              <div className="grid grid-cols-1 gap-2">
+                {settings.macros.map(macro => (
+                  <button
+                    key={macro.id}
+                    onClick={() => useSettingsStore.getState().setGeneralSettings({ postJobMacroId: macro.id })}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-xl border transition-all text-left
+                      ${settings.general.postJobMacroId === macro.id 
+                        ? 'border-blue-500/50 bg-blue-500/5 text-blue-400' 
+                        : 'border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-[var(--text-tertiary)] text-[var(--text-secondary)]'}
+                    `}
+                  >
+                    <div className="w-6 h-6 rounded bg-[var(--bg-tertiary)] flex items-center justify-center text-[10px] font-bold">
+                      {macro.name.charAt(0)}
+                    </div>
+                    <span className="text-sm font-medium">{macro.name}</span>
+                    {settings.general.postJobMacroId === macro.id && <CheckCircle2 size={14} className="ml-auto" />}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-amber-500/80 italic font-medium px-1">
+                Caution: Ensure the selected macro is safe to run from any end position.
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
       id: 'safety',
       title: 'Safety Checks',
       canProceed: Object.values(safetyChecks).every(v => v),
@@ -922,9 +984,18 @@ export function CarveWizard() {
             await transport.invoke('send_gcode', { cmd: '$X' });
           }
 
+          let postJobGcode: string | undefined = undefined;
+          if (settings.general.postJobAction && settings.general.postJobMacroId) {
+            const macro = settings.macros.find(m => m.id === settings.general.postJobMacroId);
+            if (macro) {
+              postJobGcode = macro.content;
+            }
+          }
+
           const result = await transport.invoke<string>('stream_local_gcode', { 
             path: activeFilePath,
-            feedRateOverride: settings.general.feedRate
+            feedRateOverride: settings.general.feedRate,
+            postJobGcode
           });
           console.log("[CarveWizard] Stream result:", result);
           

@@ -425,6 +425,7 @@ pub(crate) fn shared_stream_local_gcode(
     state: &AppState,
     path: String,
     feed_override: Option<f64>,
+    post_job_gcode: Option<String>,
 ) -> Result<String, String> {
     eprintln!("[GTaurus] Received request to stream local G-code: {:?}", path);
 
@@ -465,6 +466,15 @@ pub(crate) fn shared_stream_local_gcode(
             content
         }
     };
+
+    // Append post-job gcode if provided
+    let mut actual_final_gcode = final_gcode;
+    if let Some(post_gcode) = post_job_gcode {
+        actual_final_gcode.push('\n');
+        actual_final_gcode.push_str(&post_gcode);
+    }
+
+    let final_gcode = actual_final_gcode;
 
     let driver_clone = Arc::clone(&state.driver);
 
@@ -534,8 +544,9 @@ fn stream_local_gcode(
     state: State<'_, AppState>,
     path: String,
     feed_rate_override: Option<f64>,
+    post_job_gcode: Option<String>,
 ) -> Result<String, String> {
-    shared_stream_local_gcode(&*state, path, feed_rate_override)
+    shared_stream_local_gcode(&*state, path, feed_rate_override, post_job_gcode)
 }
 
 // ─── App bootstrap ───────────────────────────────────────────────────────────

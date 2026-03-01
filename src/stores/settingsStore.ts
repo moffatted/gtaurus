@@ -53,6 +53,8 @@ export interface GeneralSettings {
   reverseY: boolean;
   reverseZ: boolean;
   feedRate: number;
+  postJobAction: boolean;
+  postJobMacroId: string | null;
 }
 
 export interface ProbeSettings {
@@ -247,6 +249,8 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseY: false,
     reverseZ: false,
     feedRate: 1000,
+    postJobAction: false,
+    postJobMacroId: '4', // Default to "Park Position" macro ID
   },
   probe: {
     fastFeedrate: 500,
@@ -330,6 +334,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: '2', name: 'Start Spindle', content: 'M3 S12000' },
     { id: '3', name: 'Stop Spindle', content: 'M5' },
     { id: '4', name: 'Park Position', content: 'G0 G53 Z0\nG0 G53 X0 Y0' },
+    { id: '5', name: 'Return to Home', content: 'G0 G53 Z0\nG0 G53 X0 Y0' },
   ],
 };
 
