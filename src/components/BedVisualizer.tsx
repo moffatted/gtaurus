@@ -5,7 +5,7 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';
-import { Plus, Minus, Trash } from 'lucide-react';
+import { Plus, Minus, Eraser, FileX } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
@@ -471,6 +471,7 @@ export function BedVisualizer() {
   const { settings } = useSettingsStore();
   const theme = useThemeStore(state => state.theme);
   const clearSimulation = useGcodeStore(state => state.clearSimulation);
+  const clearActualPath = useGcodeStore(state => state.clearActualPath);
   const controlsRef = useRef<any>(null);
 
   const handleZoom = (direction: 'in' | 'out') => {
@@ -539,10 +540,21 @@ export function BedVisualizer() {
         </div>
       </div>
 
-      <div className="absolute bottom-4 right-4 z-10">
+      <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
+        <Tooltip content="Clear Recorded Path" position="left">
+          <button 
+            onClick={clearActualPath} 
+            className="p-2 bg-[var(--bg-tertiary)]/90 backdrop-blur-md border border-emerald-500/30 text-emerald-500 hover:text-white hover:bg-emerald-500 rounded-xl shadow-lg transition-all group"
+          >
+            <Eraser className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          </button>
+        </Tooltip>
         <Tooltip content="Clear Simulated Path" position="left">
-          <button onClick={clearSimulation} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg shadow-sm transition-all">
-            <Trash className="w-4 h-4" />
+          <button 
+            onClick={clearSimulation} 
+            className="p-2 bg-[var(--bg-tertiary)]/90 backdrop-blur-md border border-red-500/30 text-red-400 hover:text-white hover:bg-red-500 rounded-xl shadow-lg transition-all group"
+          >
+            <FileX className="w-4 h-4 group-hover:scale-110 transition-transform" />
           </button>
         </Tooltip>
       </div>
