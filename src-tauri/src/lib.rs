@@ -475,7 +475,6 @@ pub(crate) fn shared_stream_local_gcode(
             final_gcode.lines().count()
         );
 
-        let mut current_f: Option<f64> = None;
         let mut has_sent_initial_f = false;
 
         for (i, line) in final_gcode.lines().enumerate() {
@@ -496,7 +495,6 @@ pub(crate) fn shared_stream_local_gcode(
                     for p in parts {
                         if p.starts_with('F') || p.starts_with('f') {
                             new_parts.push(format!("F{:.1}", target_f));
-                            current_f = Some(target_f);
                         } else {
                             new_parts.push(p.to_string());
                         }
@@ -509,7 +507,6 @@ pub(crate) fn shared_stream_local_gcode(
                     && !has_sent_initial_f
                 {
                     final_line = format!("{} F{:.1}", l, target_f);
-                    current_f = Some(target_f);
                     has_sent_initial_f = true;
                 }
             }
