@@ -121,22 +121,50 @@ export default function FileManager() {
     refreshFiles();
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  // Use a ref to track drag enter/leave depth to avoid flickering when hovering over children
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    // Only intercept if we are dragging external files
+    if (!e.dataTransfer.types.includes("Files")) return;
+    
     e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
+    dragCounter.current++;
+    if (dragCounter.current === 1) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    // Check if it's a file drag - if not, let it bubble up to Dockview/parent
+    if (!e.dataTransfer.types.includes("Files")) return;
+    
+    // Valid file drag, mark as drop target
+    e.preventDefault();
+    // Do NOT call e.stopPropagation() here. Bubbling allows the parent (Dockview)
+    // to see these events and properly manage its panel indicators/markers.
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+
     e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
+    // If not a file drop, do nothing and let it bubble
+    if (!e.dataTransfer.types.includes("Files")) return;
+
     e.preventDefault();
-    e.stopPropagation();
+    // Do NOT stop propagation. Dockview needs to see that a drop happened 
+    // to clear its markers if this drop happened to occur inside another drag operation.
     setIsDragging(false);
+    dragCounter.current = 0;
 
     if (!settings.gcodeStoragePath) {
       alert("Please configure a G-code storage path in Settings first.");
@@ -382,6 +410,7 @@ export default function FileManager() {
     <div 
       ref={dropZoneRef}
       className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[300px] relative"
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
