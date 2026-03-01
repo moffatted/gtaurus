@@ -393,6 +393,16 @@ function StockMesh() {
   const finalZ = posZ - stock.offsetY;
   const finalY = thickness / 2 + 0.05;
 
+  // Position the origin sphere based on zeroPosition
+  let originX = 0, originZ = 0;
+  switch (stock.zeroPosition) {
+    case 'top-left': originX = -width / 2; originZ = -depth / 2; break;
+    case 'top-right': originX = width / 2; originZ = -depth / 2; break;
+    case 'bottom-left': originX = -width / 2; originZ = depth / 2; break;
+    case 'bottom-right': originX = width / 2; originZ = depth / 2; break;
+    case 'center': originX = 0; originZ = 0; break;
+  }
+
   return (
     <group position={[finalX, finalY, finalZ]}>
       <mesh receiveShadow castShadow>
@@ -410,10 +420,28 @@ function StockMesh() {
           opacity={Math.min(stock.opacity + 0.2, 1.0)} depthWrite={false}
         />
       </mesh>
-      <mesh position={[-width / 2, -thickness / 2, depth / 2]}>
-        <sphereGeometry args={[2, 8, 8]} />
+      
+      {/* Zero Point/Origin Indicator */}
+      <mesh position={[originX, thickness / 2 + 0.1, originZ]}>
+        <sphereGeometry args={[1.5, 12, 12]} />
         <meshBasicMaterial color="#10b981" />
       </mesh>
+
+      {/* Center of Workpiece Indicator (Subtle Crosshair) */}
+      <group position={[0, thickness / 2 + 0.08, 0]}>
+        <mesh>
+          <boxGeometry args={[width * 0.15, 0.01, 1]} />
+          <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} />
+        </mesh>
+        <mesh>
+          <boxGeometry args={[1, 0.01, depth * 0.15]} />
+          <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial color="#3b82f6" transparent opacity={0.4} />
+        </mesh>
+      </group>
     </group>
   );
 }

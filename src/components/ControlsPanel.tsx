@@ -2,32 +2,32 @@
  * @file ControlsPanel.tsx
  * @purpose Main machine control interface, providing jogging, homing, and coordinate zeroing features.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { 
-  Activity, Play, Pause, XCircle, Target, Home, Move, Zap,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
+  Activity, Play, Pause, XCircle, Target, Home, Move, Zap, 
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
-  RotateCcw, Eye, Trash2, FileCode, AlertTriangle, Power, Square
+  AlertTriangle, Power, FileCode, Square, Trash2, Eye
 } from 'lucide-react';
-import { useSettingsStore } from '../stores/settingsStore';
-import { useMachineStore } from '../stores/machineStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { useGcodeStore } from '../stores/gcodeStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useMachineStore } from '../stores/machineStore';
 import { useToolStore } from '../stores/toolStore';
-import { Tooltip } from './ui/Tooltip';
-import { AlarmIndicator } from './AlarmIndicator';
 import { transport } from '../services/transportService';
+import { Tooltip } from './ui/Tooltip';
+import { parseStatusReport } from '../utils/parser';
 import { useConsoleStore } from '../stores/consoleStore';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
-import { useRef } from 'react';
 import { useWizardStore } from '../stores/wizardStore';
+
+const MAX_REPEAT_MOVE = 1000;
 
 export function ControlsPanel() {
   const { settings, setGeneralSettings, setStockSettings } = useSettingsStore();
   const { hasHomed, hasZeroed, setHasHomed, setHasZeroed, resetPrerequisites } = useMachineStore();
   const { machine: state, updateMachine, updateAxis } = useMachineStatusStore();
   const { appendLine } = useConsoleStore();
-  const [jogLimitWarning, setJogLimitWarning] = useState<string | null>(null);
   const { 
     gcode, activeFileName, activeFilePath, fileToolNumber,
     simulate, cancelSimulation, isSimulating, simulationSpeed, setSimulationSpeed,
@@ -47,6 +47,7 @@ export function ControlsPanel() {
     cancelLabel?: string;
     onConfirm?: () => void;
     position?: 'top' | 'bottom' | 'left' | 'right';
+    triggerRef?: React.RefObject<HTMLButtonElement | null>;
   }>({
     isOpen: false,
     type: 'alert',
@@ -58,9 +59,6 @@ export function ControlsPanel() {
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const spindleButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Reset prerequisites (hasHomed, hasZeroed) on Disconnected status for safety.
-  // Interaction remains restricted via isIdle/isRun/isHold derived from status.
-
   const isIdle = state.status.startsWith('Idle');
   const isHold = state.status.startsWith('Hold');
   const isRun = state.status.startsWith('Run');
@@ -71,12 +69,110 @@ export function ControlsPanel() {
   const activeTool = tools.find(t => t.id === activeToolId);
   const toolMismatch = fileToolNumber !== null && (!activeTool || activeTool.number !== fileToolNumber);
 
-  // Safety: Reset homed/zeroed status when machine is disconnected
+  // Jog State
+  const isMetric = settings.general.carvingUnits === 'mm';
+  const unitLabel = isMetric ? 'mm' : 'in';
+  const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
+  const [jogFeedRate, setJogFeedRate] = useState<number>(1000);
+  const [spindleRPM, setSpindleRPM] = useState<number>(10000);
+  const stepSizes = isMetric ? [0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.1, 0.5, 1];
+
+  // Logic to protect the manual spindle toggle from being overwritten by 
+  // laggy status reports from the controller.
+  const checkPending = () => {
+    if ((window as any)._spindlePendingUntil && Date.now() < (window as any)._spindlePendingUntil) {
+      return true;
+    }
+    return false;
+  };
+
+  // Unit synchronization when global units change
+  useEffect(() => {
+    const isActuallyMetric = settings.general.carvingUnits === 'mm';
+    setStepSize(isActuallyMetric ? 10 : 0.5);
+    setJogFeedRate(isActuallyMetric ? 1000 : 40);
+  }, [settings.general.carvingUnits]);
+
   useEffect(() => {
     if (state.status === 'Disconnected') {
        resetPrerequisites();
     }
   }, [state.status, resetPrerequisites]);
+
+  // Main Status Receiver
+  useEffect(() => {
+    let isMounted = true;
+    const unlisten = transport.listen<string>('fluidnc://rx', (event: any) => {
+      if (!isMounted) return;
+      const line = event.payload;
+
+      if (line.startsWith('[VER:')) {
+        const parts = line.replace('[VER:', '').replace(']', '').split(':');
+        updateMachine({ firmware: parts[0] || 'GRBL', buildInfo: line });
+        return;
+      }
+      if (line.includes('FluidNC')) {
+        updateMachine({ board: 'FluidNC Controller' });
+        return;
+      }
+
+      // Parse machine status report (<...>)
+      if (line.startsWith('<') && line.endsWith('>')) {
+        const report = parseStatusReport(line);
+        if (report.state) {
+            updateMachine({ status: report.state });
+            if (report.state.toLowerCase().startsWith('home')) {
+                (window as any)._wasHoming = true;
+            } else if ((window as any)._wasHoming && (report.state.startsWith('Idle') || report.state.startsWith('Run') || report.state.startsWith('Hold'))) {
+                (window as any)._wasHoming = false;
+                setHasHomed(true);
+            }
+            if (report.state.toLowerCase().startsWith('alarm')) resetPrerequisites();
+        }
+
+        if (report.mpos) {
+            updateAxis('x', { mpos: report.mpos.x });
+            updateAxis('y', { mpos: report.mpos.y });
+            updateAxis('z', { mpos: report.mpos.z });
+        }
+        if (report.wco) {
+            updateAxis('x', { wco: report.wco.x });
+            updateAxis('y', { wco: report.wco.y });
+            updateAxis('z', { wco: report.wco.z });
+        }
+
+        const nextUpdate: any = {};
+        if (report.feedrate !== undefined) nextUpdate.feed = report.feedrate;
+        if (report.spindle !== undefined && !checkPending()) nextUpdate.spindle = report.spindle;
+        
+        // Smarter spindle active check logic
+        if (!checkPending()) {
+            if (line.includes('|A:')) {
+                nextUpdate.isSpindleActive = line.includes('S') || line.includes('C');
+            } else if (report.spindle && report.spindle > 0) {
+                nextUpdate.isSpindleActive = true;
+            } else {
+                nextUpdate.isSpindleActive = false;
+            }
+        }
+        
+        updateMachine(nextUpdate);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unlisten.then((f: any) => f());
+    };
+  }, [updateMachine, updateAxis, setHasHomed, resetPrerequisites]);
+
+  // Status Polling Effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
+    }, 250);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStart = async () => {
     if (isHold) {
@@ -86,152 +182,27 @@ export function ControlsPanel() {
     }
   };
 
-
-  // Jog State
-  const isMetric = settings.general.carvingUnits === 'mm';
-  const unitLabel = isMetric ? 'mm' : 'in';
-  const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
-  const [jogFeedRate, setJogFeedRate] = useState<number>(1000);
-  const [spindleRPM, setSpindleRPM] = useState<number>(10000);
-  const stepSizes = isMetric ? [0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.1, 0.5, 1];
-
-  useEffect(() => {
-      let isMounted = true;
-      const unlisten = transport.listen<string>('fluidnc://rx', (event: any) => {
-          if (!isMounted) return;
-          const line = event.payload;
-
-          if (line.startsWith('[VER:')) {
-            const parts = line.replace('[VER:', '').replace(']', '').split(':');
-            updateMachine({ firmware: parts[0] || 'GRBL', buildInfo: line });
-          }
-          if (line.includes('FluidNC')) {
-            updateMachine({ board: 'FluidNC Controller' });
-          }
-
-          if (!line.startsWith('<') || !line.endsWith('>')) return;
-
-          const content = line.slice(1, -1);
-          const parts = content.split('|');
-          
-          const nextUpdate: any = { status: parts[0] };
-
-          // Logic to protect the manual spindle toggle from being overwritten by 
-          // laggy status reports from the controller.
-          const checkPending = () => {
-              if ((window as any)._spindlePendingUntil && Date.now() < (window as any)._spindlePendingUntil) {
-                  return true;
-              }
-              return false;
-          };
-
-          if (parts[0].startsWith('Home')) {
-              (window as any)._wasHoming = true;
-          } else if ((window as any)._wasHoming && (parts[0].startsWith('Idle') || parts[0].startsWith('Run') || parts[0].startsWith('Hold'))) {
-              (window as any)._wasHoming = false;
-              setHasHomed(true);
-          }
-
-          if (parts[0].startsWith('Alarm')) resetPrerequisites();
-          
-          let hasAccessoryField = false;
-          parts.slice(1).forEach((part: string) => {
-              const [key, val] = part.split(':');
-              if (!val) return;
-
-              if (key === 'MPos') {
-                  const [x, y, z] = val.split(',').map(Number);
-                  updateAxis('x', { mpos: x || 0 });
-                  updateAxis('y', { mpos: y || 0 });
-                  updateAxis('z', { mpos: z || 0 });
-              } else if (key === 'WCO') {
-                  const [x, y, z] = val.split(',').map(Number);
-                  updateAxis('x', { wco: x || 0 });
-                  updateAxis('y', { wco: y || 0 });
-                  updateAxis('z', { wco: z || 0 });
-              } else if (key === 'FS') {
-                  const [f, s] = val.split(',').map(Number);
-                  nextUpdate.feed = f || 0;
-                  if (!checkPending()) nextUpdate.spindle = s || 0;
-              } else if (key === 'S') {
-                  if (!checkPending()) nextUpdate.spindle = Number(val) || 0;
-              } else if (key === 'A') {
-                  if (!checkPending()) {
-                      nextUpdate.isSpindleActive = (val.includes('S') || val.includes('C'));
-                  }
-                  hasAccessoryField = true;
-              }
-          });
-          
-          if (!hasAccessoryField && !checkPending()) {
-              nextUpdate.isSpindleActive = false;
-          }
-          
-          updateMachine(nextUpdate);
-      });
-
-      return () => {
-          isMounted = false;
-          unlisten.then(f => f());
-      };
-  }, [updateMachine, updateAxis, setHasHomed, resetPrerequisites]);
-
-  // Status Polling Effect
-  useEffect(() => {
-      const interval = setInterval(() => {
-         transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
-      }, settings.connection.statusPollInterval || 2000);
-
-      return () => clearInterval(interval);
-  }, [settings.connection.statusPollInterval]);
-
-  const getStatusColor = (s: string) => {
-      if (s.startsWith('Idle')) return 'bg-green-500/20 text-green-400 border-green-500/30';
-      if (s.startsWith('Run')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      if (s.startsWith('Hold')) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      if (s.startsWith('Alarm')) return 'bg-red-500/20 text-red-400 border-red-500/30';
-      return 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-color)]';
-  };
-
-  const sendRealtime = (byte: number) => {
-    transport.invoke('send_realtime', { byte }).catch(console.error);
-  };
-
-  const sendGcode = (cmd: string, silent = false) => {
-    if (!silent) appendLine(`> ${cmd}`, 'cmd');
-    transport.invoke('send_gcode', { cmd }).catch(err => {
-        if (!silent) appendLine(`error: ${err}`, 'error');
-    });
-  };
-
-  const jogTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const jogTimerRef = useRef<any>(null);
   const totalJogMoveRef = useRef<number>(0);
-  const MAX_REPEAT_MOVE = 100; // Stop repeating after 100 units (mm or in)
 
   const stopJogging = () => {
     if (jogTimerRef.current) {
         clearTimeout(jogTimerRef.current);
         jogTimerRef.current = null;
-        totalJogMoveRef.current = 0;
-        // Send a real-time jog cancel (0x85) to FluidNC to stop immediately
-        sendRealtime(0x85);
     }
+    totalJogMoveRef.current = 0;
   };
 
   const startJogging = (x: number, y: number, z: number) => {
     if (state.status === 'Disconnected' || (jogTimerRef.current && totalJogMoveRef.current > 0)) return;
-
     totalJogMoveRef.current = 0;
-    // Send first move immediately
     handleJog(x, y, z, false);
 
-    // After a delay, start repeating
     jogTimerRef.current = setTimeout(() => {
         const repeat = () => {
             if (totalJogMoveRef.current >= MAX_REPEAT_MOVE) {
                 stopJogging();
-                setJogLimitWarning("Max Rapid Dist");
-                setTimeout(() => setJogLimitWarning(null), 2000);
+                appendLine("[GTaurus] Max Rapid Distance reached for safety.", 'sys');
                 return;
             }
             handleJog(x, y, z, true);
@@ -239,7 +210,7 @@ export function ControlsPanel() {
             jogTimerRef.current = setTimeout(repeat, 100);
         };
         repeat();
-    }, 400); // Initial delay before repeat
+    }, 400); 
   };
 
   const handleJog = (x: number, y: number, z: number, silent = false) => {
@@ -257,7 +228,8 @@ export function ControlsPanel() {
         
         const check = (current: number, delta: number, limit: number, homing: 'min' | 'max'): boolean => {
             if (delta === 0) return true;
-            const target = current + (delta * (isMetric ? 1 : 25.4));
+            const deltaMm = delta * (isMetric ? 1 : 25.4);
+            const target = current + deltaMm;
             if (homing === 'min') {
                 return target >= 0 + margin && target <= limit - margin;
             } else {
@@ -271,43 +243,43 @@ export function ControlsPanel() {
 
         if (!xOk || !yOk || !zOk) {
             const blocked = [!xOk && 'X', !yOk && 'Y', !zOk && 'Z'].filter(Boolean).join('/');
-            setJogLimitWarning(`${blocked} Limit`);
-            setTimeout(() => setJogLimitWarning(null), 2000);
+            appendLine(`[GTaurus] Travel limit blocked move on ${blocked} axis.`, 'sys');
             return;
         }
     }
 
-    let cmd = `$J=G91 G21 F${jogFeedRate}`;
-    if (x !== 0) cmd += ` X${moveX.toFixed(3)}`;
-    if (y !== 0) cmd += ` Y${moveY.toFixed(3)}`;
-    if (z !== 0) cmd += ` Z${moveZ.toFixed(3)}`;
+    let gModal = isMetric ? 'G21' : 'G20';
+    let precision = isMetric ? 3 : 4;
+    let cmd = `$J=G91 ${gModal} F${jogFeedRate}`;
+    if (x !== 0) cmd += ` X${moveX.toFixed(precision)}`;
+    if (y !== 0) cmd += ` Y${moveY.toFixed(precision)}`;
+    if (z !== 0) cmd += ` Z${moveZ.toFixed(precision)}`;
     sendGcode(cmd, silent);
   };
 
   const handleZero = (axis: 'X' | 'Y' | 'Z' | 'XY' | 'ALL') => {
       if (!isIdle) return;
-      
       const { machine } = useMachineStatusStore.getState();
       const patch: any = {};
       let cmd = '';
 
       if (axis === 'ALL') {
-          cmd = 'G10 L20 P1 X0 Y0 Z0';
+          cmd = 'G10 L20 P0 X0 Y0 Z0';
           patch.offsetX = machine.x.mpos;
           patch.offsetY = machine.y.mpos;
           patch.offsetZ = machine.z.mpos;
       } else if (axis === 'XY') {
-          cmd = 'G10 L20 P1 X0 Y0';
+          cmd = 'G10 L20 P0 X0 Y0';
           patch.offsetX = machine.x.mpos;
           patch.offsetY = machine.y.mpos;
       } else if (axis === 'X') {
-          cmd = 'G10 L20 P1 X0';
+          cmd = 'G10 L20 P0 X0';
           patch.offsetX = machine.x.mpos;
       } else if (axis === 'Y') {
-          cmd = 'G10 L20 P1 Y0';
+          cmd = 'G10 L20 P0 Y0';
           patch.offsetY = machine.y.mpos;
       } else if (axis === 'Z') {
-          cmd = 'G10 L20 P1 Z0';
+          cmd = 'G10 L20 P0 Z0';
           patch.offsetZ = machine.z.mpos;
       }
 
@@ -319,54 +291,46 @@ export function ControlsPanel() {
       }
   };
 
-  const isSpindleOn = state.spindle > 0 || state.isSpindleActive;
+  const handleRealtime = (byte: number) => {
+    transport.invoke('send_realtime', { byte }).catch(console.error);
+  };
+
+  const sendGcode = (cmd: string, silent = false) => {
+    transport.invoke('send_gcode', { cmd }).catch((e: any) => {
+        if (!silent) appendLine(`[ERROR] ${e}`, 'sys');
+    });
+    if (!silent) {
+        appendLine(`> ${cmd}`, 'cmd');
+    }
+  };
 
   const handleSpindleToggle = async () => {
     const currentState = state.spindle > 0 || state.isSpindleActive;
     const isAlarm = state.status.toLowerCase().includes('alarm');
-    
-    // Lock UI state for 5 seconds to outlast deceleration/sync issues
     (window as any)._spindlePendingUntil = Date.now() + 5000;
 
     if (currentState) {
-        // --- ACTION: STOP ---
-        console.log("[GTaurus] Spindle STOP initiated...");
-        
         try {
-            if (isAlarm) {
-                // If in Alarm, buffered M5 will likely fail. Send $X first.
-                await sendGcode('$X');
-                await new Promise(r => setTimeout(r, 100));
-            }
-            
-            // 1. Send M3 S0 (Preferred for some PWM spindles)
+            if (isAlarm) await sendGcode('$X');
+            await new Promise(r => setTimeout(r, 100));
             await sendGcode('M3 S0');
-            
-            // 2. Send M5 (Universal G-code stop)
             await sendGcode('M5');
-            
-            // 3. Send REALTIME override (0x85)
-            sendRealtime(0x85);
-            
-            // 4. Force immediate status refresh (?)
-            sendRealtime(0x3F);
-            
-            // Update UI immediately
+            handleRealtime(0x85); // Realtime Spindle Stop
+            handleRealtime(0x3F); // Status ?
             updateMachine({ spindle: 0, isSpindleActive: false });
-            console.log("[GTaurus] Spindle STOP: M3 S0 -> M5 -> 0x85 -> ?");
         } catch (e) {
             console.error("[GTaurus] Spindle stop failed:", e);
         }
     } else {
-        // --- ACTION: START ---
         if (!hasHomed) {
             setPopover({
                 isOpen: true,
                 type: 'alert',
                 title: "Safety Lock",
-                message: "Machine must be Homed before starting the spindle for safety.",
+                message: "Machine must be Homed before starting the spindle.",
                 kind: "warning",
-                position: 'left'
+                position: 'left',
+                triggerRef: spindleButtonRef
             });
             (window as any)._spindlePendingUntil = 0;
             return;
@@ -381,19 +345,19 @@ export function ControlsPanel() {
             okLabel: 'Start Motor',
             cancelLabel: 'Cancel',
             onConfirm: () => {
-                console.log(`[GTaurus] Spindle START initiated: ${spindleRPM} RPM`);
                 sendGcode(`M3 S${spindleRPM}`);
-                appendLine(`[GTaurus] Spindle Motor START requested: ${spindleRPM} RPM`, 'sys');
+                appendLine(`[GTaurus] Spindle Motor START: ${spindleRPM} RPM`, 'sys');
                 updateMachine({ spindle: spindleRPM, isSpindleActive: true });
             },
-            position: 'left'
+            position: 'left',
+            triggerRef: spindleButtonRef
         });
     }
   };
 
   const handleRPMChange = (newRPM: number) => {
     setSpindleRPM(newRPM);
-    if (isSpindleOn) {
+    if (state.spindle > 0 || state.isSpindleActive) {
         sendGcode(`S${newRPM}`);
     }
   };
@@ -435,16 +399,30 @@ export function ControlsPanel() {
   };
 
   const jogBtnClass = "jog-button transition-all duration-100 flex items-center justify-center p-3";
+  const getStatusColor = (s: string) => {
+    const l = s.toLowerCase();
+    if (l.startsWith('idle')) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]";
+    if (l.startsWith('run')) return "bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse";
+    if (l.startsWith('hold')) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+    if (l.startsWith('alarm')) return "bg-red-500/10 text-red-400 border-red-500/30 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]";
+    return "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-color)]";
+  };
 
   return (
     <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[380px] overflow-y-auto custom-scrollbar">
         {/* Connection & Status Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-3">
-                <AlarmIndicator />
-                {jogLimitWarning && (
-                    <div className="px-2 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-[10px] uppercase animate-in fade-in zoom-in duration-200">
-                        {jogLimitWarning}
+               <div className="flex items-center gap-3">
+                {state.status.toLowerCase().includes('alarm') && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 font-black text-[11px] animate-pulse">
+                        <AlertTriangle className="w-4 h-4" />
+                        ALARM ACTIVE
+                        <button 
+                            onClick={() => sendGcode('$X')}
+                            className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded hover:bg-red-600 active:scale-95 transition-all"
+                        >
+                            UNLOCK
+                        </button>
                     </div>
                 )}
                 <Tooltip content="Current Machine State" position="bottom">
@@ -495,17 +473,13 @@ export function ControlsPanel() {
              </div>
         </div>
 
-
-
         {/* Jog Controls */}
         <div className="flex flex-col gap-4 select-none bg-[var(--bg-secondary)]/30 p-3 rounded-2xl border border-[var(--border-color)]">
             <div className="flex flex-wrap gap-4 items-start justify-between">
-                {/* Left: Step & Feed */}
                 <div className="flex flex-col gap-4 flex-1 min-w-[200px]">
-                    {/* Unit & Step Selection */}
                     <div className="space-y-3">
                          <div className="flex justify-between items-center px-0.5">
-                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Movement & Feedrate</label>
+                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Movement Units</label>
                             <div className="flex bg-[var(--bg-tertiary)] p-0.5 rounded border border-[var(--border-color)]">
                                 {(['mm', 'inches'] as const).map(u => (
                                     <button
@@ -555,96 +529,59 @@ export function ControlsPanel() {
                                 onChange={(e) => setJogFeedRate(parseInt(e.target.value))}
                                 className="accent-[var(--accent-primary)] flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
                             />
-                            <button 
-                                onClick={() => setJogFeedRate(1000)}
-                                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)]"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center px-0.5">
-                            <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Feed Rate</label>
-                            <span className="text-[10px] font-mono text-cyan-400">{settings.general.feedRate} <span className="text-[var(--text-tertiary)]">{unitLabel}/min</span></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input 
-                                type="range" min="100" max="10000" step="100" 
-                                value={settings.general.feedRate}
-                                onChange={(e) => setGeneralSettings({ feedRate: parseInt(e.target.value) })}
-                                className="accent-cyan-400 flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
-                            />
-                            <button 
-                                onClick={() => setGeneralSettings({ feedRate: 1000 })}
-                                className="p-1 text-[var(--text-tertiary)] hover:text-cyan-400"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: The Pads & DROs */}
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col md:flex-row gap-6 items-center justify-center flex-shrink-0">
                         {/* XY Pad */}
                         <div className="grid grid-cols-3 gap-2 w-36 h-36">
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(-1, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowUpLeft className="w-4 h-4" />
                             </button>
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(0, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowUp className="w-4 h-4" />
                             </button>
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(1, 1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowUpRight className="w-4 h-4" />
                             </button>
-                            
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(-1, 0, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowLeft className="w-4 h-4" />
                             </button>
-                            <div className="flex items-center justify-center">
-                                <button 
-                                    onClick={() => sendRealtime(0x85)}
-                                    className="w-10 h-10 rounded-full border-2 border-red-500/50 text-red-500 flex items-center justify-center hover:bg-red-500/10 hover:border-red-500 transition-all font-bold text-[8px]"
-                                >
-                                    STOP
-                                </button>
-                            </div>
+                            <div className="flex items-center justify-center text-[10px] font-black text-[var(--text-tertiary)]/50">XY</div>
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(1, 0, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowRight className="w-4 h-4" />
                             </button>
-                            
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(-1, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowDownLeft className="w-4 h-4" />
                             </button>
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(0, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowDown className="w-4 h-4" />
                             </button>
                             <button 
-                                disabled={!isIdle} className={`${jogBtnClass} ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isIdle} className={jogBtnClass}
                                 onPointerDown={() => startJogging(1, -1, 0)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                             >
                                 <ArrowDownRight className="w-4 h-4" />
@@ -655,7 +592,7 @@ export function ControlsPanel() {
                         <div className="flex flex-col gap-1.5 w-11 h-36 justify-between">
                             <Tooltip content="Z+" position="left">
                                 <button 
-                                    disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={!isIdle} className={`${jogBtnClass} flex-1`}
                                     onPointerDown={() => startJogging(0, 0, 1)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                                 >
                                     <ArrowUp className="w-5 h-5" />
@@ -664,7 +601,7 @@ export function ControlsPanel() {
                             <div className="text-[10px] font-bold text-center text-[var(--accent-primary)] uppercase">Z</div>
                             <Tooltip content="Z-" position="left">
                                 <button 
-                                    disabled={!isIdle} className={`${jogBtnClass} flex-1 ${!isIdle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={!isIdle} className={`${jogBtnClass} flex-1`}
                                     onPointerDown={() => startJogging(0, 0, -1)} onPointerUp={stopJogging} onPointerLeave={stopJogging}
                                 >
                                     <ArrowDown className="w-5 h-5" />
@@ -672,65 +609,42 @@ export function ControlsPanel() {
                             </Tooltip>
                         </div>
 
-
                         {/* Spindle Control Pad */}
-                        <div className="flex flex-col gap-2 w-28 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-2 rounded-2xl border border-[var(--border-color)] shadow-inner">
+                        <div className="flex flex-col gap-2 w-28 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-2 rounded-2xl border border-[var(--border-color)]">
                             <div className="flex justify-between items-center w-full px-1">
-                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Spindle</span>
-                                <button 
-                                    onClick={() => handleRPMChange(settings.spindle.maxRPM)}
-                                    className="text-[9px] font-bold text-[var(--accent-primary)] hover:underline uppercase"
-                                >
-                                    Max
-                                </button>
+                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Spindle</span>
+                                <button onClick={() => handleRPMChange(settings.spindle.maxRPM)} className="text-[9px] font-bold text-[var(--accent-primary)] hover:underline">MAX</button>
                             </div>
 
-                            <Tooltip 
-                                content={
-                                    isSpindleOn ? "Stop Spindle (M5)" : 
-                                    !hasHomed ? "Home machine before starting spindle" :
-                                    "Start Spindle (M3)"
-                                } 
-                                position="left"
+                            <button 
+                                ref={spindleButtonRef}
+                                onClick={handleSpindleToggle}
+                                className={`p-3.5 rounded-full transition-all duration-300 shadow-lg flex items-center justify-center ${
+                                    state.isSpindleActive 
+                                        ? "bg-red-500 text-white animate-pulse" 
+                                        : "bg-[var(--bg-secondary)] text-amber-500 border border-[var(--border-color)]"
+                                }`}
                             >
-                                <button 
-                                    ref={spindleButtonRef}
-                                    onClick={handleSpindleToggle}
-                                    disabled={!isSpindleOn && !hasHomed}
-                                    className={`p-3.5 rounded-full transition-all duration-300 shadow-lg flex items-center justify-center ${
-                                        isSpindleOn 
-                                            ? "bg-red-500 text-white animate-pulse shadow-red-500/30 scale-110" 
-                                            : !hasHomed
-                                            ? "bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-color)] opacity-50 cursor-not-allowed"
-                                            : "bg-[var(--bg-secondary)] text-amber-500 border border-[var(--border-color)] hover:border-amber-500 hover:bg-amber-500/10 cursor-pointer shadow-amber-500/10"
-                                    }`}
-                                >
-                                    <Power className="w-5 h-5" />
-                                </button>
-                            </Tooltip>
+                                <Power className="w-5 h-5" />
+                            </button>
 
                             <div className="w-full space-y-1.5 px-0.5">
                                 <div className="flex justify-between items-center text-[9px] font-mono">
-                                    <span className={`${isSpindleOn ? 'text-amber-400' : 'text-[var(--text-secondary)]'} font-bold`}>{spindleRPM}</span>
+                                    <span className="text-amber-400 font-bold">{spindleRPM}</span>
                                     <span className="text-[var(--text-tertiary)] text-[8px]">RPM</span>
                                 </div>
                                 <input 
-                                    type="range" 
-                                    min={settings.spindle.minRPM} 
-                                    max={settings.spindle.maxRPM} 
-                                    step="500"
+                                    type="range" min={settings.spindle.minRPM} max={settings.spindle.maxRPM} step="500"
                                     value={spindleRPM}
                                     onChange={(e) => handleRPMChange(parseInt(e.target.value))}
-                                    className="w-full accent-amber-500 h-1 bg-[var(--bg-secondary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
+                                    className="w-full accent-amber-500 h-1 bg-[var(--bg-secondary)] rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
                         </div>
 
-                        {/* Quick Actions sidebar */}
-                        {/* Side-by-side Action Panels */}
+                        {/* Actions sidebar */}
                         <div className="flex items-center gap-2">
-                            {/* Job Controls Sidebar */}
-                            <div className="flex flex-col gap-1 w-12 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-1 rounded-xl border border-[var(--border-color)] shadow-inner">
+                             <div className="flex flex-col gap-1 w-12 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-1 rounded-xl border border-[var(--border-color)]">
                                 <Tooltip content={isHold ? "Resume Job (~)" : "Start Job"} position="right">
                                     <button 
                                         ref={startButtonRef}
@@ -748,7 +662,7 @@ export function ControlsPanel() {
 
                                 <Tooltip content="Pause Job (!)" position="right">
                                     <button 
-                                        onClick={() => sendRealtime(0x21)} 
+                                        onClick={() => handleRealtime(0x21)} 
                                         disabled={!isRun}
                                         className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${
                                             isRun
@@ -762,7 +676,7 @@ export function ControlsPanel() {
 
                                 <Tooltip content={isAlarm || isDoor ? "Soft Reset (CTRL-X)" : "Stop Job / Reset (CTRL-X)"} position="right">
                                     <button 
-                                        onClick={() => sendRealtime(0x18)} 
+                                        onClick={() => handleRealtime(0x18)} 
                                         disabled={!needsReset}
                                         className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${
                                             needsReset
@@ -822,7 +736,6 @@ export function ControlsPanel() {
                                 </Tooltip>
                             </div>
 
-                            {/* Zeroing Sidebar */}
                             <div className="flex flex-col gap-2 w-12 h-36 justify-center items-center bg-[var(--bg-tertiary)]/50 p-1 rounded-xl border border-[var(--border-color)] shadow-inner">
                                 <div className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-tighter mb-1">Zero</div>
                                 
@@ -863,7 +776,6 @@ export function ControlsPanel() {
                         </div>
                     </div>
 
-                    {/* Compact DROs Row */}
                     <div className="flex gap-2 w-full">
                         <AxisDRO label="X" mpos={state.x.mpos} wco={state.x.wco} />
                         <AxisDRO label="Y" mpos={state.y.mpos} wco={state.y.wco} />
@@ -875,7 +787,6 @@ export function ControlsPanel() {
             {/* Sim Speed & Status Bar */}
             <div className="mt-1 pt-3 border-t border-[var(--border-color)]/30 flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                    {/* Sim Speed Control */}
                     <div className="flex-1 min-w-[200px] group">
                         <div className="flex justify-between items-center mb-1.5 px-0.5">
                             <label className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider group-hover:text-[var(--accent-primary)] transition-colors">Simulation Speed</label>
@@ -885,11 +796,10 @@ export function ControlsPanel() {
                             type="range" min="10" max="500" step="10" 
                             value={simulationSpeed}
                             onChange={(e) => setSimulationSpeed(parseInt(e.target.value))}
-                            className="accent-cyan-400 flex-1 w-full h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
+                            className="accent-[var(--accent-primary)] flex-1 w-full h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer border border-[var(--border-color)]"
                         />
                     </div>
 
-                    {/* Active File Status Bar */}
                     <div className="flex-1 min-w-[250px] bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 flex items-center justify-between shadow-inner">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className={`p-1.5 rounded-lg ${activeFileName ? 'bg-cyan-500/10 text-cyan-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'}`}>
@@ -924,7 +834,7 @@ export function ControlsPanel() {
         </div>
 
         {/* Popovers */}
-        {popover.type === 'confirm' ? (
+        {popover.isOpen && popover.type === 'confirm' && (
             <ConfirmPopover
                 isOpen={popover.isOpen}
                 onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
@@ -934,10 +844,11 @@ export function ControlsPanel() {
                 kind={popover.kind}
                 okLabel={popover.okLabel}
                 cancelLabel={popover.cancelLabel}
-                triggerRef={popover.title === 'Spindle Start' ? spindleButtonRef : startButtonRef}
                 position={popover.position}
+                triggerRef={popover.triggerRef || startButtonRef}
             />
-        ) : (
+        )}
+        {popover.isOpen && popover.type === 'alert' && (
             <AlertPopover
                 isOpen={popover.isOpen}
                 onClose={() => setPopover(p => ({ ...p, isOpen: false }))}
@@ -945,11 +856,10 @@ export function ControlsPanel() {
                 message={popover.message}
                 kind={popover.kind}
                 okLabel={popover.okLabel}
-                triggerRef={popover.title === "Safety Lock" && popover.position === 'left' ? spindleButtonRef : startButtonRef}
                 position={popover.position}
+                triggerRef={popover.triggerRef || startButtonRef}
             />
         )}
-
     </div>
   );
 }
