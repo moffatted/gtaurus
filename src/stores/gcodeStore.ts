@@ -38,6 +38,7 @@ interface GcodeStore {
 
   // Helper for actual path tracking
   lastActualPoint: GcodePoint | null;
+  setFileToolNumber: (num: number | null) => void;
   reset: () => void;
 }
 
@@ -53,6 +54,8 @@ export const useGcodeStore = create<GcodeStore>((set, get) => ({
   fileToolNumber: null,
   bounds: null,
   lastActualPoint: null,
+
+  setFileToolNumber: (num) => set({ fileToolNumber: num }),
 
   setGcode: (gcode, fileName, filePath) => {
     // Parse for tool number (e.g. T1, T01, T12)

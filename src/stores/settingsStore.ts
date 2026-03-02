@@ -209,9 +209,7 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
   { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320 },
   { id: "macros", label: "Macros", enabled: false },
-  { id: "toolchanger", label: "Tool Changer", enabled: false },
   { id: "workpiece", label: "Workpiece", enabled: false },
-  { id: "tools", label: "Bit Library", enabled: false, defaultWidth: 400 },
   { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
 ];
 

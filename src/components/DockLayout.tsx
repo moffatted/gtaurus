@@ -18,7 +18,6 @@ interface DockLayoutProps {
   fileManagerPanel: ReactNode;
   probePanel: ReactNode;
   workpiecePanel: ReactNode;
-  toolsPanel: ReactNode;
 }
 
 // Context to provide panel content to wrapper components
@@ -50,17 +49,7 @@ const WorkpiecePanelWrapper = () => {
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.workpiecePanel}</div>;
 }
-const ToolsPanelWrapper = () => {
-    const ctx = useContext(DockLayoutContext);
-    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.toolsPanel}</div>;
-}
 
-const PlaceholderPanel = ({ title }: { title: string }) => (
-    <div className="flex items-center justify-center h-full w-full bg-[var(--bg-primary)] p-4 text-center text-[var(--text-tertiary)] italic">
-        {title} (Not implemented yet)
-    </div>
-);
 
 export function DockLayout(props: DockLayoutProps) {
   const { settings, setDashboardPanelEnabled, setDashboardLayout } = useSettingsStore();
@@ -118,9 +107,7 @@ export function DockLayout(props: DockLayoutProps) {
       fileManager: FileManagerPanel,
       probe: ProbePanelWrapper,
       workpiece: WorkpiecePanelWrapper,
-      tools: ToolsPanelWrapper,
       macros: MacrosPanel,
-      toolchanger: () => <PlaceholderPanel title="Tool Changer" />,
       visualizer: BedVisualizer,
       autolevel: AutoLevelPanel,
       default: (_props: IDockviewPanelProps) => <div className="p-4">Unknown Panel</div>

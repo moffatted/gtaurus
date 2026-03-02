@@ -13,6 +13,8 @@ interface UIState {
   aiAssistantOpen: boolean;
   fluidNCManagerOpen: boolean;
   machineStatsOpen: boolean;
+  toolChangerOpen: boolean;
+  toolLibraryOpen: boolean;
   
   openSettings: (tab?: SettingsTab, section?: string) => void;
   closeSettings: () => void;
@@ -30,6 +32,14 @@ interface UIState {
   openMachineStats: () => void;
   closeMachineStats: () => void;
   toggleMachineStats: () => void;
+
+  openToolChanger: () => void;
+  closeToolChanger: () => void;
+  toggleToolChanger: () => void;
+
+  openToolLibrary: () => void;
+  closeToolLibrary: () => void;
+  toggleToolLibrary: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -39,6 +49,8 @@ export const useUIStore = create<UIState>((set) => ({
   aiAssistantOpen: false,
   fluidNCManagerOpen: false,
   machineStatsOpen: false,
+  toolChangerOpen: false,
+  toolLibraryOpen: false,
 
   openSettings: (tab, section) => set((state) => ({ 
     settingsOpen: true, 
@@ -60,4 +72,12 @@ export const useUIStore = create<UIState>((set) => ({
   openMachineStats: () => set({ machineStatsOpen: true }),
   closeMachineStats: () => set({ machineStatsOpen: false }),
   toggleMachineStats: () => set((state) => ({ machineStatsOpen: !state.machineStatsOpen })),
+
+  openToolChanger: () => set({ toolChangerOpen: true }),
+  closeToolChanger: () => set({ toolChangerOpen: false }),
+  toggleToolChanger: () => set((state) => ({ toolChangerOpen: !state.toolChangerOpen })),
+
+  openToolLibrary: () => set({ toolLibraryOpen: true }),
+  closeToolLibrary: () => set({ toolLibraryOpen: false }),
+  toggleToolLibrary: () => set((state) => ({ toolLibraryOpen: !state.toolLibraryOpen })),
 }));

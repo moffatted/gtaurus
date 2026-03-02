@@ -25,15 +25,17 @@ import { useStatsTracker } from "./hooks/useStatsTracker";
 import { AlarmIndicator } from "./components/AlarmIndicator";
 import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
-import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
 import { transport } from "./services/transportService";
-import { Play, BarChart2, Bot, SlidersHorizontal } from "lucide-react";
+import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
 import { useWizardStore } from "./stores/wizardStore";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
 import { AIAssistantModal } from "./components/AIAssistantModal";
 import { FluidNCManagerModal } from "./components/FluidNCManagerModal";
+import { useGcodeStore } from "./stores/gcodeStore";
+import { ToolChangerModal } from "./components/ToolChangerModal";
+import { ToolLibraryModal } from "./components/ToolLibraryModal";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +67,35 @@ function App() {
       }, 1000);
     });
   }, [initTheme, initSettings, initTools]);
+
+  // Automatic Tool Changer Trigger
+  useEffect(() => {
+    let unlisten: any | null = null;
+    const { openToolChanger } = useUIStore.getState();
+
+    transport.listen<string>('fluidnc://rx', (event: any) => {
+      const line = event.payload;
+      if (!line) return;
+
+      // Detect Tool Change Message specifically
+      if (line.includes('MSG:Tool change')) {
+        const tMatch = line.match(/T(\d+)/i);
+        if (tMatch) {
+          useGcodeStore.getState().setFileToolNumber(parseInt(tMatch[1]));
+        }
+      }
+
+      const isToolChangeTrigger = line.includes('MSG:Tool change') || line.includes('Hold:1');
+      if (isToolChangeTrigger) {
+        // Only open if not already open to prevent flickering/redundance
+        if (!useUIStore.getState().toolChangerOpen) {
+          openToolChanger();
+        }
+      }
+    }).then(fn => { unlisten = fn; });
+
+    return () => { if (unlisten) unlisten(); };
+  }, []);
 
   useStatsTracker();
 
@@ -177,6 +208,26 @@ function App() {
                   <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Stats</span>
                 </button>
               </Tooltip>
+              <Tooltip content="Bit Library" position="bottom">
+                <button
+                  onClick={() => useUIStore.getState().openToolLibrary()}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                  aria-label="Bit Library"
+                >
+                  <Wrench className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Library</span>
+                </button>
+              </Tooltip>
+              <Tooltip content="Tool Changer" position="bottom">
+                <button
+                  onClick={() => useUIStore.getState().openToolChanger()}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                  aria-label="Tool Changer"
+                >
+                  <Drill className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-blue-400 transition-colors" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Tools</span>
+                </button>
+              </Tooltip>
               <Tooltip content="FluidNC Manager" position="bottom">
                 <button
                   onClick={() => useUIStore.getState().openFluidNCManager()}
@@ -201,7 +252,6 @@ function App() {
                 fileManagerPanel={<FileManager />}
                 probePanel={<ProbePanel />}
                 workpiecePanel={<WorkpiecePanel />}
-                toolsPanel={<ToolLibraryPanel />}
               />
             </ErrorBoundary>
           </div>
@@ -212,6 +262,8 @@ function App() {
         <AIAssistantModal />
         <FluidNCManagerModal />
         <MachineStatsModal />
+        <ToolChangerModal />
+        <ToolLibraryModal />
       </div>
     </QueryClientProvider>
   );
