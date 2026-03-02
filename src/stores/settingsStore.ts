@@ -205,7 +205,6 @@ export interface Settings {
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "controls", label: "Controls", enabled: true, defaultWidth: 400, defaultHeight: 500 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
-  { id: "manager", label: "FluidNC Manager", enabled: false, defaultWidth: 450 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
   { id: "stats", label: "Machine Statistics", enabled: false, defaultWidth: 400 },

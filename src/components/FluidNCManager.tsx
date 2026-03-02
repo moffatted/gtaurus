@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { transport } from '../services/transportService';
+import { useConsoleStore } from '../stores/consoleStore';
 
 // ─── Command Definitions ──────────────────────────────────────────────────────
 
@@ -36,7 +37,10 @@ const FLUIDNC_COMMANDS = [
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function CommandRow({ cmd, desc }: { cmd: string, desc: string }) {
-  const run = () => transport.invoke('send_gcode', { cmd });
+  const run = () => {
+    useConsoleStore.getState().appendLine(`> ${cmd}`, 'cmd');
+    return transport.invoke('send_gcode', { cmd });
+  };
 
   return (
     <div className="flex items-center gap-4 py-3 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-tertiary)]/30 px-2 transition-colors">
@@ -126,6 +130,7 @@ function ConfigEditor() {
     const saveLiveToFlash = async () => {
         if (!confirm(`This will dump the CURRENT running settings in memory into ${activeFilename} on the flash. Proceed?`)) return;
         try {
+            useConsoleStore.getState().appendLine(`> $CD=${activeFilename}`, 'cmd');
             await transport.invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
             setStatus('success');
             setTimeout(() => setStatus('idle'), 3000);
@@ -138,6 +143,7 @@ function ConfigEditor() {
     const setActiveConfig = async () => {
         if (!confirm(`Set ${activeFilename} as the active boot configuration? This will require a restart.`)) return;
         try {
+            useConsoleStore.getState().appendLine(`> $Config/Filename=${activeFilename}`, 'cmd');
             await transport.invoke('send_gcode', { cmd: `$Config/Filename=${activeFilename}` });
             setStatus('success');
             setNeedsRestart(true);
@@ -156,7 +162,7 @@ function ConfigEditor() {
             const url = isFull 
                 ? `http://${settings.connection.wsHost}/command?plain=$Bye`
                 : `http://${settings.connection.wsHost}/restart_reload`;
-            
+            useConsoleStore.getState().appendLine(`[GTaurus] Performing ${isFull ? 'Controller Reboot ($Bye)' : 'Soft Reload'}...`, 'sys');
             const response = await transport.invoke<string>('restart_fluidnc', { url });
             setNeedsRestart(false);
             setShowRestartMenu(false);
@@ -175,6 +181,7 @@ function ConfigEditor() {
         
         setStatus('saving');
         try {
+            useConsoleStore.getState().appendLine(`[GTaurus] Uploading ${activeFilename}...`, 'sys');
             await transport.invoke('upload_fluidnc_file', { 
                 url: uploadUrl, 
                 target_path: "/",
@@ -394,7 +401,10 @@ function MachineSettings() {
     const [wifiPass, setWifiPass] = useState('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-    const sendCmd = (cmd: string) => transport.invoke('send_gcode', { cmd });
+    const sendCmd = (cmd: string) => {
+        useConsoleStore.getState().appendLine(`> ${cmd}`, 'cmd');
+        return transport.invoke('send_gcode', { cmd });
+    };
 
     const handleApplyWifi = async () => {
         if (!confirm('Warning: Setting WiFi will disconnect the current session. Proceed?')) return;

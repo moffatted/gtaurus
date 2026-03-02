@@ -15,7 +15,6 @@ import "./DockLayout.css";
 interface DockLayoutProps {
   consolePanel: ReactNode;
   controlsPanel: ReactNode;
-  managerPanel: ReactNode;
   fileManagerPanel: ReactNode;
   statsPanel: ReactNode;
   probePanel: ReactNode;
@@ -36,11 +35,6 @@ const ControlsPanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.controlsPanel}</div>;
-}
-const ManagerPanel = () => {
-    const ctx = useContext(DockLayoutContext);
-    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.managerPanel}</div>;
 }
 const FileManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
@@ -127,7 +121,6 @@ export function DockLayout(props: DockLayoutProps) {
       controls: ControlsPanel,
       dro: ControlsPanel,
       jog: ControlsPanel,
-      manager: ManagerPanel,
       fileManager: FileManagerPanel,
       stats: StatsPanelWrapper,
       probe: ProbePanelWrapper,

@@ -11,6 +11,7 @@ interface UIState {
   settingsTab: SettingsTab;
   settingsSection: string | null;
   aiAssistantOpen: boolean;
+  fluidNCManagerOpen: boolean;
   
   openSettings: (tab?: SettingsTab, section?: string) => void;
   closeSettings: () => void;
@@ -20,6 +21,10 @@ interface UIState {
   openAIAssistant: () => void;
   closeAIAssistant: () => void;
   toggleAIAssistant: () => void;
+
+  openFluidNCManager: () => void;
+  closeFluidNCManager: () => void;
+  toggleFluidNCManager: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -27,6 +32,7 @@ export const useUIStore = create<UIState>((set) => ({
   settingsTab: 'dashboard',
   settingsSection: null,
   aiAssistantOpen: false,
+  fluidNCManagerOpen: false,
 
   openSettings: (tab, section) => set((state) => ({ 
     settingsOpen: true, 
@@ -40,4 +46,8 @@ export const useUIStore = create<UIState>((set) => ({
   openAIAssistant: () => set({ aiAssistantOpen: true }),
   closeAIAssistant: () => set({ aiAssistantOpen: false }),
   toggleAIAssistant: () => set((state) => ({ aiAssistantOpen: !state.aiAssistantOpen })),
+
+  openFluidNCManager: () => set({ fluidNCManagerOpen: true }),
+  closeFluidNCManager: () => set({ fluidNCManagerOpen: false }),
+  toggleFluidNCManager: () => set((state) => ({ fluidNCManagerOpen: !state.fluidNCManagerOpen })),
 }));

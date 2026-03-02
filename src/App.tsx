@@ -10,7 +10,7 @@ import { Sidebar } from "./components/Sidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { GcodeConsole } from "./components/GcodeConsole";
 import { ControlsPanel } from "./components/ControlsPanel";
-import { FluidNCManager } from "./components/FluidNCManager";
+import { useUIStore } from "./stores/uiStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { HelpMenu } from "./components/Help/HelpMenu";
@@ -32,9 +32,9 @@ import { CarveWizard } from "./components/wizards/CarveWizard";
 import { useWizardStore } from "./stores/wizardStore";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
-import { useUIStore } from "./stores/uiStore";
 import { AIAssistantModal } from "./components/AIAssistantModal";
-import { Bot } from "lucide-react";
+import { FluidNCManagerModal } from "./components/FluidNCManagerModal";
+import { Bot, SlidersHorizontal } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -168,6 +168,16 @@ function App() {
                   <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">AI Assistant</span>
                 </button>
               </Tooltip>
+              <Tooltip content="FluidNC Manager" position="bottom">
+                <button
+                  onClick={() => useUIStore.getState().openFluidNCManager()}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                  aria-label="FluidNC Manager"
+                >
+                  <SlidersHorizontal className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Manager</span>
+                </button>
+              </Tooltip>
               <HelpMenu />
               <SettingsPanel />
             </div>
@@ -179,7 +189,6 @@ function App() {
               <DockLayout
                 consolePanel={<GcodeConsole />}
                 controlsPanel={<ControlsPanel />}
-                managerPanel={<FluidNCManager />}
                 fileManagerPanel={<FileManager />}
                 statsPanel={<StatsPanel />}
                 probePanel={<ProbePanel />}
@@ -193,6 +202,7 @@ function App() {
         {/* Global Modals */}
         <HelpModal />
         <AIAssistantModal />
+        <FluidNCManagerModal />
       </div>
     </QueryClientProvider>
   );
