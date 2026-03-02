@@ -75,7 +75,7 @@ export function ControlsPanel() {
   const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
   const [jogFeedRate, setJogFeedRate] = useState<number>(1000);
   const [spindleRPM, setSpindleRPM] = useState<number>(10000);
-  const stepSizes = isMetric ? [0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.1, 0.5, 1];
+  const stepSizes = isMetric ? [0.05, 0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.05, 0.1, 0.5, 1];
 
   // Logic to protect the manual spindle toggle from being overwritten by 
   // laggy status reports from the controller.

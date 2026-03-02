@@ -4,7 +4,7 @@
  */
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube } from '@react-three/drei';
+import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube, Text } from '@react-three/drei';
 import { Plus, Minus, Eraser, FileX } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -447,8 +447,19 @@ function StockMesh() {
 }
 
 function MachineBed() {
-  const bedX = useSettingsStore(state => state.settings.general.bedSizeX);
-  const bedY = useSettingsStore(state => state.settings.general.bedSizeY);
+  const { settings } = useSettingsStore();
+  const bedX = settings.general.bedSizeX;
+  const bedY = settings.general.bedSizeY;
+  const bedZ = settings.general.bedSizeZ;
+  const isMetric = settings.general.carvingUnits === 'mm';
+
+  const formatValue = (val: number) => {
+    const displayVal = isMetric ? val : val / 25.4;
+    return displayVal.toFixed(isMetric ? 0 : 2);
+  };
+
+  const labelSize = 10;
+  const labelColor = "#cbd5e1";
 
   return (
     <group>
@@ -462,10 +473,57 @@ function MachineBed() {
         sectionSize={50} sectionThickness={1.5} sectionColor="#475569" 
         fadeDistance={500} infiniteGrid={false} followCamera={false}
       />
+      
+      {/* Grid Labels */}
+      <group position={[0, 0.2, 0]}>
+        {/* X Axis Labels */}
+        {Array.from({ length: Math.floor(bedX / 50) + 1 }).map((_, i) => (
+          <Text
+            key={`x-${i}`}
+            position={[i * 50, labelSize / 2, 5]}
+            rotation={[0, 0, 0]}
+            fontSize={labelSize}
+            color={labelColor}
+            anchorX="center"
+            anchorY="middle"
+          >
+            {formatValue(i * 50)}
+          </Text>
+        ))}
+        {/* Y Axis Labels */}
+        {Array.from({ length: Math.floor(bedY / 50) + 1 }).map((_, i) => (
+          <Text
+            key={`y-${i}`}
+            position={[-5, labelSize / 2, -i * 50]}
+            rotation={[0, -Math.PI / 2, 0]}
+            fontSize={labelSize}
+            color={labelColor}
+            anchorX="center"
+            anchorY="middle"
+          >
+            {formatValue(i * 50)}
+          </Text>
+        ))}
+        {/* Z Axis Labels */}
+        {Array.from({ length: Math.floor(bedZ / 20) + 1 }).map((_, i) => (
+          <Text
+            key={`z-${i}`}
+            position={[-5, i * 20, 0]}
+            rotation={[0, Math.PI / 4, 0]}
+            fontSize={labelSize}
+            color={labelColor}
+            anchorX="right"
+            anchorY="middle"
+          >
+            {formatValue(i * 20)}
+          </Text>
+        ))}
+      </group>
+
       <group position={[0, 0, 0]}>
-        <Line points={[[0, 0, 0], [50, 0, 0]]} color="#ef4444" lineWidth={2} />
-        <Line points={[[0, 0, 0], [0, 0, -50]]} color="#3b82f6" lineWidth={2} />
-        <Line points={[[0, 0, 0], [0, 50, 0]]} color="#10b981" lineWidth={2} />
+        <Line points={[[0, 0, 0], [bedX, 0, 0]]} color="#ef4444" lineWidth={2} />
+        <Line points={[[0, 0, 0], [0, 0, -bedY]]} color="#3b82f6" lineWidth={2} />
+        <Line points={[[0, 0, 0], [0, bedZ, 0]]} color="#10b981" lineWidth={2} />
       </group>
     </group>
   );
