@@ -19,7 +19,6 @@ interface DockLayoutProps {
   fileManagerPanel: ReactNode;
   statsPanel: ReactNode;
   probePanel: ReactNode;
-  aiPanel: ReactNode;
   workpiecePanel: ReactNode;
   toolsPanel: ReactNode;
 }
@@ -57,11 +56,6 @@ const ProbePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
     return <div className="h-full w-full overflow-hidden">{ctx.probePanel}</div>;
-}
-const AIPanelWrapper = () => {
-    const ctx = useContext(DockLayoutContext);
-    if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.aiPanel}</div>;
 }
 const WorkpiecePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
@@ -137,7 +131,6 @@ export function DockLayout(props: DockLayoutProps) {
       fileManager: FileManagerPanel,
       stats: StatsPanelWrapper,
       probe: ProbePanelWrapper,
-      ai: AIPanelWrapper,
       workpiece: WorkpiecePanelWrapper,
       tools: ToolsPanelWrapper,
       macros: MacrosPanel,

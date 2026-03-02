@@ -21,7 +21,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import FileManager from "./components/FileManager";
 import { StatsPanel } from "./components/StatsPanel";
 import { ProbePanel } from "./components/ProbePanel";
-import { AIPanel } from "./components/AIPanel";
 import { useStatsTracker } from "./hooks/useStatsTracker";
 import { AlarmIndicator } from "./components/AlarmIndicator";
 import { WorkpiecePanel } from "./components/WorkpiecePanel";
@@ -33,6 +32,9 @@ import { CarveWizard } from "./components/wizards/CarveWizard";
 import { useWizardStore } from "./stores/wizardStore";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
+import { useUIStore } from "./stores/uiStore";
+import { AIAssistantModal } from "./components/AIAssistantModal";
+import { Bot } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +158,16 @@ function App() {
               <AlarmIndicator />
               <EStopButton />
               <div className="w-px h-6 bg-[var(--border-color)]" />
+              <Tooltip content="AI Assistant" position="bottom">
+                <button
+                  onClick={() => useUIStore.getState().openAIAssistant()}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                  aria-label="AI Assistant"
+                >
+                  <Bot className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">AI Assistant</span>
+                </button>
+              </Tooltip>
               <HelpMenu />
               <SettingsPanel />
             </div>
@@ -171,7 +183,6 @@ function App() {
                 fileManagerPanel={<FileManager />}
                 statsPanel={<StatsPanel />}
                 probePanel={<ProbePanel />}
-                aiPanel={<AIPanel />}
                 workpiecePanel={<WorkpiecePanel />}
                 toolsPanel={<ToolLibraryPanel />}
               />
@@ -181,6 +192,7 @@ function App() {
 
         {/* Global Modals */}
         <HelpModal />
+        <AIAssistantModal />
       </div>
     </QueryClientProvider>
   );

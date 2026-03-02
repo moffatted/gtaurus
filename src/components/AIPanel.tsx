@@ -15,7 +15,11 @@ interface Message {
   isError?: boolean;
 }
 
-export function AIPanel() {
+interface AIPanelProps {
+  hideHeader?: boolean;
+}
+
+export function AIPanel({ hideHeader }: AIPanelProps) {
   const { settings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
   const [messages, setMessages] = useState<Message[]>([
@@ -121,32 +125,34 @@ export function AIPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg overflow-hidden">
+    <div className={`flex flex-col h-full w-full bg-[var(--bg-primary)] ${!hideHeader ? 'border border-[var(--border-color)] rounded-lg' : ''} overflow-hidden`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-[var(--accent-primary)]" />
-          <span className="text-xs font-semibold text-[var(--text-primary)]">
-            AI Assistant
-          </span>
+      {!hideHeader && (
+        <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-[var(--accent-primary)]" />
+            <span className="text-xs font-semibold text-[var(--text-primary)]">
+              AI Assistant
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className={`p-1.5 rounded-md transition-colors ${showDebug ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+              title="Toggle Debug Context"
+            >
+              <Code className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={clearChat}
+              className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--danger-color)] hover:bg-[var(--danger-color)]/10 rounded-md transition-colors"
+              title="Clear Chat"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className={`p-1.5 rounded-md transition-colors ${showDebug ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
-            title="Toggle Debug Context"
-          >
-            <Code className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={clearChat}
-            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--danger-color)] hover:bg-[var(--danger-color)]/10 rounded-md transition-colors"
-            title="Clear Chat"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

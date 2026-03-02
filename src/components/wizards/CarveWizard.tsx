@@ -999,6 +999,11 @@ export function CarveWizard() {
             }
           }
 
+          // Clear previous visualization paths before starting the new carve
+          const gcodeStore = useGcodeStore.getState();
+          gcodeStore.clearSimulation();
+          gcodeStore.clearActualPath();
+
           const result = await transport.invoke<string>('stream_local_gcode', { 
             path: activeFilePath,
             feedRateOverride: settings.general.feedRate,

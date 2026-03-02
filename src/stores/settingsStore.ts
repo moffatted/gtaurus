@@ -215,7 +215,6 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "workpiece", label: "Workpiece", enabled: false },
   { id: "tools", label: "Bit Library", enabled: false, defaultWidth: 400 },
   { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
-  { id: "ai", label: "AI Assistant", enabled: false, defaultWidth: 350 },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
