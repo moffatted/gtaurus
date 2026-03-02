@@ -1,0 +1,53 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/moffa/projects/gtaurus[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32mΓ£ô[39m src/stores/consoleStore.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32mΓ£ô[39m src/tests/parser.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32mΓ£ô[39m src/stores/gcodeStore.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32mΓ£ô[39m src/tests/streamer.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32mΓ£ô[39m src/stores/machineStore.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32mΓ£ô[39m src/stores/settingsStore.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32mΓ£ô[39m src/stores/machineStatusStore.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32mΓ£ô[39m src/components/EStopButton.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32mΓ£ô[39m src/components/SettingsPanel.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 133[2mms[22m[39m
+ [32mΓ£ô[39m src/tests/ControlsPanel.spec.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 269[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m47 passed[39m[22m[90m (47)[39m
+[2m   Start at [22m 12:35:21
+[2m   Duration [22m 2.17s[2m (transform 919ms, setup 1.35s, import 1.95s, tests 558ms, environment 8.97s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   25.86 |    24.54 |   20.78 |    25.3 |                   
+ components        |   20.19 |    18.46 |    13.8 |    20.7 |                   
+  ...rolsPanel.tsx |   37.77 |    38.84 |   36.36 |   38.36 | ...05-741,771-864 
+  EStopButton.tsx  |    87.5 |      100 |   66.66 |     100 |                   
+  ...ingsPanel.tsx |    4.69 |     0.96 |    2.12 |    5.11 | ...1907,1931-2073 
+ components/ui     |   11.67 |     7.81 |   16.66 |   11.89 |                   
+  Popovers.tsx     |       0 |        0 |       0 |       0 | 36-288            
+  Tooltip.tsx      |   26.78 |    15.15 |      30 |    28.3 | ...72,85-89,94-98 
+  Wizard.tsx       |   38.09 |    19.23 |      60 |   36.84 | 34,41,47-64       
+ ...onents/wizards |   20.18 |    45.12 |   11.36 |   21.42 |                   
+  ...tupWizard.tsx |   20.18 |    45.12 |   11.36 |   21.42 | ...29-322,347-754 
+ services          |   21.27 |    12.79 |   26.08 |   21.64 |                   
+  ...ortService.ts |   21.27 |    12.79 |   26.08 |   21.64 | 33-197,206-221    
+ stores            |   28.53 |    30.89 |   26.61 |   23.98 |                   
+  consoleStore.ts  |   85.71 |    83.33 |     100 |     100 | 28,30-31          
+  gcodeStore.ts    |   44.44 |    46.25 |   45.45 |   36.66 | 101-105,129-214   
+  ...tatusStore.ts |     100 |      100 |     100 |     100 |                   
+  machineStore.ts  |     100 |      100 |     100 |     100 |                   
+  settingsStore.ts |   15.05 |    11.86 |      15 |   16.16 | ...73-690,701-728 
+  themeStore.ts    |    9.37 |        0 |   14.28 |    6.45 | 20-61,72-83       
+  toolStore.ts     |   11.32 |        0 |    5.55 |    9.61 | 132-164,175-242   
+  uiStore.ts       |   18.18 |        0 |      10 |    12.5 | 31-42             
+  wizardStore.ts   |      50 |      100 |   33.33 |   33.33 | 15-16             
+ utils             |   86.66 |    61.81 |      80 |    89.1 |                   
+  parser.ts        |    90.9 |     62.5 |     100 |   93.54 | 60-62             
+  platform.ts      |   66.66 |       50 |   33.33 |   66.66 | 19,27             
+  streamer.ts      |    86.2 |    62.96 |   91.66 |   89.28 | 58,88-89,114-116  
+  testUtils.tsx    |    87.5 |      100 |      75 |    87.5 | 50                
+-------------------|---------|----------|---------|---------|-------------------

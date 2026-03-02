@@ -117,8 +117,14 @@ gtaurus/
 
 ## 🧪 Testing
 
+Gtaurus has a multi-layered testing strategy covering frontend, shared logic, and backend.
+
 - **Frontend**: `npm run test` (Vitest + React Testing Library)
-- **Backend Logic**: `npm run test:rust` (Cargo tests for driver logic)
+  - **Coverage**: `npm run test:coverage` (Target: 80% stores/components)
+- **Shared Driver Logic** (`gtaurus_lib`): `npm run test:rust` (Cargo tests)
+  - **Coverage**: ~73% (Measured via `cargo tarpaulin` in `deps/gtaurus_lib`)
+- **Standalone Server** (`gtaurus_server`): Cargo tests in `deps/gtaurus_server`
+  - **Coverage**: ~58%
 - **End-to-End**: `npm run test:e2e` (WebdriverIO + Tauri integration)
 
 ---

@@ -1927,6 +1927,7 @@ export function SettingsPanel() {
       {/* Trigger */}
       <Tooltip content="Settings & Preferences" position="bottom">
         <button
+          data-testid="settings-panel-trigger"
           onClick={() => useUIStore.getState().openSettings()}
           className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer"
           aria-label="Open settings"

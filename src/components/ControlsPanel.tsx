@@ -655,6 +655,7 @@ export function ControlsPanel() {
                                 <Tooltip content={isHold ? "Resume Job (~)" : "Start Job"} position="right">
                                     <button 
                                         ref={startButtonRef}
+                                        data-testid="play-btn"
                                         onClick={handleStart} 
                                         disabled={!activeFileName || (!isIdle && !isHold) || !hasHomed || !hasZeroed}
                                         className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${
@@ -669,6 +670,7 @@ export function ControlsPanel() {
 
                                 <Tooltip content="Pause Job (!)" position="right">
                                     <button 
+                                        data-testid="pause-btn"
                                         onClick={() => handleRealtime(0x21)} 
                                         disabled={!isRun}
                                         className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${
@@ -683,6 +685,7 @@ export function ControlsPanel() {
 
                                 <Tooltip content={isAlarm || isDoor ? "Soft Reset (CTRL-X)" : "Stop Job / Reset (CTRL-X)"} position="right">
                                     <button 
+                                        data-testid="stop-btn"
                                         onClick={() => handleRealtime(0x18)} 
                                         disabled={!needsReset}
                                         className={`w-full flex-1 flex items-center justify-center rounded-lg transition-all ${

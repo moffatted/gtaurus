@@ -11,9 +11,8 @@ describe('GTaurus Application', () => {
     });
 
     it('should render the Settings Panel trigger in header', async () => {
-        // Find the button inside the header that opens settings
-        // It's part of the SettingsPanel component which renders a Settings icon button
-        const settingsBtn = await $('header button'); 
+        // Find the button inside the header that opens settings using its testid
+        const settingsBtn = await $('[data-testid="settings-panel-trigger"]'); 
         if (await settingsBtn.isExisting()) {
             await expect(settingsBtn).toBeDisplayed();
         }

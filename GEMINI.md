@@ -31,7 +31,7 @@ To maintain context efficiency and focus on relevant source code, the following 
 
 ## Shell & Commands
 
-- **Windows Environment**: Always prefer PowerShell-native commands.
+- **Windows Environment**: Always prefer PowerShell-native commands when developing on windows.
   - Use `Select-String` instead of `grep`.
   - Use `ls` or `Get-ChildItem` (aliased as `ls` in pwsh) instead of complex unix-only find flags.
   - Avoid using Unix-specific utilities like `sed` or `awk` unless explicitly confirmed to be available via Git Bash/WSL.

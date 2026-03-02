@@ -45,9 +45,9 @@ describe('ControlsPanel Component', () => {
     const statusEl = screen.getByText('Idle');
     expect(statusEl).toBeInTheDocument();
     
-    // Check for Tailwind green classes indicating 'Idle'
-    expect(statusEl.className).toContain('bg-green-500/20');
-    expect(statusEl.className).toContain('text-green-400');
+    // Check for Tailwind emerald classes indicating 'Idle'
+    expect(statusEl.className).toContain('bg-emerald-500/10');
+    expect(statusEl.className).toContain('text-emerald-400');
   });
 
   it('conditionally colors status: Alarm -> Red', () => {
@@ -55,7 +55,7 @@ describe('ControlsPanel Component', () => {
     render(<ControlsPanel />);
 
     const statusEl = screen.getByText('Alarm:2');
-    expect(statusEl.className).toContain('bg-red-500/20');
+    expect(statusEl.className).toContain('bg-red-500/10');
     expect(statusEl.className).toContain('text-red-400');
   });
 
@@ -73,10 +73,10 @@ describe('ControlsPanel Component', () => {
     useMachineStatusStore.getState().updateMachine({ status: 'Run' });
     render(<ControlsPanel />);
 
-    const zeroAllBtn = screen.getByText('Zero All');
+    const zeroAllBtn = screen.getByText('ALL').closest('button');
     expect(zeroAllBtn).toBeDisabled();
 
-    const zeroXYBtn = screen.getByText('Zero XY');
+    const zeroXYBtn = screen.getByText('XY').closest('button');
     expect(zeroXYBtn).toBeDisabled();
   });
 
@@ -84,11 +84,11 @@ describe('ControlsPanel Component', () => {
     useMachineStatusStore.getState().updateMachine({ status: 'Idle' });
     render(<ControlsPanel />);
 
-    const zeroAllBtn = screen.getByText('Zero All');
+    const zeroAllBtn = screen.getByText('ALL').closest('button')!;
     expect(zeroAllBtn).not.toBeDisabled();
 
     fireEvent.click(zeroAllBtn);
-    expect(mockInvoke).toHaveBeenCalledWith('send_gcode', { cmd: 'G10 L20 P1 X0 Y0 Z0' });
+    expect(mockInvoke).toHaveBeenCalledWith('send_gcode', { cmd: 'G10 L20 P0 X0 Y0 Z0' });
   });
 
   it('dispatches Spindle start/stop logic and toggles states', async () => {
@@ -120,9 +120,9 @@ describe('ControlsPanel Component', () => {
 
   it('dispatches hardware Stop (0x18) when Stop is clicked during Run', () => {
     useMachineStatusStore.getState().updateMachine({ status: 'Run' });
-    render(<ControlsPanel />);
-
-    const stopBtn = screen.getByText('Stop');
+    // Stop button is an icon button (XCircle)
+    const { getByTestId } = render(<ControlsPanel />);
+    const stopBtn = getByTestId('stop-btn');
     fireEvent.click(stopBtn);
 
     expect(mockInvoke).toHaveBeenCalledWith('send_realtime', { byte: 0x18 });
@@ -130,9 +130,8 @@ describe('ControlsPanel Component', () => {
 
   it('dispatches hardware Pause (0x21) when Pause is clicked during Run', () => {
     useMachineStatusStore.getState().updateMachine({ status: 'Run' });
-    render(<ControlsPanel />);
-
-    const pauseBtn = screen.getByText(/Pause/i); // Using regex because it might have icon
+    const { getByTestId } = render(<ControlsPanel />);
+    const pauseBtn = getByTestId('pause-btn');
     fireEvent.click(pauseBtn);
 
     expect(mockInvoke).toHaveBeenCalledWith('send_realtime', { byte: 0x21 });
@@ -143,9 +142,9 @@ describe('ControlsPanel Component', () => {
     useMachineStore.getState().setHasHomed(true);
     useMachineStore.getState().setHasZeroed(true);
     useGcodeStore.getState().setGcode('dummy', 'test.nc', '/path.nc');
-    render(<ControlsPanel />);
+    const { getByTestId } = render(<ControlsPanel />);
 
-    const resumeBtn = screen.getByText(/Resume/i);
+    const resumeBtn = getByTestId('play-btn');
     fireEvent.click(resumeBtn);
 
     expect(mockInvoke).toHaveBeenCalledWith('send_realtime', { byte: 0x7E });

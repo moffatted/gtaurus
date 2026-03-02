@@ -19,9 +19,31 @@ export default defineConfig(async ({ mode }) => {
   return {
     plugins: [react()],
     test: {
-      environment: "jsdom",
+      environment: 'jsdom',
       globals: true,
-      setupFiles: ["./src/setupTests.ts"],
+      setupFiles: './src/setupTests.ts',
+      // Exclude end-to-end tests from the vitest test runner
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/cypress/**',
+        '**/.{idea,git,cache,output,temp}/**',
+        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
+        '**/test/**/*.ts', // Exclude our webdriverio tests
+      ],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'html'],
+        exclude: [
+          'node_modules/**',
+          'dist/**',
+          'src-tauri/**',
+          'test/**', // Exclude e2e tests from coverage
+          '**/*.d.ts',
+          '**/*.test.*',
+          '**/*.spec.*',
+        ],
+      },
     },
 
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
