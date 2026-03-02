@@ -1301,9 +1301,8 @@ function VisualizerContent() {
 // ─── Stats section ───────────────────────────────────────────────────────────
 
 function StatsContent() {
-  const { settings, setStatsSettings, setDashboardPanelEnabled } = useSettingsStore();
+  const { settings, setStatsSettings } = useSettingsStore();
   const sts = settings.stats;
-  const isPanelEnabled = settings.dashboardPanels.find(p => p.id === 'stats')?.enabled ?? false;
 
   const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
   const inputCls =
@@ -1390,25 +1389,6 @@ function StatsContent() {
               max={100}
             />
           </div>
-        </div>
-      </div>
-
-      <div className="border-t border-[var(--border-color)]" />
-
-      {/* 4. Display */}
-      <div className="space-y-4">
-        <h4 className={subHeaderCls}>3. Display & Dashboard</h4>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm text-[var(--text-primary)] mb-1 block">Show Stats Panel</span>
-            <span className="text-[10px] text-[var(--text-tertiary)]">Enable the live statistics monitor on the main dashboard.</span>
-          </div>
-          <button
-            onClick={() => setDashboardPanelEnabled('stats', !isPanelEnabled)}
-            className={`relative h-5 w-9 rounded-full transition-colors ${isPanelEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${isPanelEnabled ? 'translate-x-4' : ''}`} />
-          </button>
         </div>
       </div>
 

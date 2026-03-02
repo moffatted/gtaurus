@@ -19,7 +19,7 @@ import { EStopButton } from "./components/EStopButton";
 import { DockLayout } from "./components/DockLayout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import FileManager from "./components/FileManager";
-import { StatsPanel } from "./components/StatsPanel";
+import { MachineStatsModal } from './components/MachineStatsModal';
 import { ProbePanel } from "./components/ProbePanel";
 import { useStatsTracker } from "./hooks/useStatsTracker";
 import { AlarmIndicator } from "./components/AlarmIndicator";
@@ -27,14 +27,13 @@ import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
 import { ToolLibraryPanel } from "./components/ToolLibraryPanel";
 import { transport } from "./services/transportService";
-import { Play } from "lucide-react";
+import { Play, BarChart2, Bot, SlidersHorizontal } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
 import { useWizardStore } from "./stores/wizardStore";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
 import { AIAssistantModal } from "./components/AIAssistantModal";
 import { FluidNCManagerModal } from "./components/FluidNCManagerModal";
-import { Bot, SlidersHorizontal } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -168,6 +167,16 @@ function App() {
                   <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">AI Assistant</span>
                 </button>
               </Tooltip>
+              <Tooltip content="Machine Statistics" position="bottom">
+                <button
+                  onClick={() => useUIStore.getState().openMachineStats()}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                  aria-label="Machine Statistics"
+                >
+                  <BarChart2 className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Stats</span>
+                </button>
+              </Tooltip>
               <Tooltip content="FluidNC Manager" position="bottom">
                 <button
                   onClick={() => useUIStore.getState().openFluidNCManager()}
@@ -190,7 +199,6 @@ function App() {
                 consolePanel={<GcodeConsole />}
                 controlsPanel={<ControlsPanel />}
                 fileManagerPanel={<FileManager />}
-                statsPanel={<StatsPanel />}
                 probePanel={<ProbePanel />}
                 workpiecePanel={<WorkpiecePanel />}
                 toolsPanel={<ToolLibraryPanel />}
@@ -203,6 +211,7 @@ function App() {
         <HelpModal />
         <AIAssistantModal />
         <FluidNCManagerModal />
+        <MachineStatsModal />
       </div>
     </QueryClientProvider>
   );

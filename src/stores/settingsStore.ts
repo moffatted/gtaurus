@@ -207,7 +207,6 @@ export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
-  { id: "stats", label: "Machine Statistics", enabled: false, defaultWidth: 400 },
   { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320 },
   { id: "macros", label: "Macros", enabled: false },
   { id: "toolchanger", label: "Tool Changer", enabled: false },
