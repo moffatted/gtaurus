@@ -78,6 +78,11 @@ export interface ProbeSettings {
     yPos: number;
     yNeg: number;
   };
+  // 3-Axis Corner Probe
+  xWallThickness: number;
+  yWallThickness: number;
+  holeDiameter: number;
+  xyDropDistance: number;
   // Safety
   protectedPositioning: boolean;
   overtravelLimit: number;
@@ -258,9 +263,13 @@ export const DEFAULT_SETTINGS: Settings = {
     triggerFilter: 10,
     probeType: "Touch-Trigger Probe",
     stylusDiameter: 6,
-    zOffset: 0,
+    zOffset: 5,
     runout: 0,
     deflectionOffsets: { xPos: 0, xNeg: 0, yPos: 0, yNeg: 0 },
+    xWallThickness: 2.63,
+    yWallThickness: 2.63,
+    holeDiameter: 14.86,
+    xyDropDistance: 3,
     protectedPositioning: true,
     overtravelLimit: 5,
     hardStop: true,

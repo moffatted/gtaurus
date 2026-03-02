@@ -14,7 +14,7 @@ import {
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
-import { useSettingsStore } from '../stores/settingsStore';
+import { useSettingsStore, DEFAULT_SETTINGS } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
@@ -343,6 +343,52 @@ function ProbeContent() {
               onChange={(e) => setProbeSettings({ maxTravel: parseFloat(e.target.value) || 0 })}
               className={inputCls}
             />
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <label className={labelCls}>3-Axis Corner Probe (Touch Plate) Calibration</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">X Wall Thickness (mm)</label>
+              <input
+                type="number"
+                value={prb.xWallThickness ?? ''}
+                onChange={(e) => setProbeSettings({ xWallThickness: e.target.value as any })}
+                className={inputCls}
+                step={0.1}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Y Wall Thickness (mm)</label>
+              <input
+                type="number"
+                value={prb.yWallThickness ?? ''}
+                onChange={(e) => setProbeSettings({ yWallThickness: e.target.value as any })}
+                className={inputCls}
+                step={0.1}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">Hole Diameter (mm)</label>
+              <input
+                type="number"
+                value={prb.holeDiameter ?? ''}
+                onChange={(e) => setProbeSettings({ holeDiameter: e.target.value as any })}
+                className={inputCls}
+                step={0.1}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-[var(--text-tertiary)] uppercase block mb-1">XY Drop Below Z (mm)</label>
+              <input
+                type="number"
+                value={prb.xyDropDistance ?? ''}
+                onChange={(e) => setProbeSettings({ xyDropDistance: e.target.value as any })}
+                className={inputCls}
+                step={0.1}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -180,6 +180,49 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
             />
           </div>
+
+          {method === '3-axis' && (
+            <>
+              <div className="flex flex-col">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">X Wall Thick</label>
+                <div className="relative">
+                  <input 
+                    type="number"
+                    value={prb.xWallThickness ?? ''}
+                    onChange={(e) => setProbeSettings({ xWallThickness: e.target.value as any })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Y Wall Thick</label>
+                <div className="relative">
+                  <input 
+                    type="number"
+                    value={prb.yWallThickness ?? ''}
+                    onChange={(e) => setProbeSettings({ yWallThickness: e.target.value as any })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col col-span-2">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Hole Diameter</label>
+                <div className="relative">
+                  <input 
+                    type="number"
+                    value={prb.holeDiameter ?? ''}
+                    onChange={(e) => setProbeSettings({ holeDiameter: e.target.value as any })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
