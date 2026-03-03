@@ -2,7 +2,7 @@
  * @file FluidNCManager.tsx
  * @purpose Specialized management interface for FluidNC-specific commands and settings.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { 
   Play, Terminal, Save, RefreshCw, 
@@ -12,6 +12,7 @@ import {
 import { Tooltip } from './ui/Tooltip';
 import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
+import * as yaml from 'js-yaml';
 
 // ─── Command Definitions ──────────────────────────────────────────────────────
 
@@ -75,6 +76,33 @@ function ConfigEditor() {
 
     const uploadUrl = `http://${settings.connection.wsHost}/upload`;
 
+    // Fetch the config on initial load so the download button has valid data
+    useEffect(() => {
+        loadConfig('config.yaml');
+    }, []);
+
+    const sanitizeYaml = (raw: string) => {
+        // Strip Windows CRLF, zero-width spaces, and BOM characters that break ESP32/FluidNC parsing
+        return raw.replace(/\r/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+    };
+
+    const validateYaml = (silent = false): boolean => {
+        try {
+            const clean = sanitizeYaml(config);
+            yaml.load(clean);
+            if (!silent) {
+                setStatus('success');
+                setError('');
+                setTimeout(() => setStatus('idle'), 2000);
+            }
+            return true;
+        } catch (e: any) {
+            setStatus('error');
+            setError(`YAML Validation Error: ${e.message}`);
+            return false;
+        }
+    };
+
     const loadConfig = async (filename?: string) => {
         const targetFile = filename || activeFilename;
         if (filename) setActiveFilename(filename);
@@ -116,7 +144,14 @@ function ConfigEditor() {
     };
 
     const downloadConfig = () => {
-        const blob = new Blob([config], { type: 'text/yaml' });
+        // If config is empty, don't download a blank dummy file
+        if (!config || config.trim() === '') {
+             setStatus('error');
+             setError('Config is empty or not loaded yet.');
+             return;
+        }
+        const cleanYaml = sanitizeYaml(config);
+        const blob = new Blob([cleanYaml], { type: 'text/yaml' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -128,6 +163,7 @@ function ConfigEditor() {
     };
 
     const saveLiveToFlash = async () => {
+        if (!validateYaml(true)) return;
         if (!confirm(`This will dump the CURRENT running settings in memory into ${activeFilename} on the flash. Proceed?`)) return;
         try {
             useConsoleStore.getState().appendLine(`> $CD=${activeFilename}`, 'cmd');
@@ -177,16 +213,18 @@ function ConfigEditor() {
     };
 
     const saveConfig = async () => {
+        if (!validateYaml(false)) return;
         if (!confirm(`Overwrite ${activeFilename} on the controller? This may require a restart.`)) return;
         
         setStatus('saving');
         try {
+            const safeYaml = sanitizeYaml(config);
             useConsoleStore.getState().appendLine(`[GTaurus] Uploading ${activeFilename}...`, 'sys');
             await transport.invoke('upload_fluidnc_file', { 
                 url: uploadUrl, 
                 target_path: "/",
                 filename: activeFilename, 
-                content: config 
+                content: safeYaml 
             });
             setStatus('success');
             setNeedsRestart(true);
@@ -280,8 +318,14 @@ function ConfigEditor() {
                         )}
                     </div>
 
+                    <Tooltip content="Validate YAML format" position="bottom">
+                        <button onClick={() => validateYaml(false)} className="px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-green-400 hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded cursor-pointer transition-colors shadow-sm">
+                            Validate
+                        </button>
+                    </Tooltip>
+
                     <Tooltip content="Download File" position="bottom">
-                        <button onClick={downloadConfig} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded cursor-pointer">
+                        <button onClick={downloadConfig} className="p-1.5 ml-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded cursor-pointer">
                             <Upload className="w-4 h-4 rotate-180" />
                         </button>
                     </Tooltip>
