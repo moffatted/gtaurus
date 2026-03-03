@@ -12,6 +12,7 @@ import {
 import { Tooltip } from './ui/Tooltip';
 import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
+import { useMachineStatusStore } from '../stores/machineStatusStore';
 import * as yaml from 'js-yaml';
 
 // ─── Command Definitions ──────────────────────────────────────────────────────
@@ -64,6 +65,9 @@ function CommandRow({ cmd, desc }: { cmd: string, desc: string }) {
 
 function ConfigEditor() {
     const { settings } = useSettingsStore();
+    const { machine } = useMachineStatusStore();
+    const isConnected = machine.status !== 'Disconnected';
+    
     const [config, setConfig] = useState('');
     const [activeFilename, setActiveFilename] = useState('config.yaml');
     const [searchTerm, setSearchTerm] = useState('');
@@ -116,7 +120,11 @@ function ConfigEditor() {
             setStatus('idle');
         } catch (e: any) {
             setStatus('error');
-            setError(e.toString() || 'Failed to load config');
+            if (!isConnected) {
+                setError('Failed to load config: Machine is not connected.');
+            } else {
+                setError(`Failed to load config: ${e.toString()}`);
+            }
         }
     };
 
@@ -400,6 +408,13 @@ function ConfigEditor() {
                     </div>
                 </div>
             </div>
+
+            {!isConnected && (
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-400 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Warning: You are currently disconnected. The machine configuration cannot be fetched or updated until a connection is established.
+                </div>
+            )}
 
             {status === 'error' && (
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-400 flex items-center gap-2">
