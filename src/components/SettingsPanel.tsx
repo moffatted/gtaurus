@@ -14,7 +14,7 @@ import {
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
-import { useSettingsStore, DEFAULT_SETTINGS } from '../stores/settingsStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
@@ -388,6 +388,9 @@ function ProbeContent() {
                 className={inputCls}
                 step={0.1}
               />
+              <p className="mt-1 text-[9px] text-[var(--text-tertiary)] leading-tight italic">
+                Auto-limited by plate Z-Offset for safety.
+              </p>
             </div>
           </div>
         </div>
