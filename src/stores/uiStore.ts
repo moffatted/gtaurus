@@ -16,6 +16,8 @@ interface UIState {
   toolChangerOpen: boolean;
   toolLibraryOpen: boolean;
   
+  zIndexMap: Record<string, number>;
+  
   openSettings: (tab?: SettingsTab, section?: string) => void;
   closeSettings: () => void;
   setSettingsTab: (tab: SettingsTab) => void;
@@ -40,6 +42,8 @@ interface UIState {
   openToolLibrary: () => void;
   closeToolLibrary: () => void;
   toggleToolLibrary: () => void;
+
+  bringToFront: (windowId: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -52,6 +56,14 @@ export const useUIStore = create<UIState>((set) => ({
   toolChangerOpen: false,
   toolLibraryOpen: false,
 
+  zIndexMap: {
+    aiAssistant: 100,
+    fluidNCManager: 110,
+    machineStats: 120,
+    toolChanger: 200, // Tool changer is critical, keep it high
+    toolLibrary: 115
+  },
+
   openSettings: (tab, section) => set((state) => ({ 
     settingsOpen: true, 
     settingsTab: tab || state.settingsTab,
@@ -61,23 +73,63 @@ export const useUIStore = create<UIState>((set) => ({
   setSettingsTab: (tab) => set({ settingsTab: tab }),
   setSettingsSection: (section) => set({ settingsSection: section }),
 
-  openAIAssistant: () => set({ aiAssistantOpen: true }),
+  openAIAssistant: () => set((state) => {
+    state.bringToFront('aiAssistant');
+    return { aiAssistantOpen: true };
+  }),
   closeAIAssistant: () => set({ aiAssistantOpen: false }),
-  toggleAIAssistant: () => set((state) => ({ aiAssistantOpen: !state.aiAssistantOpen })),
+  toggleAIAssistant: () => set((state) => {
+    if (!state.aiAssistantOpen) state.bringToFront('aiAssistant');
+    return { aiAssistantOpen: !state.aiAssistantOpen };
+  }),
 
-  openFluidNCManager: () => set({ fluidNCManagerOpen: true }),
+  openFluidNCManager: () => set((state) => {
+    state.bringToFront('fluidNCManager');
+    return { fluidNCManagerOpen: true };
+  }),
   closeFluidNCManager: () => set({ fluidNCManagerOpen: false }),
-  toggleFluidNCManager: () => set((state) => ({ fluidNCManagerOpen: !state.fluidNCManagerOpen })),
+  toggleFluidNCManager: () => set((state) => {
+    if (!state.fluidNCManagerOpen) state.bringToFront('fluidNCManager');
+    return { fluidNCManagerOpen: !state.fluidNCManagerOpen };
+  }),
 
-  openMachineStats: () => set({ machineStatsOpen: true }),
+  openMachineStats: () => set((state) => {
+    state.bringToFront('machineStats');
+    return { machineStatsOpen: true };
+  }),
   closeMachineStats: () => set({ machineStatsOpen: false }),
-  toggleMachineStats: () => set((state) => ({ machineStatsOpen: !state.machineStatsOpen })),
+  toggleMachineStats: () => set((state) => {
+    if (!state.machineStatsOpen) state.bringToFront('machineStats');
+    return { machineStatsOpen: !state.machineStatsOpen };
+  }),
 
-  openToolChanger: () => set({ toolChangerOpen: true }),
+  openToolChanger: () => set((state) => {
+    state.bringToFront('toolChanger');
+    return { toolChangerOpen: true };
+  }),
   closeToolChanger: () => set({ toolChangerOpen: false }),
-  toggleToolChanger: () => set((state) => ({ toolChangerOpen: !state.toolChangerOpen })),
+  toggleToolChanger: () => set((state) => {
+    if (!state.toolChangerOpen) state.bringToFront('toolChanger');
+    return { toolChangerOpen: !state.toolChangerOpen };
+  }),
 
-  openToolLibrary: () => set({ toolLibraryOpen: true }),
+  openToolLibrary: () => set((state) => {
+    state.bringToFront('toolLibrary');
+    return { toolLibraryOpen: true };
+  }),
   closeToolLibrary: () => set({ toolLibraryOpen: false }),
-  toggleToolLibrary: () => set((state) => ({ toolLibraryOpen: !state.toolLibraryOpen })),
+  toggleToolLibrary: () => set((state) => {
+    if (!state.toolLibraryOpen) state.bringToFront('toolLibrary');
+    return { toolLibraryOpen: !state.toolLibraryOpen };
+  }),
+
+  bringToFront: (windowId) => set((state) => {
+    const maxZ = Math.max(...Object.values(state.zIndexMap));
+    return {
+      zIndexMap: {
+        ...state.zIndexMap,
+        [windowId]: maxZ + 1
+      }
+    };
+  }),
 }));

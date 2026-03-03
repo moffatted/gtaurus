@@ -13,14 +13,15 @@ export function FluidNCManagerModal() {
   return (
     <FloatingWindow
       title="FluidNC Manager"
-      icon={<SlidersHorizontal className="w-5 h-5" />}
+      icon={<SlidersHorizontal className="w-5 h-5 text-[var(--accent-primary)]" />}
       isOpen={fluidNCManagerOpen}
       onClose={closeFluidNCManager}
       defaultPosition={{ x: 100, y: 150 }}
-      defaultSize={{ width: 550, height: 650 }}
+      defaultSize={{ width: 650, height: 650 }}
       minWidth={400}
       minHeight={300}
-      zIndex={110}
+      zIndex={useUIStore.getState().zIndexMap.fluidNCManager}
+      onFocus={() => useUIStore.getState().bringToFront('fluidNCManager')}
     >
       <FluidNCManager />
     </FloatingWindow>

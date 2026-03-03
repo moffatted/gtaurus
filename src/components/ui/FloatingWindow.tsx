@@ -16,6 +16,7 @@ interface FloatingWindowProps {
   minWidth?: number;
   minHeight?: number;
   zIndex?: number;
+  onFocus?: () => void;
 }
 
 export function FloatingWindow({
@@ -29,6 +30,7 @@ export function FloatingWindow({
   minWidth = 300,
   minHeight = 200,
   zIndex = 1000,
+  onFocus,
 }: FloatingWindowProps) {
   const [pos, setPos] = useState(defaultPosition);
   const [size, setSize] = useState(defaultSize);
@@ -110,6 +112,7 @@ export function FloatingWindow({
   return (
     <div
       ref={windowRef}
+      onMouseDown={() => onFocus?.()}
       className="fixed flex flex-col bg-[var(--bg-secondary)] rounded-xl shadow-2xl border border-[var(--border-color)] overflow-hidden select-none"
       style={{
         left: `${pos.x}px`,

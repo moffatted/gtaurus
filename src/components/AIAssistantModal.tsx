@@ -20,7 +20,8 @@ export function AIAssistantModal() {
       defaultSize={{ width: 450, height: 600 }}
       minWidth={350}
       minHeight={400}
-      zIndex={100}
+      zIndex={useUIStore.getState().zIndexMap.aiAssistant}
+      onFocus={() => useUIStore.getState().bringToFront('aiAssistant')}
     >
       <AIPanel hideHeader={true} />
     </FloatingWindow>

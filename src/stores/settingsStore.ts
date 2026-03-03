@@ -117,6 +117,17 @@ export interface SpindleSettings {
   warmupEnabled: boolean;
 }
 
+export interface AtcSettings {
+  enabled: boolean;
+  toolChangeMpos: { x: number; y: number; z: number };
+  probeMpos: { x: number; y: number; z: number };
+  probeRapidZ: number;
+  probeSearchDistance: number;
+  probePlateThickness: number;
+  probeFeedrate: number;
+  slowProbeFeedrate: number;
+}
+
 export interface JobHistoryEntry {
   id: string;
   startTime: number;
@@ -197,6 +208,8 @@ export interface Settings {
   ai: AiSettings;
   // Stock / Workpiece
   stock: StockSettings;
+  // ATC
+  atc: AtcSettings;
   // Macros
   macros: Macro[];
 }
@@ -333,6 +346,16 @@ export const DEFAULT_SETTINGS: Settings = {
     opacity: 0.6,
     zeroPosition: 'bottom-left',
   },
+  atc: {
+    enabled: true,
+    toolChangeMpos: { x: 0, y: 0, z: -10 },
+    probeMpos: { x: 50, y: 50, z: -80 },
+    probeRapidZ: -20,
+    probeSearchDistance: 50,
+    probePlateThickness: 15.0,
+    probeFeedrate: 100,
+    slowProbeFeedrate: 20,
+  },
   macros: [
     { id: '1', name: 'Probe Z', content: 'G38.2 Z-50 F100\nG10 L20 P1 Z0\nG0 Z5' },
     { id: '2', name: 'Start Spindle', content: 'M3 S12000' },
@@ -420,6 +443,8 @@ interface SettingsStore {
   setAiSettings: (patch: Partial<AiSettings>) => void;
   // Stock
   setStockSettings: (patch: Partial<StockSettings>) => void;
+  // ATC
+  setAtcSettings: (patch: Partial<AtcSettings>) => void;
   // Macros
   addMacro: (macro: Omit<Macro, 'id'>) => void;
   updateMacro: (id: string, patch: Partial<Macro>) => void;
@@ -541,6 +566,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
           ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai },
           stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
+          atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -699,6 +725,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         stock: { ...state.settings.stock, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setAtcSettings: (patch: Partial<AtcSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        atc: { ...state.settings.atc, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };

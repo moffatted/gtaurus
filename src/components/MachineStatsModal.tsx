@@ -20,7 +20,8 @@ export function MachineStatsModal() {
       defaultSize={{ width: 450, height: 600 }}
       minWidth={350}
       minHeight={400}
-      zIndex={120}
+      zIndex={useUIStore.getState().zIndexMap.machineStats}
+      onFocus={() => useUIStore.getState().bringToFront('machineStats')}
     >
       <StatsPanel />
     </FloatingWindow>
