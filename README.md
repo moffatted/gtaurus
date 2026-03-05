@@ -9,7 +9,7 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 ### 📦 Shared Core Library (`gtaurus_common`)
 
 - **Location**: `deps/gtaurus_lib` (Submodule)
-- **Functions**: 
+- **Functions**:
   - Cross-platform **FluidNC Driver** implementation.
   - **Buffering**: Implements **Character Counting Protocol** with a 127-byte lookahead buffer.
   - **Connection Management**: Abstracted traits for Serial and Telnet/TCP communication.
@@ -27,7 +27,7 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 ### 🌐 Standalone Server (`gtaurus_server`)
 
 - **Location**: `deps/gtaurus_server` (Submodule)
-- **Functions**: 
+- **Functions**:
   - Headless WebSocket bridge for remote web access.
   - Wraps `gtaurus_common` to provide hardware access to browser clients.
 
@@ -37,6 +37,15 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 - **Rust** (Stable toolchain)
 - **Git** (Required for submodules)
 - **Visual Studio Code** (Recommended IDE) with Tauri and Rust Analyzer extensions.
+
+### 📷 Camera Support (Optional)
+
+To use the built-in Camera Viewer and hardware settings manager in Gtaurus:
+
+- You must have a camera physically connected to your CNC host machine.
+- **Dependency**: [Crowsnest](https://github.com/mainsail-crew/crowsnest) must be installed on your Linux host (specifically v4+ supporting `ustreamer` or `camera-streamer`).
+- **Configuration Path**: The server expects your Crowsnest config to be located at `~/printer_data/config/crowsnest.conf` (standard for Moonraker/Mainsail setups).
+- **Auto-Bootstrapping**: If Crowsnest is installed globally via root, Gtaurus Server will automatically migrate it to a user-level `systemd` service (`systemctl --user ...`) on startup. This enables seamless, passwordless camera restarts when adjusting settings (brightness, exposure, etc.) from the UI.
 
 ## 📦 Installation & Setup
 
