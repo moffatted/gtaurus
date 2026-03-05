@@ -75,3 +75,59 @@ def set_camera_setting(setting_name, value):
 - If the `gtaurus` tauri app is running on the same host as the camera, the user should be able to edit the camera settings themselves.
 - If the `gtaurus` tauri app is running on a different host than the camera, the user should be able to edit the camera settings remotely.
 - The user should be able to use a slider to zoom in/out the camera and adjust other camera settings allowed by crowsnest.
+
+## Additional Information
+
+Since you are building a Tauri (Rust) application that can also run as a web server, you have some very powerful low-level options that a standard web developer wouldn't have. You can bridge the gap between the "dumb" USB hardware and your custom UI perfectly.
+
+Here is how to optimize your setup specifically for a **Tauri/Rust environment**:
+
+## 1. Handling the "Snap" Button in Rust
+
+Instead of relying on browser events, you can use a Rust crate like `inputbot` or `enigo` (within your Tauri Command) to listen for the specific HID signal the microscope sends.
+
+> [!TIP]
+> **The Trick:** Many of these microscopes emulate a "Volume Up" or "F12" key when the button is pressed.
+
+- **Tauri Implementation:** You can create a "Global Shortcut" or a background listener in your `main.rs` that calls your "Zeroize" function whenever that HID event is detected.
+
+## 2. Low-Latency Video Stream (The "Crosshair" Layer)
+
+In Tauri, you’re likely using an `<img src="http://crowsnest-url:8080/?action=stream">` or a `<video>` tag.
+
+- **The SVG Overlay:** Don't try to draw the crosshair in Rust. In your frontend (React/Vue/Svelte), wrap your webcam feed in a relative `div` and place an absolute SVG crosshair over it.
+- **Dynamic Calibration:** Since you wrote the app, you can add a "Calibration Mode" where the user can drag the SVG crosshair with their mouse to align it with a physical mark. Save these top/left pixel offsets in your app's local storage.
+
+## 3. The FluidNC "Macro" Sequence
+
+Since you are using FluidNC, your Rust backend is likely sending G-Code over Serial (or Websocket). You should implement the "Zeroing" as a **State Machine** in your Rust code to ensure it's "blocking" and safe.
+
+### Suggested Logic Flow
+
+1. **User presses button** (Microscope is over the corner).
+2. **App sends:** `G10 L20 P1 X0 Y0` (Zeroes G54 at the camera position).
+3. **App calculates move:** Read your `config.toml` for the `camera_offset_x`.
+4. **App sends:** `G91 G0 X{offset_x} Y{offset_y} F1000` (The "Jump" move).
+5. **App sends:** `G90 G10 L20 P1 X0 Y0` (Final zeroing).
+
+> [!NOTE]
+> **Safety:** Add a popup in your Tauri UI: *"Spindle moved to Camera Offset. Zeroed."*
+
+## 4. 3D Print Design: "The Spindle-Sleeve"
+
+Since you have a 3D printer, design a split-ring clamp that goes around the 52mm or 65mm (standard) spindle body.
+
+> [!IMPORTANT]
+> **The "Droop" Factor:** Make sure the microscope is mounted as close to the spindle axis as possible. The further away it is, the more a tiny 0.5-degree tilt in your Z-axis will ruin your accuracy (this is called **Abbe Error**).
+
+- **Target Working Distance:** For that Cainda X10, aim for a mount that puts the lens exactly **25mm - 40mm** above the workpiece. This usually hits the "sweet spot" where you get enough magnification to see a pencil line, but enough field of view to see the corner of the stock.
+
+## 5. Multi-Platform Considerations (Tauri vs. Web)
+
+- **In Tauri:** Use the `serialport` crate to talk directly to FluidNC. You'll get much better response times than a web server.
+- **On Web:** You'll need to proxy your Serial commands through a Websocket (which FluidNC provides natively).
+
+---
+
+> [!TIP]
+> **One final tip for a CNC gSender:** Add a "Probe" button right next to your "Camera Zero" button. Sometimes you'll want to use the camera to find the location (XY), but you'll still want to use your touchplate for the depth (Z). Your Tauri app can easily orchestrate this "Combo Zeroing" routine!

@@ -3,12 +3,12 @@
  * @purpose Displays the live camera stream and provides hardware controls via backend.
  */
 import { useEffect, useState } from 'react';
-import { Settings2, RefreshCw } from 'lucide-react';
+import { Settings2, RefreshCw, Crosshair } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { transport } from '../services/transportService';
 
 export function CameraPanel({ hideHeader = false }: { hideHeader?: boolean }) {
-  const { camera } = useSettingsStore(s => s.settings);
+  const { settings: { camera }, setCameraSettings } = useSettingsStore();
   const [showSettings, setShowSettings] = useState(false);
   const [controls, setControls] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -88,6 +88,13 @@ export function CameraPanel({ hideHeader = false }: { hideHeader?: boolean }) {
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setCameraSettings({ showCrosshair: !camera.showCrosshair })}
+              className={`p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors ${camera.showCrosshair ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]'}`}
+              title="Toggle Crosshair"
+            >
+              <Crosshair className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setShowSettings(!showSettings)}
               className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] transition-colors"
               title="Camera Settings"
@@ -117,6 +124,30 @@ export function CameraPanel({ hideHeader = false }: { hideHeader?: boolean }) {
           <p className="text-sm font-semibold">Stream Offline</p>
           <p className="text-xs">Check URL in Settings</p>
         </div>
+
+        {/* Crosshair Overlay */}
+        {camera.showCrosshair && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <svg 
+              viewBox="0 0 100 100" 
+              className="w-full h-full text-red-500 opacity-90"
+              style={{ filter: 'drop-shadow(0px 0px 1.5px rgba(0,0,0,0.8))' }}
+            >
+              {/* Main Cross */}
+              <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeWidth="0.2" />
+              <line x1="50" y1="0" x2="50" y2="100" stroke="currentColor" strokeWidth="0.2" />
+              
+              {/* Fine Center markings */}
+              <circle cx="50" cy="50" r="2" fill="none" stroke="currentColor" strokeWidth="0.1" strokeDasharray="0.5 0.5" />
+              <circle cx="50" cy="50" r="0.5" fill="none" stroke="currentColor" strokeWidth="0.2" />
+              <circle cx="50" cy="50" r="0.1" fill="currentColor" />
+              
+              {/* Axis segments */}
+              <line x1="45" y1="50" x2="55" y2="50" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="50" y1="45" x2="50" y2="55" stroke="currentColor" strokeWidth="0.5" />
+            </svg>
+          </div>
+        )}
 
         {/* Floating Settings Popover */}
         {showSettings && (
@@ -151,12 +182,21 @@ export function CameraPanel({ hideHeader = false }: { hideHeader?: boolean }) {
           <button
             onClick={() => setCb(Date.now())}
             className="p-1.5 rounded-md hover:bg-white/10 text-white transition-colors"
+            title="Refresh"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={() => setCameraSettings({ showCrosshair: !camera.showCrosshair })}
+            className={`p-1.5 rounded-md hover:bg-white/10 transition-colors ${camera.showCrosshair ? 'bg-white/20 text-white' : 'text-white/80'}`}
+            title="Toggle Crosshair"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => setShowSettings(!showSettings)}
             className={`p-1.5 rounded-md hover:bg-white/10 transition-colors ${showSettings ? 'bg-white/20 text-white' : 'text-white/80'}`}
+            title="Settings"
           >
             <Settings2 className="w-3.5 h-3.5" />
           </button>

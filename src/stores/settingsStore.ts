@@ -132,6 +132,7 @@ export interface CameraSettings {
   enabled: boolean;
   streamUrl: string;
   crowsnestConfigPath: string;
+  showCrosshair: boolean;
 }
 
 export interface JobHistoryEntry {
@@ -368,6 +369,7 @@ export const DEFAULT_SETTINGS: Settings = {
     enabled: true,
     streamUrl: "http://192.168.68.64:8080/stream",
     crowsnestConfigPath: "/home/eddiem/printer_data/config/crowsnest.conf",
+    showCrosshair: false,
   },
   macros: [
     { id: '1', name: 'Probe Z', content: 'G38.2 Z-50 F100\nG10 L20 P1 Z0\nG0 Z5' },
