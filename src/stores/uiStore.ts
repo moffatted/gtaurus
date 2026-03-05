@@ -15,6 +15,7 @@ interface UIState {
   machineStatsOpen: boolean;
   toolChangerOpen: boolean;
   toolLibraryOpen: boolean;
+  cameraViewerOpen: boolean;
   
   zIndexMap: Record<string, number>;
   
@@ -43,6 +44,10 @@ interface UIState {
   closeToolLibrary: () => void;
   toggleToolLibrary: () => void;
 
+  openCameraViewer: () => void;
+  closeCameraViewer: () => void;
+  toggleCameraViewer: () => void;
+
   bringToFront: (windowId: string) => void;
 }
 
@@ -55,13 +60,15 @@ export const useUIStore = create<UIState>((set) => ({
   machineStatsOpen: false,
   toolChangerOpen: false,
   toolLibraryOpen: false,
+  cameraViewerOpen: false,
 
   zIndexMap: {
     aiAssistant: 100,
     fluidNCManager: 110,
     machineStats: 120,
     toolChanger: 200, // Tool changer is critical, keep it high
-    toolLibrary: 115
+    toolLibrary: 115,
+    cameraViewer: 105,
   },
 
   openSettings: (tab, section) => set((state) => ({ 
@@ -121,6 +128,16 @@ export const useUIStore = create<UIState>((set) => ({
   toggleToolLibrary: () => set((state) => {
     if (!state.toolLibraryOpen) state.bringToFront('toolLibrary');
     return { toolLibraryOpen: !state.toolLibraryOpen };
+  }),
+
+  openCameraViewer: () => set((state) => {
+    state.bringToFront('cameraViewer');
+    return { cameraViewerOpen: true };
+  }),
+  closeCameraViewer: () => set({ cameraViewerOpen: false }),
+  toggleCameraViewer: () => set((state) => {
+    if (!state.cameraViewerOpen) state.bringToFront('cameraViewer');
+    return { cameraViewerOpen: !state.cameraViewerOpen };
   }),
 
   bringToFront: (windowId) => set((state) => {

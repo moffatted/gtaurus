@@ -427,7 +427,10 @@ pub(crate) fn shared_stream_local_gcode(
     feed_override: Option<f64>,
     post_job_gcode: Option<String>,
 ) -> Result<String, String> {
-    eprintln!("[GTaurus] Received request to stream local G-code: {:?}", path);
+    eprintln!(
+        "[GTaurus] Received request to stream local G-code: {:?}",
+        path
+    );
 
     // 1. Verify file existence
     if !std::path::Path::new(&path).exists() {
@@ -447,7 +450,9 @@ pub(crate) fn shared_stream_local_gcode(
         driver.get_status()
     };
     if status == "Disconnected" {
-        return Err("Machine is not connected. Please connect via Serial or WiFi first.".to_string());
+        return Err(
+            "Machine is not connected. Please connect via Serial or WiFi first.".to_string(),
+        );
     }
 
     // 4. Apply warping if height map is active
@@ -527,7 +532,7 @@ pub(crate) fn shared_stream_local_gcode(
                     break;
                 }
             }
-            
+
             // Tiny sleep to prevent slamming the mpsc channel too hard for massive files
             if i % 50 == 0 {
                 std::thread::sleep(std::time::Duration::from_millis(5));
@@ -550,6 +555,19 @@ fn stream_local_gcode(
 }
 
 // ─── App bootstrap ───────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn get_camera_settings(_config_path: String) -> Result<serde_json::Value, String> {
+    Err("Camera hardware controls are only available when connected to the remote Gtaurus Server Bridge (Linux). Windows native camera control via v4l2-ctl is not supported.".to_string())
+}
+
+#[tauri::command]
+fn set_camera_settings(
+    _config_path: String,
+    _updates: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    Err("Camera hardware controls are only available when connected to the remote Gtaurus Server Bridge (Linux). Windows native camera control via v4l2-ctl is not supported.".to_string())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -584,6 +602,8 @@ pub fn run() {
             validate_gcode_file,
             warp_gcode,
             stream_local_gcode,
+            get_camera_settings,
+            set_camera_settings,
             ai::ask_gemini,
             ai::list_gemini_models,
         ])

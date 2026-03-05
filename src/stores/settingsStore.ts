@@ -128,6 +128,12 @@ export interface AtcSettings {
   slowProbeFeedrate: number;
 }
 
+export interface CameraSettings {
+  enabled: boolean;
+  streamUrl: string;
+  crowsnestConfigPath: string;
+}
+
 export interface JobHistoryEntry {
   id: string;
   startTime: number;
@@ -210,6 +216,8 @@ export interface Settings {
   stock: StockSettings;
   // ATC
   atc: AtcSettings;
+  // Camera
+  camera: CameraSettings;
   // Macros
   macros: Macro[];
 }
@@ -356,6 +364,11 @@ export const DEFAULT_SETTINGS: Settings = {
     probeFeedrate: 100,
     slowProbeFeedrate: 20,
   },
+  camera: {
+    enabled: true,
+    streamUrl: "http://192.168.68.64:8080/stream",
+    crowsnestConfigPath: "/home/eddiem/printer_data/config/crowsnest.conf",
+  },
   macros: [
     { id: '1', name: 'Probe Z', content: 'G38.2 Z-50 F100\nG10 L20 P1 Z0\nG0 Z5' },
     { id: '2', name: 'Start Spindle', content: 'M3 S12000' },
@@ -445,6 +458,8 @@ interface SettingsStore {
   setStockSettings: (patch: Partial<StockSettings>) => void;
   // ATC
   setAtcSettings: (patch: Partial<AtcSettings>) => void;
+  // Camera
+  setCameraSettings: (patch: Partial<CameraSettings>) => void;
   // Macros
   addMacro: (macro: Omit<Macro, 'id'>) => void;
   updateMacro: (id: string, patch: Partial<Macro>) => void;
@@ -568,6 +583,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai },
           stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
           atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
+          camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -735,6 +751,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         atc: { ...state.settings.atc, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setCameraSettings: (patch: Partial<CameraSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        camera: { ...state.settings.camera, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };
