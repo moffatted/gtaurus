@@ -221,7 +221,7 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "controls", label: "Controls", enabled: true, defaultWidth: 400, defaultHeight: 500 },
+  { id: "controls", label: "Controls", enabled: true, defaultWidth: 600, defaultHeight: 541 },
   { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
   { id: "visualizer", label: "Bed Visualizer", enabled: false },
   { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
@@ -527,7 +527,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
                   label: "Controls", 
                   enabled: wasEnabled, 
                   order: 0,
-                  defaultWidth: 420 // Updated defaultWidth
+                  defaultWidth: 600,
+                  defaultHeight: 541
               });
           } else {
               migratedPanels = migratedPanels.map(p => 
