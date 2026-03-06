@@ -189,16 +189,18 @@ function App() {
               <AlarmIndicator />
               <EStopButton />
               <div className="w-px h-6 bg-[var(--border-color)]" />
-              <Tooltip content="Camera Viewer" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openCameraViewer()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="Camera Viewer"
-                >
-                  <Camera className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-green-400 transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Camera</span>
-                </button>
-              </Tooltip>
+              {useSettingsStore((state) => state.settings.camera.enabled) && (
+                <Tooltip content="Camera Viewer" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openCameraViewer()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="Camera Viewer"
+                  >
+                    <Camera className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-green-400 transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Camera</span>
+                  </button>
+                </Tooltip>
+              )}
               <Tooltip content="AI Assistant" position="bottom">
                 <button
                   onClick={() => useUIStore.getState().openAIAssistant()}
