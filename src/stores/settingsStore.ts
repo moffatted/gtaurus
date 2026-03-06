@@ -144,6 +144,7 @@ export interface JobHistoryEntry {
 }
 
 export interface StatsSettings {
+  enabled: boolean;
   // Collection filters
   enableLogging: boolean;
   minJobDurationSec: number;
@@ -167,6 +168,7 @@ export interface StatsSettings {
 }
 
 export interface AiSettings {
+  enabled: boolean;
   tier: "free" | "pro";
   apiKey: string;
   freeModel: string;
@@ -191,6 +193,14 @@ export interface StockSettings {
   material: 'pine' | 'mdf' | 'aluminum' | 'pvc' | 'pcb';
   opacity: number;
   zeroPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+}
+
+export interface ToolLibrarySettings {
+  enabled: boolean;
+}
+
+export interface FluidNCManagerSettings {
+  enabled: boolean;
 }
 
 export interface Settings {
@@ -221,6 +231,10 @@ export interface Settings {
   camera: CameraSettings;
   // Macros
   macros: Macro[];
+  // Tool Library
+  toolLibrary: ToolLibrarySettings;
+  // FluidNC Manager
+  fluidncManager: FluidNCManagerSettings;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -318,6 +332,7 @@ export const DEFAULT_SETTINGS: Settings = {
     warmupEnabled: true,
   },
   stats: {
+    enabled: true,
     enableLogging: true,
     minJobDurationSec: 10,
     totalJobs: 0,
@@ -337,6 +352,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showAutolevelMesh: false,
   gcodeStoragePath: "", // Will be initialized to home/gcode_files
   ai: {
+    enabled: true,
     tier: "free",
     apiKey: "",
     freeModel: "gemini-1.5-flash",
@@ -378,6 +394,12 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: '4', name: 'Park Position', content: 'G0 G53 Z0\nG0 G53 X0 Y0' },
     { id: '5', name: 'Return to Home', content: 'G0 G53 Z0\nG0 G53 X0 Y0' },
   ],
+  toolLibrary: {
+    enabled: true,
+  },
+  fluidncManager: {
+    enabled: true,
+  },
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -462,6 +484,10 @@ interface SettingsStore {
   setAtcSettings: (patch: Partial<AtcSettings>) => void;
   // Camera
   setCameraSettings: (patch: Partial<CameraSettings>) => void;
+  // Tool Library
+  setToolLibrarySettings: (patch: Partial<ToolLibrarySettings>) => void;
+  // FluidNC Manager
+  setFluidncManagerSettings: (patch: Partial<FluidNCManagerSettings>) => void;
   // Macros
   addMacro: (macro: Omit<Macro, 'id'>) => void;
   updateMacro: (id: string, patch: Partial<Macro>) => void;
@@ -586,6 +612,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
           atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
           camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
+          toolLibrary: { ...DEFAULT_SETTINGS.toolLibrary, ...saved?.toolLibrary },
+          fluidncManager: { ...DEFAULT_SETTINGS.fluidncManager, ...saved?.fluidncManager },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -762,6 +790,24 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         camera: { ...state.settings.camera, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setToolLibrarySettings: (patch: Partial<ToolLibrarySettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        toolLibrary: { ...state.settings.toolLibrary, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setFluidncManagerSettings: (patch: Partial<FluidNCManagerSettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        fluidncManager: { ...state.settings.fluidncManager, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };

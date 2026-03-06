@@ -9,7 +9,7 @@ import {
   Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
   Wifi, UsbIcon, RefreshCw, Power, Activity,
-  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera,
+  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera, Drill
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -1504,6 +1504,33 @@ function StatsContent() {
   return (
     <div className="space-y-8">
       
+      {/* Visibility Toggle */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">Show Statistics Button</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            Display the machine statistics button in the top menu.
+          </p>
+        </div>
+        <button
+          onClick={() => setStatsSettings({ enabled: !sts.enabled })}
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            sts.enabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)]'
+          }`}
+          role="switch"
+          aria-checked={sts.enabled}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              sts.enabled ? 'translate-x-4' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
       {/* 1. Data Collection */}
       <div className="space-y-4">
         <h4 className={subHeaderCls}>1. Data Collection</h4>
@@ -1694,6 +1721,33 @@ function AIAssistantContent() {
 
   return (
     <div className="space-y-6">
+      {/* Visibility Toggle */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">Show AI Assistant Button</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            Display the AI Assistant button in the top menu.
+          </p>
+        </div>
+        <button
+          onClick={() => setAiSettings({ enabled: !settings.ai.enabled })}
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            settings.ai.enabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border-color)]'
+          }`}
+          role="switch"
+          aria-checked={settings.ai.enabled}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              settings.ai.enabled ? 'translate-x-4' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
       <div className="space-y-4">
         <h4 className={subHeaderCls}>Dashboard Integration</h4>
         <div className="flex items-center justify-between">
@@ -2081,12 +2135,97 @@ function CameraContent() {
   );
 }
 
+// ─── Navigation section ───────────────────────────────────────────────────────
+
+function NavigationContent() {
+  const { settings, setAiSettings, setStatsSettings, setCameraSettings, setAtcSettings, setToolLibrarySettings, setFluidncManagerSettings } = useSettingsStore();
+
+  const buttons = [
+    { 
+      id: 'camera', 
+      label: 'Camera Viewer', 
+      enabled: settings.camera.enabled, 
+      toggle: () => setCameraSettings({ enabled: !settings.camera.enabled }),
+      icon: <Camera className="w-4 h-4" />
+    },
+    { 
+      id: 'ai', 
+      label: 'AI Assistant', 
+      enabled: settings.ai.enabled, 
+      toggle: () => setAiSettings({ enabled: !settings.ai.enabled }),
+      icon: <Bot className="w-4 h-4" />
+    },
+    { 
+      id: 'stats', 
+      label: 'Machine Statistics', 
+      enabled: settings.stats.enabled, 
+      toggle: () => setStatsSettings({ enabled: !settings.stats.enabled }),
+      icon: <BarChart2 className="w-4 h-4" />
+    },
+    { 
+      id: 'library', 
+      label: 'Bit Library', 
+      enabled: settings.toolLibrary.enabled, 
+      toggle: () => setToolLibrarySettings({ enabled: !settings.toolLibrary.enabled }),
+      icon: <Wrench className="w-4 h-4" />
+    },
+    { 
+      id: 'tools', 
+      label: 'Tool Changer', 
+      enabled: settings.atc.enabled, 
+      toggle: () => setAtcSettings({ enabled: !settings.atc.enabled }),
+      icon: <Drill className="w-4 h-4" />
+    },
+    { 
+      id: 'manager', 
+      label: 'FluidNC Manager', 
+      enabled: settings.fluidncManager.enabled, 
+      toggle: () => setFluidncManagerSettings({ enabled: !settings.fluidncManager.enabled }),
+      icon: <SlidersHorizontal className="w-4 h-4" />
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-tertiary)] mb-4 italic">
+        Toggle which buttons are visible in the top navigation menu.
+      </p>
+      <div className="grid grid-cols-1 gap-3">
+        {buttons.map((btn) => (
+          <div key={btn.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-3">
+              <span className="text-[var(--accent-primary)]">{btn.icon}</span>
+              <span className="text-sm font-medium text-[var(--text-primary)]">{btn.label}</span>
+            </div>
+            <button
+              onClick={btn.toggle}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                btn.enabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-secondary)] hover:bg-[var(--border-color)]'
+              }`}
+              role="switch"
+              aria-checked={btn.enabled}
+            >
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  btn.enabled ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Section definitions ─────────────────────────────────────────────────────
 
 const SECTIONS = [
   { id: 'dashboard',   title: 'Dashboard',      icon: <LayoutGrid className="w-4 h-4" />, tab: 'dashboard' },
   { id: 'widgets',     title: 'Widgets',        icon: <LayoutDashboard className="w-4 h-4" />, tab: 'dashboard' },
   { id: 'theme',       title: 'Theme & UX',     icon: <Palette className="w-4 h-4" />, tab: 'ui' },
+  { id: 'navigation',  title: 'Top Menu',       icon: <Activity className="w-4 h-4" />, tab: 'ui' },
   { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'ui' },
   { id: 'stats',       title: 'Stats Display',  icon: <BarChart2 className="w-4 h-4" />, tab: 'ui' },
   { id: 'camera',      title: 'Camera',         icon: <Camera className="w-4 h-4" />, tab: 'ui' },
@@ -2094,7 +2233,7 @@ const SECTIONS = [
   { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" />, tab: 'machine' },
   { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" />, tab: 'machine' },
   { id: 'macros',      title: 'Macros',         icon: <FileCode className="w-4 h-4" />, tab: 'machine' },
-  { id: 'toolchanger', title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" />, tab: 'machine' },
+  { id: 'atc',         title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" />, tab: 'machine' },
   { id: 'rotary',      title: 'Rotary Config',  icon: <RotateCw className="w-4 h-4" />, tab: 'machine' },
   { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" />, tab: 'machine' },
   { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" />, tab: 'machine' },
@@ -2112,10 +2251,11 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
   if (id === 'file-manager') return <FileManagerContent />;
   if (id === 'probe')        return <ProbeContent />;
   if (id === 'spindle')      return <SpindleContent />;
-  if (id === 'toolchanger')  return <AtcContent />;
+  if (id === 'atc')          return <AtcContent />;
   if (id === 'stats')        return <StatsContent />;
   if (id === 'camera')       return <CameraContent />;
   if (id === 'ai')           return <AIAssistantContent />;
+  if (id === 'navigation')   return <NavigationContent />;
   if (id === 'visualizer') return <VisualizerContent />;
   if (id === 'macros')     return <MacrosContent />;
   return undefined; // renders placeholder
@@ -2179,7 +2319,7 @@ export function SettingsPanel() {
           onClick={closeSettings}
         >
           <div
-            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl w-full max-w-2xl border border-[var(--border-color)] overflow-hidden flex flex-col"
+            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl w-full max-w-4xl border border-[var(--border-color)] overflow-hidden flex flex-col"
             style={{ maxHeight: '85vh' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2268,27 +2408,65 @@ export function SettingsPanel() {
               )}
             </div>
 
-            {/* Scrollable sections */}
-            <div ref={scrollContainerRef} className="overflow-y-auto flex-1 px-4 py-4 space-y-3 custom-scrollbar">
-              {visibleSections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Search className="w-8 h-8 text-[var(--text-tertiary)] mb-3" />
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">
-                    No results for "{search}"
-                  </p>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                    Try a different search term.
-                  </p>
-                </div>
-              ) : (
-                visibleSections.map((section) => (
-                  <div key={section.id} id={`settings-section-${section.id}`}>
-                    <SettingsSection title={section.title} icon={section.icon}>
-                      {getSectionContent(section.id)}
-                    </SettingsSection>
+            {/* Main Content Area with Optional Sidebar */}
+            <div className="flex flex-1 overflow-hidden relative">
+              {/* Sidebar - only show if not searching and we are in UI or Machine tabs */}
+              {!query && (settingsTab === 'ui' || settingsTab === 'machine') && (
+                <div className="w-56 bg-[var(--bg-tertiary)]/30 border-r border-[var(--border-color)] overflow-y-auto py-6 flex-shrink-0 hidden md:block select-none">
+                  <div className="px-4 space-y-1">
+                    <div className="px-2 mb-4">
+                      <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest opacity-60">
+                        {settingsTab === 'ui' ? 'UI Navigation' : 'Machine Navigation'}
+                      </span>
+                    </div>
+                    {visibleSections.map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => {
+                          const el = document.getElementById(`settings-section-${section.id}`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] transition-all duration-200 group text-left border border-transparent hover:border-[var(--border-color)] active:scale-[0.98]"
+                      >
+                        <span className="p-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] group-hover:border-[var(--accent-primary)]/30 group-hover:shadow-sm transition-all duration-200">
+                          {section.icon}
+                        </span>
+                        <span className="truncate">{section.title}</span>
+                      </button>
+                    ))}
                   </div>
-                ))
+                </div>
               )}
+
+              {/* Scrollable sections */}
+              <div 
+                ref={scrollContainerRef} 
+                className="overflow-y-auto flex-1 px-6 py-8 space-y-8 custom-scrollbar scroll-smooth"
+              >
+                {visibleSections.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <Search className="w-10 h-10 text-[var(--text-tertiary)] mb-4 opacity-50" />
+                    <p className="text-base font-semibold text-[var(--text-secondary)]">
+                      No results found for "{search}"
+                    </p>
+                    <p className="text-sm text-[var(--text-tertiary)] mt-2">
+                      Try searching for a different setting or feature.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-w-3xl mx-auto space-y-10">
+                    {visibleSections.map((section) => (
+                      <div key={section.id} id={`settings-section-${section.id}`} className="scroll-mt-8">
+                        <SettingsSection title={section.title} icon={section.icon}>
+                          {getSectionContent(section.id)}
+                        </SettingsSection>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer */}

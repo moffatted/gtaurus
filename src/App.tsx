@@ -201,56 +201,66 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              <Tooltip content="AI Assistant" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openAIAssistant()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="AI Assistant"
-                >
-                  <Bot className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">AI Assistant</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Machine Statistics" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openMachineStats()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="Machine Statistics"
-                >
-                  <BarChart2 className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Stats</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Bit Library" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openToolLibrary()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="Bit Library"
-                >
-                  <Wrench className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Library</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Tool Changer" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openToolChanger()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="Tool Changer"
-                >
-                  <Drill className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-blue-400 transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Tools</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="FluidNC Manager" position="bottom">
-                <button
-                  onClick={() => useUIStore.getState().openFluidNCManager()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
-                  aria-label="FluidNC Manager"
-                >
-                  <SlidersHorizontal className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Manager</span>
-                </button>
-              </Tooltip>
+              {useSettingsStore((state) => state.settings.ai.enabled) && (
+                <Tooltip content="AI Assistant" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openAIAssistant()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="AI Assistant"
+                  >
+                    <Bot className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">AI Assistant</span>
+                  </button>
+                </Tooltip>
+              )}
+              {useSettingsStore((state) => state.settings.stats.enabled) && (
+                <Tooltip content="Machine Statistics" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openMachineStats()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="Machine Statistics"
+                  >
+                    <BarChart2 className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Stats</span>
+                  </button>
+                </Tooltip>
+              )}
+              {useSettingsStore((state) => state.settings.toolLibrary.enabled) && (
+                <Tooltip content="Bit Library" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openToolLibrary()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="Bit Library"
+                  >
+                    <Wrench className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Library</span>
+                  </button>
+                </Tooltip>
+              )}
+              {useSettingsStore((state) => state.settings.atc.enabled) && (
+                <Tooltip content="Tool Changer" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openToolChanger()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="Tool Changer"
+                  >
+                    <Drill className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-blue-400 transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Tools</span>
+                  </button>
+                </Tooltip>
+              )}
+              {useSettingsStore((state) => state.settings.fluidncManager.enabled) && (
+                <Tooltip content="FluidNC Manager" position="bottom">
+                  <button
+                    onClick={() => useUIStore.getState().openFluidNCManager()}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    aria-label="FluidNC Manager"
+                  >
+                    <SlidersHorizontal className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                    <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] hidden xl:inline">Manager</span>
+                  </button>
+                </Tooltip>
+              )}
               <HelpMenu />
               <SettingsPanel />
             </div>
