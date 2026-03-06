@@ -407,25 +407,56 @@ export const DEFAULT_SETTINGS: Settings = {
 const STORE_KEY = "appSettings";
 let tauriStore: Store | null = null;
 
-async function getTauriStore(): Promise<Store> {
-  if (!tauriStore) {
-    tauriStore = await Store.load("settings.json");
-  }
-  return tauriStore;
+async function getTauriStore(): Promise<Store | null> {
+  if (tauriStore) return tauriStore;
+  
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn("[settings] Store.load timed out after 3s");
+      resolve(null);
+    }, 3000);
+
+    Store.load("settings.json")
+      .then((s) => {
+        clearTimeout(timer);
+        tauriStore = s;
+        resolve(s);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        console.error("[settings] Store.load failed:", err);
+        resolve(null);
+      });
+  });
 }
 
 async function loadFromStorage(): Promise<Settings | null> {
   try {
     if (isTauriApp()) {
       const s = await getTauriStore();
-      const value = await s.get<Settings>(STORE_KEY);
-      return value ?? null;
+      if (!s) return null;
+      
+      return await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          console.warn("[settings] s.get timed out after 2s");
+          resolve(null);
+        }, 2000);
+        
+        s.get<Settings>(STORE_KEY).then((val) => {
+          clearTimeout(timer);
+          resolve(val ?? null);
+        }).catch((err) => {
+          clearTimeout(timer);
+          console.error("[settings] s.get failed:", err);
+          resolve(null);
+        });
+      });
     } else {
       const raw = localStorage.getItem(STORE_KEY);
       return raw ? (JSON.parse(raw) as Settings) : null;
     }
   } catch (err) {
-    console.error("[settings] Failed to load:", err);
+    console.error("[settings] Failed to load from storage:", err);
     return null;
   }
 }
@@ -434,6 +465,7 @@ async function saveToStorage(settings: Settings): Promise<void> {
   try {
     if (isTauriApp()) {
       const s = await getTauriStore();
+      if (!s) return;
       await s.set(STORE_KEY, settings);
       await s.save();
     } else {
@@ -517,38 +549,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   initSettings: async () => {
-    let saved = await loadFromStorage();
-    
-    // Initialize or verify gcodeStoragePath
-    try {
-      let path = saved?.gcodeStoragePath;
-      let needsRefresh = !path;
-
-      // Even if we have a path, verify it works with the current backend
-      if (path) {
-        try {
-          await transport.invoke('ensure_dir_exists', { path });
-        } catch (err) {
-          console.warn("[settings] Current storage path is invalid for this backend, refreshing...", err);
-          needsRefresh = true;
-        }
-      }
-
-      if (needsRefresh) {
-        const home = await transport.invoke<string>('get_home_dir');
-        // Normalize backslashes to forward slashes for consistency
-        path = `${home}/gcode_files`.replace(/\\/g, '/');
-        await transport.invoke('ensure_dir_exists', { path });
-        
-        if (!saved) {
-          saved = { ...DEFAULT_SETTINGS, gcodeStoragePath: path };
-        } else {
-          saved.gcodeStoragePath = path;
-        }
-      }
-    } catch (err) {
-      console.error("[settings] Storage path auto-provisioning failed:", err);
-    }
+    const saved = await loadFromStorage();
 
     if (saved) {
       // 1. Migrate old "dro" or "jog" to "controls"
@@ -621,6 +622,32 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     } else {
       set({ initialized: true });
     }
+
+    // Background auto-provisioning
+    void (async () => {
+      try {
+        const current = get().settings;
+        let path = current.gcodeStoragePath;
+        let needsRefresh = !path;
+
+        if (path) {
+          try {
+            await transport.invoke('ensure_dir_exists', { path });
+          } catch {
+            needsRefresh = true;
+          }
+        }
+
+        if (needsRefresh) {
+          const home = await transport.invoke<string>('get_home_dir');
+          const newPath = `${home}/gcode_files`.replace(/\\/g, '/');
+          await transport.invoke('ensure_dir_exists', { path: newPath });
+          get().updateSettings({ gcodeStoragePath: newPath });
+        }
+      } catch (err) {
+        console.warn("[settings] Background storage provisioning failed (expected in browser or disconnected):", err);
+      }
+    })();
   },
 
   updateSettings: (patch) => {

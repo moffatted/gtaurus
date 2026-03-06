@@ -57,6 +57,14 @@ function App() {
   // Use the openCarveWizard from the store.
   const openCarveWizard = useWizardStore((state) => state.openCarveWizard);
 
+  // UI Visibility Toggles
+  const cameraEnabled = useSettingsStore((state) => state.settings.camera.enabled);
+  const aiEnabled = useSettingsStore((state) => state.settings.ai.enabled);
+  const statsEnabled = useSettingsStore((state) => state.settings.stats.enabled);
+  const toolLibraryEnabled = useSettingsStore((state) => state.settings.toolLibrary.enabled);
+  const atcEnabled = useSettingsStore((state) => state.settings.atc.enabled);
+  const fluidncManagerEnabled = useSettingsStore((state) => state.settings.fluidncManager.enabled);
+
 
   useEffect(() => {
     initTheme();
@@ -189,7 +197,7 @@ function App() {
               <AlarmIndicator />
               <EStopButton />
               <div className="w-px h-6 bg-[var(--border-color)]" />
-              {useSettingsStore((state) => state.settings.camera.enabled) && (
+              {cameraEnabled && (
                 <Tooltip content="Camera Viewer" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openCameraViewer()}
@@ -201,7 +209,7 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {useSettingsStore((state) => state.settings.ai.enabled) && (
+              {aiEnabled && (
                 <Tooltip content="AI Assistant" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openAIAssistant()}
@@ -213,7 +221,7 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {useSettingsStore((state) => state.settings.stats.enabled) && (
+              {statsEnabled && (
                 <Tooltip content="Machine Statistics" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openMachineStats()}
@@ -225,7 +233,7 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {useSettingsStore((state) => state.settings.toolLibrary.enabled) && (
+              {toolLibraryEnabled && (
                 <Tooltip content="Bit Library" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openToolLibrary()}
@@ -237,7 +245,7 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {useSettingsStore((state) => state.settings.atc.enabled) && (
+              {atcEnabled && (
                 <Tooltip content="Tool Changer" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openToolChanger()}
@@ -249,7 +257,7 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {useSettingsStore((state) => state.settings.fluidncManager.enabled) && (
+              {fluidncManagerEnabled && (
                 <Tooltip content="FluidNC Manager" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openFluidNCManager()}

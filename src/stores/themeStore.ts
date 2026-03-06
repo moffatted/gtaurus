@@ -16,11 +16,27 @@ interface ThemeStore {
 
 let store: Store | null = null;
 
-async function getStore(): Promise<Store> {
-  if (!store) {
-    store = await Store.load('settings.json');
-  }
-  return store;
+async function getStore(): Promise<Store | null> {
+  if (store) return store;
+  
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn("[theme] Store.load timed out after 3s");
+      resolve(null);
+    }, 3000);
+
+    Store.load('settings.json')
+      .then((s) => {
+        clearTimeout(timer);
+        store = s;
+        resolve(s);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        console.error("[theme] Store.load failed:", err);
+        resolve(null);
+      });
+  });
 }
 
 /** Apply [data-theme] to <html> immediately — synchronous, never fails */
@@ -40,6 +56,7 @@ async function persistTheme(theme: Theme): Promise<void> {
   try {
     if (isTauriApp()) {
       const s = await getStore();
+      if (!s) return;
       await s.set('theme', theme);
       await s.save();
     } else {
@@ -55,8 +72,23 @@ async function loadTheme(): Promise<Theme | null> {
   try {
     if (isTauriApp()) {
       const s = await getStore();
-      const value = await s.get<Theme>('theme');
-      return value ?? null;
+      if (!s) return null;
+
+      return await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          console.warn("[theme] s.get timed out after 2s");
+          resolve(null);
+        }, 2000);
+
+        s.get<Theme>('theme').then((val) => {
+          clearTimeout(timer);
+          resolve(val ?? null);
+        }).catch((err) => {
+          clearTimeout(timer);
+          console.error("[theme] s.get failed:", err);
+          resolve(null);
+        });
+      });
     } else {
       const value = localStorage.getItem('theme');
       return value as Theme | null;

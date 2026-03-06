@@ -183,6 +183,10 @@ class TransportService {
       console.log(
         `[TransportService] WebSocket closed. Code: ${event.code}, Reason: ${event.reason}. Reconnecting in 3s...`,
       );
+      
+      // Reject any pending requests that were waiting for this connection
+      this.rejectAllPending("WebSocket connection closed.");
+
       if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = window.setTimeout(() => {
         if (this.currentHost && this.currentPort) {
@@ -198,23 +202,58 @@ class TransportService {
     };
   }
 
-  async invoke<T>(cmd: string, args?: any): Promise<T> {
-    if (!this.useWebSocket && isTauri) {
-      return tauriInvoke<T>(cmd, args);
+  private rejectAllPending(reason: string) {
+    if (this.pendingRequests.size > 0 || this.messageQueue.length > 0) {
+      console.warn(`[TransportService] Rejecting ${this.pendingRequests.size + this.messageQueue.length} pending requests: ${reason}`);
+      this.pendingRequests.forEach((req) => req.reject(new Error(reason)));
+      this.pendingRequests.clear();
+      this.messageQueue = [];
     }
+  }
 
+  async invoke<T>(cmd: string, args?: any): Promise<T> {
     return new Promise((resolve, reject) => {
       const id = `req_${++this.requestCounter}`;
+      const timeout = 5000; // 5s timeout
       
+      const timer = setTimeout(() => {
+        if (!this.useWebSocket && isTauri) {
+           // We can't cancel tauriInvoke, but we can reject the promise
+           reject(new Error(`[TransportService] Tauri Request '${cmd}' timed out after ${timeout}ms`));
+        } else {
+          if (this.pendingRequests.has(id)) {
+            this.pendingRequests.delete(id);
+            this.messageQueue = this.messageQueue.filter(m => !m.includes(`"id":"${id}"`));
+            reject(new Error(`[TransportService] Request '${cmd}' timed out after ${timeout}ms`));
+          }
+        }
+      }, timeout);
+
+      const wrappedResolve = (val: any) => {
+        clearTimeout(timer);
+        resolve(val);
+      };
+
+      const wrappedReject = (err: any) => {
+        clearTimeout(timer);
+        reject(err);
+      };
+
+      if (!this.useWebSocket && isTauri) {
+        tauriInvoke<T>(cmd, args).then(wrappedResolve).catch(wrappedReject);
+        return;
+      }
+
       const message = JSON.stringify({ type: "invoke", id, cmd, args });
 
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        this.pendingRequests.set(id, { resolve, reject });
+        this.pendingRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject });
         this.socket.send(message);
       } else if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
-        this.pendingRequests.set(id, { resolve, reject });
+        this.pendingRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject });
         this.messageQueue.push(message);
       } else {
+        clearTimeout(timer);
         if (cmd === "get_connection_status" || cmd === "get_status") {
           return resolve("Disconnected" as any);
         }

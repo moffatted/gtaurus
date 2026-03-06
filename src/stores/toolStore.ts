@@ -128,25 +128,56 @@ const STORE_KEY = "tools_library";
 const FILE_PATH = "tools.json";
 
 let _store: Store | null = null;
-async function getTauriStore() {
-  if (!_store) {
-    _store = await Store.load(FILE_PATH);
-  }
-  return _store;
+async function getTauriStore(): Promise<Store | null> {
+  if (_store) return _store;
+  
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn("[toolStore] Store.load timed out after 3s");
+      resolve(null);
+    }, 3000);
+
+    Store.load(FILE_PATH)
+      .then((s) => {
+        clearTimeout(timer);
+        _store = s;
+        resolve(s);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        console.error("[toolStore] Store.load failed:", err);
+        resolve(null);
+      });
+  });
 }
 
 async function loadFromStorage(): Promise<ToolStoreState | null> {
   try {
     if (isTauriApp()) {
       const s = await getTauriStore();
-      const val = await s.get<ToolStoreState>(STORE_KEY);
-      return val ?? null;
+      if (!s) return null;
+
+      return await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          console.warn("[toolStore] s.get timed out after 2s");
+          resolve(null);
+        }, 2000);
+        
+        s.get<ToolStoreState>(STORE_KEY).then((val) => {
+          clearTimeout(timer);
+          resolve(val ?? null);
+        }).catch((err) => {
+          clearTimeout(timer);
+          console.error("[toolStore] s.get failed:", err);
+          resolve(null);
+        });
+      });
     } else {
       const saved = localStorage.getItem(STORE_KEY);
       return saved ? JSON.parse(saved) : null;
     }
   } catch (err) {
-    console.error("[toolStore] Failed to load:", err);
+    console.error("[toolStore] Failed to load from storage:", err);
     return null;
   }
 }
@@ -155,6 +186,7 @@ async function saveToStorage(state: ToolStoreState) {
   try {
     if (isTauriApp()) {
       const s = await getTauriStore();
+      if (!s) return;
       await s.set(STORE_KEY, state);
       await s.save();
     } else {
