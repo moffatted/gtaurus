@@ -4,7 +4,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ── Light Theme (default) ──────────────────────── */
-:root {
+:root,
+[data-theme="light"] {
   color-scheme: light;
 
   --bg-primary: #fafbfc;
@@ -23,24 +24,105 @@
   --accent-hover: #357abd;
 }
 
-/* ── Dark Theme ─────────────────────────────────── */
-.dark {
+/* ── Standard Dark Theme ────────────────────────── */
+.dark,
+[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-primary: #1a1d23;
-  --bg-secondary: #23262d;
-  --bg-tertiary: #2c2f36;
-  --bg-sidebar: #1f2228;
-  --bg-header: #23262d;
+  --bg-primary: #121417;
+  --bg-secondary: #1a1d21;
+  --bg-tertiary: #25292e;
+  --bg-sidebar: #171a1e;
+  --bg-header: #1a1d21;
 
   --text-primary: #e4e7eb;
   --text-secondary: #b4bcc8;
-  --text-tertiary: #8892a0;
+  --text-tertiary: #717b8a;
 
-  --border-color: #3a3f4a;
+  --border-color: #2d333b;
 
   --accent-primary: #5a9fd4;
   --accent-hover: #4a8fc4;
+}
+
+/* ── Midnight (Deep Slate & Indigo) ─────────────── */
+[data-theme="midnight"] {
+  color-scheme: dark;
+
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-sidebar: #0b1120;
+  --bg-header: #0f172a;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #475569;
+
+  --border-color: #1e293b;
+
+  --accent-primary: #6366f1;
+  --accent-hover: #4f46e5;
+}
+
+/* ── Nord (Arctic Nights) ───────────────────────── */
+[data-theme="nord"] {
+  color-scheme: dark;
+
+  --bg-primary: #2e3440;
+  --bg-secondary: #3b4252;
+  --bg-tertiary: #434c5e;
+  --bg-sidebar: #333948;
+  --bg-header: #3b4252;
+
+  --text-primary: #eceff4;
+  --text-secondary: #d8dee9;
+  --text-tertiary: #a3be8c;
+
+  --border-color: #4c566a;
+
+  --accent-primary: #88c0d0;
+  --accent-hover: #81a1c1;
+}
+
+/* ── Dracula (Gothic Purple) ────────────────────── */
+[data-theme="dracula"] {
+  color-scheme: dark;
+
+  --bg-primary: #21222c;
+  --bg-secondary: #282a36;
+  --bg-tertiary: #44475a;
+  --bg-sidebar: #1e1f29;
+  --bg-header: #282a36;
+
+  --text-primary: #f8f8f2;
+  --text-secondary: #6272a4;
+  --text-tertiary: #44475a;
+
+  --border-color: #44475a;
+
+  --accent-primary: #bd93f9;
+  --accent-hover: #e3a9ff;
+}
+
+/* ── Bamboo (Zen Forest) ────────────────────────── */
+[data-theme="bamboo"] {
+  color-scheme: dark;
+
+  --bg-primary: #0f110f;
+  --bg-secondary: #161a16;
+  --bg-tertiary: #1f241f;
+  --bg-sidebar: #121612;
+  --bg-header: #161a16;
+
+  --text-primary: #e6e8e6;
+  --text-secondary: #8c9c8c;
+  --text-tertiary: #4a544a;
+
+  --border-color: #2a302a;
+
+  --accent-primary: #84cc16;
+  --accent-hover: #a3e635;
 }
 
 /* ── Base ───────────────────────────────────────── */
@@ -61,7 +143,6 @@ body {
 .dv-drag-proxy * {
   transition: none !important;
 }
-
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {

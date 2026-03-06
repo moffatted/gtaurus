@@ -9,7 +9,8 @@ import {
   Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
   Wifi, UsbIcon, RefreshCw, Power, Activity,
-  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera, Drill
+  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera, Drill,
+  Sparkles, Wind, Ghost, Leaf
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -70,22 +71,65 @@ function SettingsSection({ title, icon, children }: SettingsSectionProps) {
 
 function ThemeContent() {
   const { theme, setTheme } = useThemeStore();
+
+  const themes = [
+    { id: 'light',    label: 'Standard Light', icon: <Sun className="w-4 h-4" />,      colors: ['#fafbfc', '#2d3748', '#4a90e2'] },
+    { id: 'dark',     label: 'Standard Dark',  icon: <Moon className="w-4 h-4" />,     colors: ['#121417', '#e4e7eb', '#5a9fd4'] },
+    { id: 'midnight', label: 'Midnight Blue',  icon: <Sparkles className="w-4 h-4" />, colors: ['#020617', '#f1f5f9', '#6366f1'] },
+    { id: 'nord',     label: 'Arctic Nord',    icon: <Wind className="w-4 h-4" />,     colors: ['#2e3440', '#eceff4', '#88c0d0'] },
+    { id: 'dracula',  label: 'Gothic Dracula', icon: <Ghost className="w-4 h-4" />,    colors: ['#21222c', '#f8f8f2', '#bd93f9'] },
+    { id: 'bamboo',   label: 'Zen Bamboo',     icon: <Leaf className="w-4 h-4" />,     colors: ['#0f110f', '#e6e8e6', '#84cc16'] },
+  ] as const;
+
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {(['light', 'dark'] as const).map((t) => (
+    <div className="grid grid-cols-2 gap-4">
+      {themes.map((t) => (
         <button
-          key={t}
-          onClick={() => setTheme(t)}
-          className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer capitalize ${
-            theme === t
-              ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] text-[var(--accent-primary)] shadow-sm'
-              : 'border-[var(--border-color)] hover:border-[var(--accent-primary)]/50 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+          key={t.id}
+          onClick={() => setTheme(t.id)}
+          className={`relative group flex flex-col p-3.5 rounded-xl border-2 transition-all duration-300 cursor-pointer text-left overflow-hidden ${
+            theme === t.id
+              ? 'border-[var(--accent-primary)] bg-[var(--bg-tertiary)] shadow-lg shadow-[var(--accent-primary)]/10'
+              : 'border-[var(--border-color)] hover:border-[var(--accent-primary)]/40 hover:bg-[var(--bg-tertiary)]/50'
           }`}
-          aria-label={`${t} theme`}
-          aria-pressed={theme === t}
+          aria-label={`${t.label} theme`}
+          aria-pressed={theme === t.id}
         >
-          {t === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          <span className="text-sm font-medium">{t}</span>
+          {/* Active indicator */}
+          {theme === t.id && (
+            <div className="absolute top-0 right-0 w-8 h-8 flex items-center justify-center">
+              <div className="absolute top-[-10px] right-[-10px] w-20 h-20 bg-[var(--accent-primary)] rotate-45 transform pointer-events-none opacity-10" />
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] relative z-10" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2.5 mb-3 relative z-10">
+            <span className={`p-1.5 rounded-lg transition-colors ${
+              theme === t.id ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
+            }`}>
+              {t.icon}
+            </span>
+            <span className={`text-xs font-bold tracking-tight transition-colors ${
+              theme === t.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'
+            }`}>
+              {t.label}
+            </span>
+          </div>
+
+          <div className="flex gap-1.5 items-center relative z-10">
+            {t.colors.map((c, i) => (
+              <div 
+                key={i} 
+                className="w-full h-1.5 rounded-full border border-black/5" 
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+
+          {/* Subtle background glow for selected theme */}
+          {theme === t.id && (
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-primary)]/5 to-transparent pointer-events-none" />
+          )}
         </button>
       ))}
     </div>

@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { Store } from '@tauri-apps/plugin-store';
 import { isTauriApp } from '../utils/platform';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'midnight' | 'nord' | 'dracula' | 'bamboo';
 
 interface ThemeStore {
   theme: Theme;
@@ -23,11 +23,16 @@ async function getStore(): Promise<Store> {
   return store;
 }
 
-/** Apply .dark / .light class to <html> immediately — synchronous, never fails */
+/** Apply [data-theme] to <html> immediately — synchronous, never fails */
 function applyThemeToDom(theme: Theme): void {
+  // Always include 'dark' class if the theme is a dark variant for tailwind 'dark:' utility support
+  const isDark = theme !== 'light';
+  
   document.documentElement.classList.remove('light', 'dark');
-  document.documentElement.classList.add(theme);
-  console.log('[theme] Applied to DOM:', theme, document.documentElement.className);
+  document.documentElement.classList.add(isDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+  
+  console.log('[theme] Applied to DOM:', theme, 'isDark:', isDark);
 }
 
 /** Persist theme to storage — async, failures are non-fatal */
