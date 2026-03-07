@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
 
 interface TooltipProps {
-  content: string;
+  content: string | ReactNode;
   children: ReactNode;
   delay?: number;
   className?: string; // wrapper class
@@ -113,7 +113,8 @@ export function Tooltip({ content, children, delay = 300, className = "", positi
         <div 
             className={`
                 fixed z-[9999] px-2.5 py-1.5 text-xs font-medium text-white bg-gray-900 rounded shadow-lg pointer-events-none 
-                whitespace-nowrap animate-in fade-in zoom-in-95 duration-150
+                animate-in fade-in zoom-in-95 duration-150
+                ${typeof content === 'string' ? 'whitespace-nowrap' : 'min-w-[200px] max-w-[300px] whitespace-normal'}
                 ${getTransformClass()}
             `}
             style={{ 

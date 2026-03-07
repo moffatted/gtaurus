@@ -7,10 +7,11 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { 
   Play, Terminal, Save, RefreshCw, 
   Upload, AlertTriangle, CheckCircle,
-  Search, Copy, List, FileText, Power
+  Search, Copy, List, FileText, Power, History
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
-import { transport } from '../services/transportService';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { transport, isTauri } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import * as yaml from 'js-yaml';
@@ -87,7 +88,10 @@ function ConfigEditor() {
 
     const sanitizeYaml = (raw: string) => {
         // Strip Windows CRLF, zero-width spaces, and BOM characters that break ESP32/FluidNC parsing
-        return raw.replace(/\r/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+        // Also strip any null bytes or non-printable ASCII that sometimes creep in
+        return raw.replace(/\r/g, '')
+                  .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
     };
 
     const validateYaml = (silent = false): boolean => {
@@ -170,10 +174,54 @@ function ConfigEditor() {
         URL.revokeObjectURL(url);
     };
 
+    const createLocalBackup = async (filename: string) => {
+        try {
+            // 1. Fetch current content from controller
+            const url = `http://${settings.connection.wsHost}/${filename}`;
+            const text = await transport.invoke<string>('fetch_fluidnc_file', { url });
+            
+            if (!text || text.trim() === '') return false;
+
+            // 2. Prepare local path
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+            const cleanFilename = filename.split('.')[0];
+            const backupFilename = `${cleanFilename}_${timestamp}.yaml`;
+            const backupPath = `${settings.gcodeStoragePath}/backups/configs`;
+
+            // 3. Save to host machine
+            await transport.invoke('ensure_dir_exists', { path: backupPath });
+            await transport.invoke('save_local_file', { 
+                path: backupPath, 
+                filename: backupFilename, 
+                content: text 
+            });
+            
+            useConsoleStore.getState().appendLine(`[Manager] Created local backup: ${backupFilename}`, 'sys');
+            return true;
+        } catch (e) {
+            // Silently fail if file doesn't exist yet, common for new builds
+            console.warn('[Manager] Could not create backup (file might not exist yet)', e);
+            return false;
+        }
+    };
+
     const saveLiveToFlash = async () => {
         if (!validateYaml(true)) return;
-        if (!confirm(`This will dump the CURRENT running settings in memory into ${activeFilename} on the flash. Proceed?`)) return;
+        
+        const warning = `SAVE LIVE ($CD) Warning:\n\n` +
+            `This command dumps the CONTROLLER'S MEMORY state to flash.\n` +
+            `- It removes all your comments and reorders the file.\n` +
+            `- Recent FluidNC versions have reported bugs where $CD adds invalid lines or "NO PIN" values which can prevent booting.\n\n` +
+            `A local backup will be created first. Are you absolutely sure?`;
+
+        if (!confirm(warning)) return;
+        
         try {
+            const backedUp = await createLocalBackup(activeFilename);
+            if (!backedUp && isConnected) {
+                if (!confirm("Could not create local backup (file might not exist). Proceed anyway?")) return;
+            }
             useConsoleStore.getState().appendLine(`> $CD=${activeFilename}`, 'cmd');
             await transport.invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
             setStatus('success');
@@ -222,17 +270,24 @@ function ConfigEditor() {
 
     const saveConfig = async () => {
         if (!validateYaml(false)) return;
-        if (!confirm(`Overwrite ${activeFilename} on the controller? This may require a restart.`)) return;
+        
+        const cleanYaml = sanitizeYaml(config);
+        if (cleanYaml.trim().length < 10) {
+            setError("Configuration is too short or empty. Upload aborted for safety.");
+            return;
+        }
+
+        if (!confirm(`UPLOAD: Overwrite ${activeFilename} on the controller with the contents of this editor? \n\nA local backup of the OLD file will be created first. Proceed?`)) return;
         
         setStatus('saving');
         try {
-            const safeYaml = sanitizeYaml(config);
+            await createLocalBackup(activeFilename);
             useConsoleStore.getState().appendLine(`[GTaurus] Uploading ${activeFilename}...`, 'sys');
             await transport.invoke('upload_fluidnc_file', { 
                 url: uploadUrl, 
                 target_path: "/",
                 filename: activeFilename, 
-                content: safeYaml 
+                content: cleanYaml 
             });
             setStatus('success');
             setNeedsRestart(true);
@@ -285,6 +340,28 @@ function ConfigEditor() {
                     </Tooltip>
                     
                     <div className="relative">
+                    <div className="flex items-center gap-1.5 p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                        <Tooltip content="Open Local Backups Folder" position="bottom">
+                            <button 
+                                onClick={async () => {
+                                    const path = `${settings.gcodeStoragePath}/backups/configs`.replace(/\\/g, '/');
+                                    await transport.invoke('ensure_dir_exists', { path });
+                                    if (isTauri) {
+                                        try {
+                                            await tauriInvoke('plugin:opener|open_path', { path });
+                                        } catch (e) {
+                                            console.error('Failed to open folder:', e);
+                                        }
+                                    } else {
+                                        alert(`Backups are located at: ${path}`);
+                                    }
+                                }}
+                                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-all cursor-pointer"
+                            >
+                                <History className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
+                        <div className="w-[1px] h-4 bg-[var(--border-color)]" />
                         <Tooltip content="List Files" position="bottom">
                             <button 
                                 onClick={() => {
@@ -296,6 +373,7 @@ function ConfigEditor() {
                                 <List className="w-4 h-4" />
                             </button>
                         </Tooltip>
+                    </div>
                         
                         {showFileList && (
                             <>
@@ -386,7 +464,15 @@ function ConfigEditor() {
                     </div>
 
                     <div className="flex bg-[var(--bg-tertiary)] rounded-lg p-1 border border-[var(--border-color)]">
-                        <Tooltip content="Save Live to Flash ($CD)" position="bottom">
+                        <Tooltip 
+                            content={
+                                <div className="space-y-1 p-1">
+                                    <p className="font-bold">Save Live ($CD)</p>
+                                    <p className="text-[10px] opacity-80">Dumps the controller's current in-memory settings into flash. Use this to persist changes made via the console.</p>
+                                </div>
+                            } 
+                            position="bottom"
+                        >
                             <button 
                                 onClick={saveLiveToFlash}
                                 className="px-3 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded transition-all cursor-pointer"
@@ -395,7 +481,15 @@ function ConfigEditor() {
                             </button>
                         </Tooltip>
                         <div className="w-[1px] bg-[var(--border-color)] mx-1" />
-                        <Tooltip content={`Upload to ${activeFilename}`} position="bottom">
+                        <Tooltip 
+                            content={
+                                <div className="space-y-1 p-1">
+                                    <p className="font-bold">Upload Editor Content</p>
+                                    <p className="text-[10px] opacity-80">Takes the YAML text in the editor below and overwrites the file on the controller's flash.</p>
+                                </div>
+                            } 
+                            position="bottom"
+                        >
                             <button 
                                 onClick={saveConfig}
                                 disabled={status === 'loading' || status === 'saving'}

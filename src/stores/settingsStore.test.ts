@@ -41,14 +41,14 @@ describe('settingsStore', () => {
   it('enables and disables dashboard panels', () => {
     const { setDashboardPanelEnabled } = useSettingsStore.getState();
     
-    // Controls panel is enabled by default, so we should test disabling or test a disabled one instead like 'manager'
-    const managerPanelInitial = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'manager');
-    expect(managerPanelInitial?.enabled).toBe(false);
+    // Controls panel is enabled by default, so we should test disabling or test a disabled one instead like 'visualizer'
+    const visualizerPanelInitial = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'visualizer');
+    expect(visualizerPanelInitial?.enabled).toBe(false);
 
-    // Enable manager panel
-    setDashboardPanelEnabled('manager', true);
+    // Enable visualizer panel
+    setDashboardPanelEnabled('visualizer', true);
     
-    const managerPanelUpdated = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'manager');
-    expect(managerPanelUpdated?.enabled).toBe(true);
+    const visualizerPanelUpdated = useSettingsStore.getState().settings.dashboardPanels.find(p => p.id === 'visualizer');
+    expect(visualizerPanelUpdated?.enabled).toBe(true);
   });
 });

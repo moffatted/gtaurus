@@ -203,6 +203,28 @@ export interface FluidNCManagerSettings {
   enabled: boolean;
 }
 
+export interface RotarySettings {
+  enabled: boolean;
+  strategy: "A_Swap" | "B_Dedicated";
+  swapAxis: "X" | "Y" | "Z";       // Only used if strategy === "A_Swap"
+  rotaryType: "Roller" | "Chuck";
+  
+  // Calibration
+  stepsPerRevolution: number;
+  microstepping: number;
+  rollerDiameter: number;          // Used for Roller
+  objectDiameter: number;          // Used for Chuck
+
+  // Firmware Configs (FluidNC)
+  standardConfigPath: string;
+  rotaryConfigPath: string;
+
+  // Generic GRBL Settings
+  maxRate: number;
+  acceleration: number;
+}
+
+
 export interface Settings {
   // Dashboard section
   dashboardPanels: DashboardPanel[];
@@ -235,6 +257,8 @@ export interface Settings {
   toolLibrary: ToolLibrarySettings;
   // FluidNC Manager
   fluidncManager: FluidNCManagerSettings;
+  // Rotary
+  rotary: RotarySettings;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -400,6 +424,20 @@ export const DEFAULT_SETTINGS: Settings = {
   fluidncManager: {
     enabled: true,
   },
+  rotary: {
+    enabled: false,
+    strategy: "A_Swap",
+    swapAxis: "Y",
+    rotaryType: "Roller",
+    stepsPerRevolution: 200,
+    microstepping: 16,
+    rollerDiameter: 40,
+    objectDiameter: 50,
+    standardConfigPath: "config.yaml",
+    rotaryConfigPath: "rotary.yaml",
+    maxRate: 5000,
+    acceleration: 50,
+  },
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -520,6 +558,8 @@ interface SettingsStore {
   setToolLibrarySettings: (patch: Partial<ToolLibrarySettings>) => void;
   // FluidNC Manager
   setFluidncManagerSettings: (patch: Partial<FluidNCManagerSettings>) => void;
+  // Rotary
+  setRotarySettings: (patch: Partial<RotarySettings>) => void;
   // Macros
   addMacro: (macro: Omit<Macro, 'id'>) => void;
   updateMacro: (id: string, patch: Partial<Macro>) => void;
@@ -615,6 +655,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
           toolLibrary: { ...DEFAULT_SETTINGS.toolLibrary, ...saved?.toolLibrary },
           fluidncManager: { ...DEFAULT_SETTINGS.fluidncManager, ...saved?.fluidncManager },
+          rotary: { ...DEFAULT_SETTINGS.rotary, ...saved?.rotary },
           dashboardPanels: merged 
         },
         initialized: true,
@@ -835,6 +876,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const next = {
         ...state.settings,
         fluidncManager: { ...state.settings.fluidncManager, ...patch },
+      };
+      void saveToStorage(next);
+      return { settings: next };
+    }),
+  setRotarySettings: (patch: Partial<RotarySettings>) =>
+    set((state) => {
+      const next = {
+        ...state.settings,
+        rotary: { ...state.settings.rotary, ...patch },
       };
       void saveToStorage(next);
       return { settings: next };
