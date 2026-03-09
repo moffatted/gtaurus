@@ -78,15 +78,19 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
           parts: [{ text: m.content }]
         }));
 
-      const reply = await transport.invoke<string>("ask_gemini", {
+      const reply = await transport.invoke<string>("ask_ai", {
         messages: history.length > 0 ? history : [{ role: "user", parts: [{ text: userMsg.content }] }],
         machineContext,
         aiTier: settings.ai.tier,
         apiKey: settings.ai.apiKey,
         freeModel: settings.ai.freeModel,
         proModel: settings.ai.proModel,
+        localModel: settings.ai.localModel,
+        localBaseUrl: settings.ai.localBaseUrl,
+        localApiKey: settings.ai.localApiKey,
         conciseMode: settings.ai.conciseMode,
       });
+
 
       setMessages((prev) => [
         ...prev,
@@ -112,7 +116,6 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
   };
 
   const clearChat = () => {
-
     if (window.confirm("Are you sure you want to clear the chat history?")) {
       setMessages([
         {
@@ -124,24 +127,36 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
     }
   };
 
+  const activeModelName = settings.ai.tier === 'free' 
+    ? settings.ai.freeModel
+    : settings.ai.tier === 'pro'
+      ? settings.ai.proModel
+      : settings.ai.localModel;
+
   return (
-    <div className={`flex flex-col h-full w-full bg-[var(--bg-primary)] ${!hideHeader ? 'border border-[var(--border-color)] rounded-lg' : ''} overflow-hidden`}>
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]">
       {/* Header */}
       {!hideHeader && (
-        <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Bot className="w-4 h-4 text-[var(--accent-primary)]" />
-            <span className="text-xs font-semibold text-[var(--text-primary)]">
-              AI Assistant
-            </span>
+        <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)] flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center border border-[var(--accent-primary)]/20">
+              <Code className="w-4 h-4 text-[var(--accent-primary)]" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">AI Assistant</h2>
+              <div className="flex items-center gap-1.5">
+                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                 <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{settings.ai.tier} Model Active</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowDebug(!showDebug)}
-              className={`p-1.5 rounded-md transition-colors ${showDebug ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+              className={`p-1.5 rounded-md transition-colors ${showDebug ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)]'}`}
               title="Toggle Debug Context"
             >
-              <Code className="w-3.5 h-3.5" />
+              <Bot className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={clearChat}
@@ -179,11 +194,11 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
 
               {/* Bubble */}
               <div
-                className={`px-3.5 py-2 rounded-xl text-sm leading-relaxed ${
+                className={`px-3.5 py-2 rounded-xl text-sm leading-relaxed select-text ${
                   msg.role === "user"
                     ? "bg-[var(--accent-primary)] text-white rounded-tr-sm shadow-md"
                     : msg.isError
-                    ? "bg-red-500/10 text-red-400 border border-red-500/20 rounded-tl-sm shadow-sm"
+                    ? "bg-red-500/15 text-red-400 border border-red-500/30 rounded-tl-sm shadow-sm"
                     : "bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-tl-sm shadow-sm"
                 }`}
               >
@@ -248,8 +263,8 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
         <form
           onSubmit={handleSubmit}
           className={`flex items-end gap-2 bg-[var(--bg-tertiary)] border transition-all rounded-lg p-1.5 shadow-inner ${
-            machine.status === 'Disconnected' 
-              ? 'border-yellow-500/30' 
+            machine.status === 'Disconnected'
+              ? 'border-yellow-500/30'
               : 'border-[var(--border-color)] focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)]'
           }`}
         >
@@ -262,7 +277,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
                 handleSubmit();
               }
             }}
-            placeholder={machine.status === 'Disconnected' ? "Machine disconnected. AI context will be limited..." : "Ask Gemini about feeds, speeds, or G-Code..."}
+            placeholder={machine.status === 'Disconnected' ? "Machine disconnected. AI context will be limited..." : "Ask the AI about feeds, speeds, or G-Code..."}
             className={`flex-1 max-h-32 min-h-[40px] bg-transparent resize-none outline-none text-sm px-2 py-2 ${
                 machine.status === 'Disconnected' ? 'text-yellow-200/50 placeholder:text-yellow-500/40' : 'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]'
             }`}
@@ -279,8 +294,8 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
             <Send className="w-4 h-4" />
           </button>
         </form>
-        <div className="text-[9px] text-center text-[var(--text-tertiary)] mt-2 font-medium tracking-wide">
-          Powered by Google Gemini API
+        <div className="text-[9px] text-center text-[var(--text-tertiary)] mt-2 font-medium tracking-wide uppercase">
+          {activeModelName}
         </div>
       </div>
     </div>

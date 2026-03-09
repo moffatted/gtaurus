@@ -604,7 +604,7 @@ pub fn run() {
             stream_local_gcode,
             get_camera_settings,
             set_camera_settings,
-            ai::ask_gemini,
+            ai::ask_ai,
             ai::list_gemini_models,
         ])
         .run(tauri::generate_context!())

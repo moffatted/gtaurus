@@ -1705,6 +1705,9 @@ function AIAssistantContent() {
   const [apiKey, setApiKey] = useState(settings.ai.apiKey);
   const [freeModel, setFreeModel] = useState(settings.ai.freeModel || "gemini-1.5-flash");
   const [proModel, setProModel] = useState(settings.ai.proModel || "gemini-1.5-pro");
+  const [localModel, setLocalModel] = useState(settings.ai.localModel || "qwen-2.5-coder-14b");
+  const [localBaseUrl, setLocalBaseUrl] = useState(settings.ai.localBaseUrl || "http://192.168.68.57:1473/v1");
+  const [localApiKey, setLocalApiKey] = useState(settings.ai.localApiKey || "lm-studio");
   const [loading, setLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [modelList, setModelList] = useState<string | null>(null);
@@ -1721,6 +1724,9 @@ function AIAssistantContent() {
         apiKey: apiKey.trim(),
         freeModel: freeModel.trim(),
         proModel: proModel.trim(),
+        localModel: localModel.trim(),
+        localBaseUrl: localBaseUrl.trim(),
+        localApiKey: localApiKey.trim(),
         conciseMode: conciseMode,
       });
       setSaveMessage('Settings saved successfully.');
@@ -1824,40 +1830,12 @@ function AIAssistantContent() {
       <div className="border-t border-[var(--border-color)]" />
 
       <div className="space-y-4">
-        <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>Model Configuration</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Free Tier Model</label>
-            <input
-              type="text"
-              value={freeModel}
-              onChange={(e) => setFreeModel(e.target.value)}
-              className={inputCls}
-              placeholder="e.g. gemini-1.5-flash"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Pro Tier Model</label>
-            <input
-              type="text"
-              value={proModel}
-              onChange={(e) => setProModel(e.target.value)}
-              className={inputCls}
-              placeholder="e.g. gemini-1.5-pro"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-[var(--border-color)]" />
-
-      <div className="space-y-4">
         <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>AI Engine Tier</h4>
         <div className="flex gap-1.5 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
           <button
             onClick={() => setAiSettings({ tier: 'free' })}
             className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-              isFreeTier
+              settings.ai.tier === 'free'
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
@@ -1867,47 +1845,132 @@ function AIAssistantContent() {
           <button
             onClick={() => setAiSettings({ tier: 'pro' })}
             className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-              !isFreeTier
+              settings.ai.tier === 'pro'
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
             Pro Tier
           </button>
+          <button
+            onClick={() => setAiSettings({ tier: 'local' })}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+              settings.ai.tier === 'local'
+                ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            Local
+          </button>
         </div>
         <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
-          {isFreeTier 
+          {settings.ai.tier === 'free' 
             ? `Using the built-in free tier with ${settings.ai.freeModel}. Speed-optimized for fast responses.`
-            : `Using ${settings.ai.proModel} for the most advanced reasoning. Requires your own Google API key.`}
+            : settings.ai.tier === 'pro'
+            ? `Using ${settings.ai.proModel} for the most advanced reasoning. Requires your own Google API key.`
+            : `Connecting to a local LLM server (like LM Studio) at ${localBaseUrl}. Faster and private.`}
         </p>
       </div>
 
       <div className="border-t border-[var(--border-color)]" />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>API Credentials</h4>
-          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
-            {settings.ai.apiKey ? 'Key is Set ✓' : 'No Key Configured'}
-          </span>
-        </div>
-        
-        <div>
-          <label className={labelCls}>Gemini API Key</label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={settings.ai.apiKey ? "••••••••••••••••" : "Paste your Gemini API Key here..."}
-            className={inputCls}
-          />
-          <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
-            {isFreeTier 
-              ? "You can provide your own key here to use the Free model, or leave it blank if the app was built with a bundled key."
-              : "Your key is secure. Ensure you use a valid Pro capable API key for the selected model."}
-          </p>
+        <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>Model Configuration</h4>
+        <div className="grid grid-cols-1 gap-4">
+          {settings.ai.tier === 'free' && (
+            <div>
+              <label className={labelCls}>Free Tier Model</label>
+              <input
+                type="text"
+                value={freeModel}
+                onChange={(e) => setFreeModel(e.target.value)}
+                className={inputCls}
+                placeholder="e.g. gemini-1.5-flash"
+              />
+            </div>
+          )}
+          {settings.ai.tier === 'pro' && (
+            <div>
+              <label className={labelCls}>Pro Tier Model</label>
+              <input
+                type="text"
+                value={proModel}
+                onChange={(e) => setProModel(e.target.value)}
+                className={inputCls}
+                placeholder="e.g. gemini-1.5-pro"
+              />
+            </div>
+          )}
+          {settings.ai.tier === 'local' && (
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Local Model String</label>
+                <input
+                  type="text"
+                  value={localModel}
+                  onChange={(e) => setLocalModel(e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. qwen/qwen2.5-coder-14b"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>API Base URL</label>
+                  <input
+                    type="text"
+                    value={localBaseUrl}
+                    onChange={(e) => setLocalBaseUrl(e.target.value)}
+                    className={inputCls}
+                    placeholder="http://192.168.68.57:1473/v1"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Local API Key</label>
+                  <input
+                    type="password"
+                    value={localApiKey}
+                    onChange={(e) => setLocalApiKey(e.target.value)}
+                    className={inputCls}
+                    placeholder="lm-studio"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {settings.ai.tier !== 'local' && (
+        <>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>API Credentials</h4>
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
+                {settings.ai.apiKey ? 'Key is Set ✓' : 'No Key Configured'}
+              </span>
+            </div>
+            
+            <div>
+              <label className={labelCls}>Gemini API Key</label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={settings.ai.apiKey ? "••••••••••••••••" : "Paste your Gemini API Key here..."}
+                className={inputCls}
+              />
+              <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+                {isFreeTier 
+                  ? "You can provide your own key here to use the Free model, or leave it blank if the app was built with a bundled key."
+                  : "Your key is secure. Ensure you use a valid Pro capable API key for the selected model."}
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-[var(--border-color)]" />
+        </>
+      )}
 
       <div className="border-t border-[var(--border-color)]" />
 

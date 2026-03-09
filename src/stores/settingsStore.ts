@@ -169,12 +169,16 @@ export interface StatsSettings {
 
 export interface AiSettings {
   enabled: boolean;
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "local";
   apiKey: string;
   freeModel: string;
   proModel: string;
+  localModel: string;
+  localBaseUrl: string;
+  localApiKey: string;
   conciseMode: boolean;
 }
+
 
 export interface Macro {
   id: string;
@@ -381,8 +385,12 @@ export const DEFAULT_SETTINGS: Settings = {
     apiKey: "",
     freeModel: "gemini-1.5-flash",
     proModel: "gemini-1.5-pro",
+    localModel: "qwen/qwen2.5-coder-14b",
+    localBaseUrl: "http://192.168.68.57:1473/v1",
+    localApiKey: "lm-studio",
     conciseMode: true,
   },
+
   stock: {
     enabled: false,
     width: 100,
@@ -640,6 +648,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           label: labelMap.get(p.id) || p.label
       }));
 
+      const aiSettings = { ...DEFAULT_SETTINGS.ai, ...saved?.ai };
+      if (aiSettings.localModel === "qwen-2.5-coder-14b") {
+        aiSettings.localModel = "qwen/qwen2.5-coder-14b";
+      }
+
       set({
         settings: { 
           ...DEFAULT_SETTINGS, 
@@ -649,7 +662,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           probe: { ...DEFAULT_SETTINGS.probe, ...saved?.probe },
           spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
-          ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai },
+          ai: aiSettings,
           stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
           atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
           camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
