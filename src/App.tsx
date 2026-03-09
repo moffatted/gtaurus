@@ -37,6 +37,7 @@ import { useGcodeStore } from "./stores/gcodeStore";
 import { ToolChangerModal } from "./components/ToolChangerModal";
 import { ToolLibraryModal } from "./components/ToolLibraryModal";
 import { CameraViewerModal } from "./components/CameraViewerModal";
+import { GCodeVisualizerPopup } from "./components/GCodeVisualizer/GCodeVisualizerPopup";
 
 const queryClient = new QueryClient();
 
@@ -296,6 +297,7 @@ function App() {
         <ToolChangerModal />
         <ToolLibraryModal />
         <CameraViewerModal />
+        <GCodeVisualizerPopup />
       </div>
     </QueryClientProvider>
   );

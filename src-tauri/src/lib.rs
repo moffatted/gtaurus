@@ -8,6 +8,7 @@ pub mod ai;
 pub mod autolevel;
 mod driver;
 mod driver_tests;
+pub mod commands;
 use walkdir::WalkDir;
 
 use driver::{FluidNCDriver, GCodeConnection};
@@ -655,6 +656,7 @@ pub fn run() {
             ai::ask_ai,
             ai::list_gemini_models,
             find_fusion_tools,
+            commands::gcode::parse_gcode_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

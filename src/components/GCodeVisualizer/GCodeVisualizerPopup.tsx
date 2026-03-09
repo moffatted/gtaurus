@@ -1,0 +1,243 @@
+import { FloatingWindow } from '../ui/FloatingWindow';
+import { Box, Clock, Ruler, Info, Loader2, AlertCircle, RotateCcw, ArrowDown, Zap, Play, Pause } from 'lucide-react';
+import { useVisualizerStore } from '../../stores/visualizerStore';
+import { VisualizerScene } from './VisualizerScene';
+import { Tooltip } from '../ui/Tooltip';
+import { useState, useEffect } from 'react';
+
+export function GCodeVisualizerPopup() {
+  const { isOpen, isParsing, analysis, error, progress, setProgress, closeVisualizer } = useVisualizerStore();
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Auto-play logic
+  useEffect(() => {
+    let interval: any;
+    if (isPlaying && progress < 1) {
+      interval = setInterval(() => {
+        setProgress(Math.min(1, progress + 0.005));
+      }, 50);
+    } else if (progress >= 1) {
+      setIsPlaying(false);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, progress, setProgress]);
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h > 0 ? `${h}h ` : ''}${m}m ${s}s`;
+  };
+
+  return (
+    <FloatingWindow
+      title="Carve Preview"
+      icon={<Box className="w-5 h-5" />}
+      isOpen={isOpen}
+      onClose={closeVisualizer}
+      defaultSize={{ width: 1000, height: 750 }}
+      zIndex={2000}
+    >
+      <div className="flex flex-col h-full bg-[#050505]">
+        {/* Statistics Bar */}
+        <div className="flex items-center gap-6 px-6 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] shrink-0 shadow-lg z-10 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-orange-400" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Est. Time</span>
+              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
+                {isParsing ? '...' : analysis ? formatTime(analysis.estimated_time_s) : '0m 0s'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <Ruler className="w-4 h-4 text-blue-400" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Distance</span>
+              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
+                {isParsing ? '...' : analysis ? `${analysis.total_dist_cut.toFixed(0)}mm` : '0mm'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <ArrowDown className="w-4 h-4 text-emerald-400" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Max Depth</span>
+              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
+                {isParsing ? '...' : analysis ? `${analysis.min_z.toFixed(2)}mm` : '0.00mm'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <Zap className="w-4 h-4 text-yellow-400" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Feedrate</span>
+              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
+                {isParsing ? '...' : analysis ? 
+                  (analysis.min_feedrate === analysis.max_feedrate ? 
+                    `${analysis.max_feedrate.toFixed(0)}` : 
+                    `${analysis.min_feedrate.toFixed(0)}-${analysis.max_feedrate.toFixed(0)}`
+                  ) : '0'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <Info className="w-4 h-4 text-purple-400" />
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Moves</span>
+              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
+                {isParsing ? '...' : analysis ? analysis.points.length.toLocaleString() : '0'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider mb-1">Stock Origin</span>
+              <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 shadow-inner">
+                {(['FrontLeft', 'FrontRight', 'Center', 'BackLeft', 'BackRight'] as const).map(origin => (
+                  <button
+                    key={origin}
+                    onClick={() => useVisualizerStore.getState().setStockOrigin(origin)}
+                    className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all uppercase tracking-tighter ${
+                      useVisualizerStore(state => state.stockOrigin) === origin 
+                        ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.3)]' 
+                        : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+                    }`}
+                  >
+                    {origin === 'FrontLeft' ? 'F-L' : origin === 'FrontRight' ? 'F-R' : origin === 'BackLeft' ? 'B-L' : origin === 'BackRight' ? 'B-R' : 'Center'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1" />
+          
+          <div className="flex items-center gap-2">
+            <Tooltip content="Reset View & Progress" position="bottom">
+               <button 
+                onClick={() => {
+                  setProgress(0);
+                  setIsPlaying(false);
+                }}
+                className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+               >
+                  <RotateCcw className="w-4 h-4" />
+               </button>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Main Viewing Area */}
+        <div className="flex-1 relative overflow-hidden bg-[#050505] cursor-crosshair">
+          {isParsing ? (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl border border-[var(--border-color)] shadow-2xl flex flex-col items-center gap-4">
+                <Loader2 className="w-12 h-12 text-[var(--accent-primary)] animate-spin" />
+                <div className="text-center">
+                   <p className="text-sm font-bold text-[var(--text-primary)]">Analyzing G-code</p>
+                   <p className="text-xs text-[var(--text-tertiary)] mt-1">Calculating bounding box and time estimate...</p>
+                </div>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
+              <div className="bg-red-500/10 p-8 rounded-2xl border border-red-500/20 text-red-500 max-w-md text-center">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p className="font-bold mb-2 uppercase tracking-widest text-xs">Parsing Error</p>
+                <div className="bg-black/40 p-3 rounded-lg border border-red-500/10">
+                   <p className="text-[10px] opacity-80 font-mono break-all">{error}</p>
+                </div>
+              </div>
+            </div>
+          ) : analysis ? (
+            <>
+              <VisualizerScene />
+              
+              {/* Scrubber Overlay */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-20">
+                 <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-4">
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className={`p-2 rounded-xl transition-all shadow-lg active:scale-95 group flex items-center justify-center ${
+                        isPlaying 
+                          ? 'bg-orange-500 hover:bg-orange-400 text-white' 
+                          : 'bg-[var(--accent-primary)] hover:bg-cyan-400 text-black'
+                      }`}
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5 fill-current" />
+                      ) : (
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      )}
+                    </button>
+
+                    <span className="text-[10px] font-mono text-[var(--text-tertiary)] w-12 text-right">
+                       {Math.round(progress * 100)}%
+                    </span>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.001"
+                      value={progress}
+                      onChange={(e) => {
+                        setProgress(parseFloat(e.target.value));
+                        setIsPlaying(false);
+                      }}
+                      className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--accent-primary)] hover:accent-cyan-400 transition-all shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                    />
+                    <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                       {analysis.points.length.toLocaleString()} pts
+                    </span>
+                 </div>
+              </div>
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20">
+               <Box className="w-24 h-24 mb-4" />
+               <p className="font-bold tracking-widest uppercase text-xs">No Geometry Data</p>
+            </div>
+          )}
+          
+          {/* Overlay Coordinates (Phase 3) */}
+          {analysis && !isParsing && (
+            <div className="absolute top-6 left-6 z-10 pointer-events-none">
+               <div className="bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl shadow-2xl">
+                  <p className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest mb-2 border-b border-white/5 pb-1">Dimensions (mm)</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[10px]">
+                     <span className="text-[var(--text-tertiary)]">Width (X)</span>
+                     <span className="text-cyan-400">{(analysis.bbox_max[0] - analysis.bbox_min[0]).toFixed(2)}</span>
+                     <span className="text-[var(--text-tertiary)]">Depth (Y)</span>
+                     <span className="text-cyan-400">{(analysis.bbox_max[1] - analysis.bbox_min[1]).toFixed(2)}</span>
+                     <span className="text-[var(--text-tertiary)]">Height (Z)</span>
+                     <span className="text-orange-400">{(analysis.bbox_max[2] - analysis.bbox_min[2]).toFixed(2)}</span>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer info/controls */}
+        <div className="px-4 py-2 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex items-center justify-between text-[10px] text-[var(--text-tertiary)] shrink-0">
+          <div className="flex items-center gap-4">
+             <span className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-cyan-500" /> Cutting
+             </span>
+             <span className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500" /> Rapid
+             </span>
+          </div>
+          <div className="font-mono opacity-50 uppercase tracking-tighter">
+            gtaurus v2 visualizer engine
+          </div>
+        </div>
+      </div>
+    </FloatingWindow>
+  );
+}

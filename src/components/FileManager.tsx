@@ -4,9 +4,9 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { 
-  FileText, Upload, Trash2, Play, Search, 
+  FileText, Upload, Trash2, Search, 
   RefreshCw, HardDrive, FileCode, MoreVertical,
-  Clock, Database, Eye
+  Clock, Database, Eye, Route
 } from 'lucide-react';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
 import { useRef } from 'react';
@@ -16,6 +16,8 @@ import { useGcodeStore } from '../stores/gcodeStore';
 import { formatDistanceToNow } from 'date-fns';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { transport, isTauri } from '../services/transportService';
+import { useVisualizerStore } from '../stores/visualizerStore';
+import { Tooltip } from './ui/Tooltip';
 
 interface LocalFile {
   name: string;
@@ -31,6 +33,7 @@ export default function FileManager() {
   const [error, setError] = useState<string | null>(null);
   const [isWebSocket, setIsWebSocket] = useState(transport.isWebSocketMode());
   const [isDragging, setIsDragging] = useState(false);
+  const openVisualizer = useVisualizerStore(state => state.openVisualizer);
 
   // Popover State
   const [popover, setPopover] = useState<{
@@ -313,12 +316,7 @@ export default function FileManager() {
   const handlePreview = async (filename: string) => {
     try {
       const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
-      const content = await transport.invoke<string>('read_local_file', { 
-        path: settings.gcodeStoragePath,
-        filename 
-      });
-      setGcode(content, filename, fullPath);
-      simulate();
+      await openVisualizer(fullPath);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[FileManager] Preview failed:", msg);
@@ -342,6 +340,7 @@ export default function FileManager() {
         filename 
       });
       setGcode(content, filename, fullPath);
+      simulate();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[FileManager] Select failed:", msg);
@@ -552,45 +551,52 @@ export default function FileManager() {
                 </div>
 
                 <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <Tooltip content="Preview & Analysis" position="top">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handlePreview(file.name); }}
+                      className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-all"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+                  
+                  <Tooltip content="Load Toolpath to Bed" position="top">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleSelect(file.name); }}
+                      className={`p-2 rounded-lg transition-all ${
+                          activeFileName === file.name 
+                          ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10" 
+                          : "text-[var(--text-secondary)] hover:text-orange-400 hover:bg-orange-500/10"
+                      }`}
+                    >
+                      <Route className={`w-4 h-4 ${activeFileName === file.name ? 'text-[var(--accent-primary)]' : ''}`} />
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip content="Upload to SD Card" position="top">
+                    <button 
+                      ref={el => { sdRefs.current[file.name] = el; }}
+                      onClick={(e) => { e.stopPropagation(); handleUploadToSD(file.name); }}
+                      className="p-2 text-[var(--text-secondary)] hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+                    >
+                      <HardDrive className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip content="Delete File" position="top">
+                    <button 
+                      ref={el => { deleteRefs.current[file.name] = el; }}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
+                      className="p-2 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+
                   <button 
-                    onClick={(e) => { e.stopPropagation(); handlePreview(file.name); }}
-                    className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-all"
-                    title="Preview Path"
+                    onClick={(e) => e.stopPropagation()} 
+                    className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
                   >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleSelect(file.name); }}
-                    className={`p-2 rounded-lg transition-all ${
-                        activeFileName === file.name 
-                        ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10" 
-                        : "text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10"
-                    }`}
-                    title={activeFileName === file.name ? "File Loaded" : "Select for Carving"}
-                  >
-                    <Play className={`w-4 h-4 ${activeFileName === file.name ? 'fill-current' : ''}`} />
-                  </button>
-                  <button 
-                    ref={el => { sdRefs.current[file.name] = el; }}
-                    onClick={(e) => { e.stopPropagation(); handleUploadToSD(file.name); }}
-                    className="p-2 text-[var(--text-secondary)] hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
-                    title="Send to Machine SD Card"
-                  >
-                    <HardDrive className="w-4 h-4" />
-                  </button>
-                  <button 
-                    ref={el => { deleteRefs.current[file.name] = el; }}
-                    onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
-                    className="p-2 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    title="Delete file"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <button 
-                  onClick={(e) => e.stopPropagation()} 
-                  className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
-                  title="More options"
-                >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                 </div>
