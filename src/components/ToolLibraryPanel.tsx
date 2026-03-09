@@ -19,8 +19,10 @@ import {
   Upload,
   Download,
   FolderSearch,
+  Settings,
 } from 'lucide-react';
 import { useToolStore, Bit, ToolType } from '../stores/toolStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { Tooltip } from './ui/Tooltip';
 import { BitVisualizer } from './ui/BitVisualizer';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
@@ -30,6 +32,7 @@ import clsx from 'clsx';
 
 export function ToolLibraryPanel() {
   const { tools, activeToolId, addTool, updateTool, deleteTool, setActiveTool } = useToolStore();
+  const { settings, setToolLibrarySettings } = useSettingsStore();
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -171,8 +174,14 @@ export function ToolLibraryPanel() {
     for (const item of items) {
       const bit = parseFusionTool(item);
       if (bit) {
-        addTool(bit);
-        imported++;
+        // Check for existing tool with same fusionGuid to prevent duplicates
+        const existing = bit.fusionGuid ? tools.find(t => t.fusionGuid === bit.fusionGuid) : null;
+        if (existing) {
+          updateTool(existing.id, bit);
+        } else {
+          addTool(bit);
+          imported++;
+        }
       }
     }
     setPopover({
@@ -244,37 +253,56 @@ export function ToolLibraryPanel() {
   // Scan Fusion local library directory (Tauri only)
   const handleScanFusion = async () => {
     try {
+      const { invoke, convertFileSrc } = await import('@tauri-apps/api/core');
       const { open } = await import('@tauri-apps/plugin-dialog');
+      
+      // 1. Try to auto-discover libraries first
+      const autoPaths: string[] = await invoke('find_fusion_tools');
+      
+      // Add custom path if saved
+      if (settings.toolLibrary.fusionLibraryPath && !autoPaths.includes(settings.toolLibrary.fusionLibraryPath)) {
+        autoPaths.push(settings.toolLibrary.fusionLibraryPath);
+      }
+
+      if (autoPaths.length > 0) {
+        setPopover({
+          isOpen: true,
+          type: 'confirm',
+          title: "Fusion Sync Found",
+          message: `Gtaurus auto-detected ${autoPaths.length} Fusion 360 libraries (Local & Cloud). Would you like to sync them now? This will add new tools and update any existing ones.`,
+          kind: 'info',
+          okLabel: "Sync & Import",
+          onConfirm: async () => {
+            for (const filePath of autoPaths) {
+              const assetUrl = convertFileSrc(filePath);
+              const resp = await fetch(assetUrl);
+              if (resp.ok) {
+                const text = await resp.text();
+                importFromJSON(text);
+              }
+            }
+          },
+          triggerRef: { current: null }
+        });
+        return;
+      }
+
+      // 2. Fallback to manual selection if nothing discovered
       const selected = await open({
         multiple: true,
-        filters: [{
-          name: 'Fusion Tool Library',
-          extensions: ['json', 'tools'],
-        }],
+        filters: [{ name: 'Fusion Tool Library', extensions: ['json', 'tools'] }],
         title: 'Select Fusion Tool Library Files',
       });
       if (!selected) return;
-      const paths = Array.isArray(selected) ? selected : [selected];
-      let totalImported = 0;
-      for (const filePath of paths) {
-        // Read file via fetch (Tauri asset protocol)
-        const resp = await fetch(`https://asset.localhost/${encodeURIComponent(filePath)}`);
-        if (!resp.ok) {
-          // Fallback: read as text via convertFileSrc
-          const { convertFileSrc } = await import('@tauri-apps/api/core');
-          const assetUrl = convertFileSrc(filePath);
-          const fallbackResp = await fetch(assetUrl);
-          const text = await fallbackResp.text();
-          const before = tools.length;
+      const manualPaths = Array.isArray(selected) ? selected : [selected];
+
+      for (const filePath of manualPaths) {
+        const assetUrl = convertFileSrc(filePath);
+        const resp = await fetch(assetUrl);
+        if (resp.ok) {
+          const text = await resp.text();
           importFromJSON(text);
-          totalImported += tools.length - before;
-          continue;
         }
-        const text = await resp.text();
-        importFromJSON(text);
-      }
-      if (totalImported === 0) {
-        // importFromJSON already shows its own alert
       }
     } catch (err) {
       setPopover({
@@ -299,14 +327,42 @@ export function ToolLibraryPanel() {
           </div>
           <div className="flex items-center gap-2">
             {isTauriApp() && (
-              <Tooltip content="Scan Fusion Library" position="bottom">
-                <button
-                  onClick={handleScanFusion}
-                  className="flex items-center gap-1.5 px-2 py-1.5 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/10 hover:border-purple-500/50 transition-all cursor-pointer"
-                >
-                  <FolderSearch className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
+              <div className="flex items-center">
+                <Tooltip content="Scan Fusion Library" position="bottom">
+                  <button
+                    onClick={handleScanFusion}
+                    className="flex items-center gap-1.5 px-2 py-1.5 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-l-lg hover:bg-purple-500/10 hover:border-purple-500/50 transition-all cursor-pointer border-r-0"
+                  >
+                    <FolderSearch className="w-3.5 h-3.5" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Set Custom Fusion Path" position="bottom">
+                  <button
+                    onClick={async () => {
+                      const { open } = await import('@tauri-apps/plugin-dialog');
+                      const selected = await open({
+                        multiple: false,
+                        filters: [{ name: 'Fusion Tool Library', extensions: ['json', 'tools'] }],
+                        title: 'Select your Fusion 360 Library.json',
+                      });
+                      if (selected && typeof selected === 'string') {
+                        setToolLibrarySettings({ fusionLibraryPath: selected });
+                        setPopover({
+                          isOpen: true,
+                          type: 'alert',
+                          title: "Path Saved",
+                          message: "Your custom Fusion library path has been remembered and will be used during the next sync.",
+                          kind: 'success',
+                          triggerRef: { current: null }
+                        });
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-1.5 py-1.5 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-r-lg hover:bg-purple-500/10 hover:border-purple-500/50 transition-all cursor-pointer"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              </div>
             )}
             <Tooltip content="Import Tool Library (.json / .csv / .tools)" position="bottom">
               <button
@@ -772,10 +828,11 @@ function parseFusionTool(item: any): BitInput | null {
   // Fusion nests geometry under "geometry" and post-processor data under "post-process"
   const geom = item.geometry || item;
   const post = item['post-process'] || item.post_process || item;
+  const guid = item.guid || item.reference_guid || undefined;
 
   // Diameter — try every known field name
   const diameter =
-    geom.diameter ?? geom.dc ?? geom['diameter'] ??
+    geom.diameter ?? geom.dc ?? geom.DC ?? geom['diameter'] ??
     item.diameter ?? null;
   if (diameter === null || diameter === undefined) return null;
 
@@ -786,19 +843,20 @@ function parseFusionTool(item: any): BitInput | null {
   else if (fusionType.includes('chamfer') || fusionType.includes('v-bit') || fusionType.includes('engrav') || fusionType.includes('dovetail')) type = 'v-bit';
   else if (fusionType.includes('ball')) type = 'ballnose';
   else if (fusionType.includes('face') || fusionType.includes('surfac') || fusionType.includes('fly')) type = 'surfacing';
+  else if (fusionType.includes('bull nose')) type = 'endmill'; // Bull nose is typically a flat mill with a corner radius
 
   // ── Geometry extraction (hyphenated Fusion keys + fallbacks) ────────────
   const fluteCount =
     geom['number-of-flutes'] ?? geom.number_of_flutes ?? geom.flute_count ??
-    geom.fluteCount ?? item.fluteCount ?? 2;
+    geom.fluteCount ?? geom.NOF ?? item.fluteCount ?? 2;
 
   const fluteLength =
     geom['body-length'] ?? geom['flute-length'] ?? geom.body_length ??
-    geom.flute_length ?? geom.fluteLength ?? undefined;
+    geom.flute_length ?? geom.fluteLength ?? geom.LCF ?? undefined;
 
   const overallLength =
     geom['overall-length'] ?? geom.overall_length ?? geom.overallLength ??
-    geom['shoulder-length'] ?? geom.shoulder_length ?? undefined;
+    geom['shoulder-length'] ?? geom.shoulder_length ?? geom.OAL ?? undefined;
 
   const angle =
     geom['tip-angle'] ?? geom['taper-angle'] ?? geom['included-angle'] ??
@@ -823,5 +881,6 @@ function parseFusionTool(item: any): BitInput | null {
     angle: angle !== undefined ? (typeof angle === 'number' ? angle : parseFloat(angle)) : undefined,
     material: typeof material === 'string' ? material : 'Carbide',
     notes: item.comment || item.notes || '',
+    fusionGuid: guid,
   };
 }

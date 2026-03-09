@@ -25,6 +25,7 @@ export interface Bit {
   material: string; // carbide, hss, etc.
   lastMaintenanceDate: string; // ISO date
   notes?: string;
+  fusionGuid?: string; // Unique ID from Fusion 360 to prevent duplicates on sync
 }
 
 interface ToolStoreState {

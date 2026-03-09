@@ -36,6 +36,7 @@ glam = "0.32.0"
 regex = "1.12.3"
 tokio-tungstenite = "0.26"
 futures-util = "0.3.32"
+walkdir = "2.5.0"
 
 [dev-dependencies]
 mockall = "0.13.0"

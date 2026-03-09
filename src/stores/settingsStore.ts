@@ -201,6 +201,7 @@ export interface StockSettings {
 
 export interface ToolLibrarySettings {
   enabled: boolean;
+  fusionLibraryPath?: string; // Custom path to a Fusion 360 Library.json
 }
 
 export interface FluidNCManagerSettings {

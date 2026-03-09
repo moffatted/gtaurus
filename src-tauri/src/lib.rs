@@ -8,6 +8,7 @@ pub mod ai;
 pub mod autolevel;
 mod driver;
 mod driver_tests;
+use walkdir::WalkDir;
 
 use driver::{FluidNCDriver, GCodeConnection};
 
@@ -569,6 +570,53 @@ fn set_camera_settings(
     Err("Camera hardware controls are only available when connected to the remote Gtaurus Server Bridge (Linux). Windows native camera control via v4l2-ctl is not supported.".to_string())
 }
 
+#[tauri::command]
+fn find_fusion_tools() -> Vec<String> {
+    let mut found = Vec::new();
+
+    // 1. Check Roaming path (Local Libraries)
+    if let Some(roaming) = dirs::config_dir() {
+        let local_lib = roaming
+            .join("Autodesk")
+            .join("CAM360")
+            .join("libraries")
+            .join("Local")
+            .join("Library.json");
+        if local_lib.exists() {
+            found.push(local_lib.to_string_lossy().to_string());
+        }
+    }
+
+    // 2. Scan LocalAppData for Cloud caches
+    if let Some(local) = dirs::data_local_dir() {
+        let base = local.join("Autodesk").join("Autodesk Fusion 360");
+        if base.exists() {
+            // Focus search on directories that likely contain tool libraries
+            for entry in WalkDir::new(base)
+                .max_depth(10)
+                .into_iter()
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    // Skip massive folders to keep scanning fast
+                    name != "production" && name != "Qt" && name != "Web Services"
+                })
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    let name = entry.file_name().to_string_lossy();
+                    if name == "Library.json" || name.ends_with(".tools") {
+                        found.push(entry.path().to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    found.sort();
+    found.dedup();
+    found
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -606,6 +654,7 @@ pub fn run() {
             set_camera_settings,
             ai::ask_ai,
             ai::list_gemini_models,
+            find_fusion_tools,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
