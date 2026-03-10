@@ -37,6 +37,8 @@ function ToolBit({ position }: { position: [number, number, number] }) {
         <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
       </mesh>
 
+      {/* Point Light at tip to highlight the current carve area */}
+      <pointLight position={[0, -bitLength, 5]} intensity={50} distance={50} color="#ffffff" decay={2} />
     </group>
   );
 }
@@ -186,8 +188,8 @@ function CarvedStock({
     const ctx = dispCanvasRef.current.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Background is Black (Surface/0 depth)
-    ctx.fillStyle = '#000000';
+    // Background is White (Surface/0 depth) - This allows AO map to work correctly (Darker = deeper = more occluded)
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 1024, 1024);
 
     const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
@@ -198,14 +200,11 @@ function CarvedStock({
       return;
     }
 
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.shadowBlur = 2; // Soften edges for smoother displacement transitions
-    ctx.shadowColor = 'white';
-
+    ctx.lineCap = 'round'; // Round for smooth curve segment joins
+    ctx.lineJoin = 'round'; 
+    
     const toolDiameter = 5; // Matches ToolBit radius * 2
     const pxScaleX = 1024 / stockWidth;
-    const pxScaleY = 1024 / stockDepth;
     ctx.lineWidth = toolDiameter * pxScaleX; 
 
     const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
@@ -217,9 +216,15 @@ function CarvedStock({
         if (!p2.is_rapid && p2.z < 0) {
             const depthVal = Math.abs(p2.z);
             const ratio = Math.min(1, depthVal / physicalStockHeight);
-            const grayValue = Math.floor(ratio * 255);
+            
+            // Map depth to Gray: 255 (top surface) -> 0 (deepest bed)
+            const grayValue = 255 - Math.floor(ratio * 255);
             
             ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+            // Small shadowBlur acts as anti-aliasing to prevent "spikes/teeth" artifacts
+            ctx.shadowColor = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+            ctx.shadowBlur = 1; 
+            
             ctx.beginPath();
             ctx.moveTo(getX(p1.x), getY(p1.y));
             ctx.lineTo(getX(p2.x), getY(p2.y));
@@ -252,22 +257,26 @@ function CarvedStock({
 
   return (
     <group>
-      {/* Wood base block - sitting on Bed (Y=0), slightly shorter to allow surface plane on top */}
-      <mesh position={[midX, (physicalStockHeight - 0.1) / 2, midZ]} receiveShadow>
-        <boxGeometry args={[stockWidth - 0.2, physicalStockHeight - 0.1, stockDepth - 0.2]} />
+      {/* Wood base block - Lowered and made thinner to act as the "bottom/sides" so cuts are visible */}
+      <mesh position={[midX, (physicalStockHeight - 2) / 2, midZ]} receiveShadow>
+        <boxGeometry args={[stockWidth - 0.2, physicalStockHeight - 2, stockDepth - 0.2]} />
         <meshStandardMaterial color="#5d4037" roughness={0.9} />
       </mesh>
 
-      {/* Carved Surface - Elevated slightly (+0.05) to avoid Z-fighting with base block */}
+      {/* Carved Surface - Elevated slightly to be the true top surface */}
       <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[stockWidth, stockDepth, 512, 512]} />
         <meshStandardMaterial
           map={woodTexture}
           displacementMap={dispTex}
-          displacementScale={-physicalStockHeight} 
-          displacementBias={0}
-          roughness={0.7}
-          metalness={0.2}
+          displacementScale={physicalStockHeight} 
+          displacementBias={-physicalStockHeight} // Top (White) @ Y=0, Bottom (Black) @ Y=-Thickness
+          normalMap={dispTex} 
+          normalScale={new THREE.Vector2(0.8, 0.8)} // Adjusted for better balance with anti-aliasing
+          aoMap={dispTex}
+          aoMapIntensity={12.0} // Strong shadows for depth
+          roughness={0.4}
+          metalness={0.05}
           envMapIntensity={0.5}
         />
       </mesh>
