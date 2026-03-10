@@ -12,15 +12,15 @@ function ToolBit({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
       {/* Spindle Body */}
-      <mesh position={[0, 45, 0]} castShadow>
+      <mesh position={[0, 40, 0]} castShadow>
         <cylinderGeometry args={[14, 14, 40, 32]} />
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.7} />
       </mesh>
-      <mesh position={[0, 20, 0]} castShadow>
+      <mesh position={[0, 14, 0]} castShadow>
         <cylinderGeometry args={[11, 12, 12, 32]} />
         <meshStandardMaterial color="#475569" roughness={0.6} metalness={0.5} />
       </mesh>
-      <mesh position={[0, 10, 0]} castShadow>
+      <mesh position={[0, 4, 0]} castShadow>
         <cylinderGeometry args={[8, 10, 8, 32]} />
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
