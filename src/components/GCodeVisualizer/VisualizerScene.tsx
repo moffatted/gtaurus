@@ -257,9 +257,9 @@ function CarvedStock({
 
   return (
     <group>
-      {/* Wood base block - Lowered and made thinner to act as the "bottom/sides" so cuts are visible */}
-      <mesh position={[midX, (physicalStockHeight - 2) / 2, midZ]} receiveShadow>
-        <boxGeometry args={[stockWidth - 0.2, physicalStockHeight - 2, stockDepth - 0.2]} />
+      {/* Wood base block - Full stock height so sides are fully visible */}
+      <mesh position={[midX, physicalStockHeight / 2, midZ]} receiveShadow>
+        <boxGeometry args={[stockWidth, physicalStockHeight, stockDepth]} />
         <meshStandardMaterial color="#5d4037" roughness={0.9} />
       </mesh>
 
@@ -285,12 +285,22 @@ function CarvedStock({
 
 
       {/* Job Footprint Bounding Box */}
-      <group position={[totalOX + (analysis.bbox_min[0] + analysis.bbox_max[0])/2, physicalStockHeight + 0.1, -(totalOY + (analysis.bbox_min[1] + analysis.bbox_max[1])/2)]}>
-        <mesh rotation={[-Math.PI/2, 0, 0]}>
-          <planeGeometry args={[analysis.bbox_max[0] - analysis.bbox_min[0], analysis.bbox_max[1] - analysis.bbox_min[1]]} />
-          <meshBasicMaterial color="#3b82f6" wireframe opacity={0.2} transparent />
-        </mesh>
-      </group>
+      {(() => {
+        const bx0 = totalOX + analysis.bbox_min[0];
+        const bx1 = totalOX + analysis.bbox_max[0];
+        const bz0 = -(totalOY + analysis.bbox_min[1]);
+        const bz1 = -(totalOY + analysis.bbox_max[1]);
+        const by = physicalStockHeight + 0.2;
+        return (
+          <Line
+            points={[[bx0, by, bz0], [bx1, by, bz0], [bx1, by, bz1], [bx0, by, bz1], [bx0, by, bz0]]}
+            color="#3b82f6"
+            lineWidth={1.5}
+            transparent
+            opacity={0.6}
+          />
+        );
+      })()}
     </group>
   );
 }
