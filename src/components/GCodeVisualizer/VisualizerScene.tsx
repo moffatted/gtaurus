@@ -287,7 +287,6 @@ export function VisualizerScene() {
   
   const stockWidth = settings.stock.width;
   const stockDepth = settings.stock.height;
-  const physicalStockHeight = settings.stock.thickness;
 
 
   const center = useMemo(() => {
@@ -351,8 +350,8 @@ export function VisualizerScene() {
           stockOrigin={stockOrigin}
         />
 
-        {/* WCS Axes pinned to Front-Left Corner of Workpiece at surface height */}
-        <group position={[0, physicalStockHeight + 0.1, 0]}>
+        {/* WCS Axes pinned to Front-Left Corner of Bed */}
+        <group position={[0, 0.1, 0]}>
           <WCSAxes stockWidth={stockWidth} stockDepth={stockDepth} />
         </group>
 
