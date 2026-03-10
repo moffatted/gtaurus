@@ -1,12 +1,13 @@
 import { FloatingWindow } from '../ui/FloatingWindow';
-import { Box, Clock, Ruler, Info, Loader2, AlertCircle, RotateCcw, ArrowDown, Zap, Play, Pause } from 'lucide-react';
-import { useVisualizerStore } from '../../stores/visualizerStore';
+import { Box, Clock, Ruler, Loader2, AlertCircle, RotateCcw, ArrowDown, Zap, Play, Pause } from 'lucide-react';
+import { useVisualizerStore, type StockOrigin } from '../../stores/visualizerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { VisualizerScene } from './VisualizerScene';
 import { Tooltip } from '../ui/Tooltip';
 import { useState, useEffect } from 'react';
 
 export function GCodeVisualizerPopup() {
-  const { isOpen, isParsing, analysis, error, progress, setProgress, closeVisualizer } = useVisualizerStore();
+  const { isOpen, isParsing, analysis, error, progress, stockOrigin, setProgress, closeVisualizer, setStockOrigin } = useVisualizerStore();
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Auto-play logic
@@ -86,25 +87,23 @@ export function GCodeVisualizerPopup() {
           </div>
 
           <div className="flex items-center gap-2 border-l border-white/5 pl-6">
-            <Info className="w-4 h-4 text-purple-400" />
             <div className="flex flex-col">
-              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider">Moves</span>
-              <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
-                {isParsing ? '...' : analysis ? analysis.points.length.toLocaleString() : '0'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
-            <div className="flex flex-col">
-              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider mb-1">Stock Origin</span>
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold mb-1">Align Design</span>
               <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 shadow-inner">
-                {(['FrontLeft', 'FrontRight', 'Center', 'BackLeft', 'BackRight'] as const).map(origin => (
+                {(['FrontLeft', 'FrontRight', 'Center', 'BackLeft', 'BackRight'] as const).map((origin: StockOrigin) => (
                   <button
                     key={origin}
-                    onClick={() => useVisualizerStore.getState().setStockOrigin(origin)}
+                    onClick={() => {
+                      const s = useSettingsStore.getState();
+                      setStockOrigin(
+                        origin,
+                        s.settings.stock.width || 112,
+                        s.settings.stock.height || 112,
+                        s.setStockSettings
+                      );
+                    }}
                     className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all uppercase tracking-tighter ${
-                      useVisualizerStore(state => state.stockOrigin) === origin 
+                      stockOrigin === origin
                         ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.3)]' 
                         : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/5'
                     }`}
@@ -115,6 +114,7 @@ export function GCodeVisualizerPopup() {
               </div>
             </div>
           </div>
+
           
           <div className="flex-1" />
           
@@ -141,7 +141,7 @@ export function GCodeVisualizerPopup() {
                 <Loader2 className="w-12 h-12 text-[var(--accent-primary)] animate-spin" />
                 <div className="text-center">
                    <p className="text-sm font-bold text-[var(--text-primary)]">Analyzing G-code</p>
-                   <p className="text-xs text-[var(--text-tertiary)] mt-1">Calculating bounding box and time estimate...</p>
+                   <p className="text-xs text-[var(--text-tertiary)] mt-1">Calculate total distance and moves.</p>
                 </div>
               </div>
             </div>
@@ -205,18 +205,52 @@ export function GCodeVisualizerPopup() {
             </div>
           )}
           
-          {/* Overlay Coordinates (Phase 3) */}
           {analysis && !isParsing && (
             <div className="absolute top-6 left-6 z-10 pointer-events-none">
-               <div className="bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl shadow-2xl">
-                  <p className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-widest mb-2 border-b border-white/5 pb-1">Dimensions (mm)</p>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[10px]">
-                     <span className="text-[var(--text-tertiary)]">Width (X)</span>
-                     <span className="text-cyan-400">{(analysis.bbox_max[0] - analysis.bbox_min[0]).toFixed(2)}</span>
-                     <span className="text-[var(--text-tertiary)]">Depth (Y)</span>
-                     <span className="text-cyan-400">{(analysis.bbox_max[1] - analysis.bbox_min[1]).toFixed(2)}</span>
-                     <span className="text-[var(--text-tertiary)]">Height (Z)</span>
-                     <span className="text-orange-400">{(analysis.bbox_max[2] - analysis.bbox_min[2]).toFixed(2)}</span>
+               <div className="bg-black/90 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl min-w-[200px] flex flex-col gap-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">G-Code Info</p>
+                    <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-[9px] font-mono border border-cyan-400/30">{analysis.wcs}</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Size Context */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1 tracking-tighter">Job Footprint</p>
+                        <div className="grid grid-cols-2 gap-x-2 font-mono text-[10px]">
+                          <span className="text-[var(--text-tertiary)]">X</span>
+                          <span className="text-[var(--text-primary)]">{(analysis.bbox_max[0] - analysis.bbox_min[0]).toFixed(1)}</span>
+                          <span className="text-[var(--text-tertiary)]">Y</span>
+                          <span className="text-[var(--text-primary)]">{(analysis.bbox_max[1] - analysis.bbox_min[1]).toFixed(1)}</span>
+                          <span className="text-[var(--text-tertiary)]">Z</span>
+                          <span className="text-orange-400">{(analysis.bbox_max[2] - analysis.bbox_min[2]).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="border-l border-white/5 pl-4">
+                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1 tracking-tighter">Workpiece</p>
+                        <div className="grid grid-cols-2 gap-x-2 font-mono text-[10px]">
+                          <span className="text-[var(--text-tertiary)]">W</span>
+                          <span className="text-cyan-400">{useSettingsStore.getState().settings.stock.width}</span>
+                          <span className="text-[var(--text-tertiary)]">D</span>
+                          <span className="text-cyan-400">{useSettingsStore.getState().settings.stock.height}</span>
+                          <span className="text-[var(--text-tertiary)]">U</span>
+                          <span className="text-white/60">{analysis.unit === 'Inches' ? 'IN' : 'MM'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Header Comments */}
+                    {analysis.comments.length > 0 && (
+                      <div className="pt-3 border-t border-white/5">
+                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1.5 tracking-tighter">Program Header</p>
+                        <div className="bg-black/40 rounded-lg p-2 border border-white/5 max-h-[80px] overflow-y-auto no-scrollbar">
+                           {analysis.comments.map((c: string, idx: number) => (
+                             <p key={idx} className="text-[9px] font-mono text-white/40 leading-tight mb-1 last:mb-0 break-words">{c}</p>
+                           ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                </div>
             </div>

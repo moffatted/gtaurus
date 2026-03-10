@@ -23,6 +23,9 @@ export interface GCodeAnalysis {
   workpiece_max_z: number;
   min_feedrate: number;
   max_feedrate: number;
+  wcs: string;
+  unit: string;
+  comments: string[];
 }
 
 export type StockOrigin = 'Center' | 'FrontLeft' | 'FrontRight' | 'BackLeft' | 'BackRight';
@@ -39,16 +42,16 @@ interface VisualizerState {
   openVisualizer: (filePath: string) => Promise<void>;
   closeVisualizer: () => void;
   setProgress: (p: number) => void;
-  setStockOrigin: (origin: StockOrigin) => void;
+  setStockOrigin: (origin: StockOrigin, stockWidth?: number, stockHeight?: number, updateFn?: (patch: any) => void) => void;
 }
 
-export const useVisualizerStore = create<VisualizerState>((set) => ({
+export const useVisualizerStore = create<VisualizerState>((set, get) => ({
   isOpen: false,
   isParsing: false,
   analysis: null,
   error: null,
-  progress: 0, // Default to empty
-  stockOrigin: 'Center',
+  progress: 0, 
+  stockOrigin: 'FrontLeft', 
 
   openVisualizer: async (filePath: string) => {
     set({ isOpen: true, isParsing: true, error: null, analysis: null });
@@ -60,7 +63,43 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
     }
   },
 
-  closeVisualizer: () => set({ isOpen: false, analysis: null, error: null, progress: 0, stockOrigin: 'Center' }),
+  closeVisualizer: () => set({ isOpen: false, analysis: null, error: null, progress: 0, stockOrigin: 'FrontLeft' }),
   setProgress: (p: number) => set({ progress: p }),
-  setStockOrigin: (origin: StockOrigin) => set({ stockOrigin: origin }),
+  setStockOrigin: (origin: StockOrigin, stockWidth?: number, stockHeight?: number, updateFn?: (patch: any) => void) => {
+    const { analysis } = get();
+    set({ stockOrigin: origin });
+    
+    if (analysis && stockWidth !== undefined && stockHeight !== undefined && updateFn) {
+      const jobWidth = analysis.bbox_max[0] - analysis.bbox_min[0];
+      const jobDepth = analysis.bbox_max[1] - analysis.bbox_min[1];
+      
+      let targetOX = 0;
+      let targetOY = 0;
+
+      switch(origin) {
+        case 'FrontLeft':
+          targetOX = 0 - analysis.bbox_min[0];
+          targetOY = 0 - analysis.bbox_min[1];
+          break;
+        case 'FrontRight':
+          targetOX = stockWidth - analysis.bbox_max[0];
+          targetOY = 0 - analysis.bbox_min[1];
+          break;
+        case 'BackLeft':
+          targetOX = 0 - analysis.bbox_min[0];
+          targetOY = stockHeight - analysis.bbox_max[1];
+          break;
+        case 'BackRight':
+          targetOX = stockWidth - analysis.bbox_max[0];
+          targetOY = stockHeight - analysis.bbox_max[1];
+          break;
+        case 'Center':
+          targetOX = (stockWidth - jobWidth) / 2 - analysis.bbox_min[0];
+          targetOY = (stockHeight - jobDepth) / 2 - analysis.bbox_min[1];
+          break;
+      }
+      
+      updateFn({ offsetX: targetOX, offsetY: targetOY });
+    }
+  },
 }));

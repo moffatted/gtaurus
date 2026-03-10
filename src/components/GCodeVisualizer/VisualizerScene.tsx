@@ -1,17 +1,9 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewcube, PerspectiveCamera, Environment, Text, Line } from '@react-three/drei';
+import { OrbitControls, GizmoHelper, GizmoViewcube, PerspectiveCamera, Environment, Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useVisualizerStore, type GCodeAnalysis } from '../../stores/visualizerStore';
-
-interface SceneProps {
-  analysis: GCodeAnalysis;
-  progress: number;
-  stockWidth: number;
-  stockDepth: number;
-  midX: number;
-  midZ: number;
-}
+import { useSettingsStore } from '../../stores/settingsStore';
 
 function ToolBit({ position }: { position: [number, number, number] }) {
   const bitLength = 30;
@@ -19,123 +11,129 @@ function ToolBit({ position }: { position: [number, number, number] }) {
 
   return (
     <group position={position}>
-      {/* Spindle Body - Matching BedVisualizer Style */}
+      {/* Spindle Body */}
       <mesh position={[0, 45, 0]} castShadow>
         <cylinderGeometry args={[14, 14, 40, 32]} />
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.7} />
       </mesh>
       <mesh position={[0, 20, 0]} castShadow>
         <cylinderGeometry args={[11, 12, 12, 32]} />
+        <meshStandardMaterial color="#475569" roughness={0.6} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, 10, 0]} castShadow>
+        <cylinderGeometry args={[8, 10, 8, 32]} />
+        <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
+      </mesh>
+      
+      {/* Tool Bit */}
+      <mesh position={[0, -bitLength / 2, 0]} castShadow>
+        <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 32]} />
         <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
       </mesh>
       
-      {/* Collet / Nut */}
-      <mesh position={[0, 14, 0]} castShadow>
-        <cylinderGeometry args={[6, 7, 6, 6]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.2} metalness={0.9} />
+      {/* Pointy Tip */}
+      <mesh position={[0, -bitLength, 0]} castShadow>
+        <sphereGeometry args={[toolRadius, 16, 16]} />
+        <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
       </mesh>
 
-      {/* Rotation Vanes (The Red Propeller) */}
-      <group position={[0, 14, 0]}>
-        <mesh rotation={[0, 0, 0]}>
-          <boxGeometry args={[16, 1.5, 0.5]} />
-          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
-        </mesh>
-        <mesh rotation={[0, Math.PI / 2, 0]}>
-          <boxGeometry args={[16, 1.5, 0.5]} />
-          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
-        </mesh>
-      </group>
-
-      {/* Tool Bit */}
-      <mesh position={[0, bitLength/2 - 2, 0]} castShadow>
-        <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 16]} />
-        <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.6} />
-      </mesh>
-
-      {/* Tool Tip Glow (Always at the absolute tip) */}
-      <mesh position={[0, -2, 0]}>
-        <sphereGeometry args={[toolRadius + 0.5, 16, 16]} />
-        <meshStandardMaterial 
-          color="#ef4444" 
-          emissive="#ef4444" 
-          emissiveIntensity={2.0} 
-          transparent 
-          opacity={0.6} 
-        />
-      </mesh>
-
-      <pointLight position={[0, -5, 0]} intensity={1.5} distance={50} color="#ef4444" />
     </group>
   );
 }
 
-function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number, stockDepth: number }) {
-  const labelSize = 8;
-  const labelColor = "#cbd5e1";
+function BedGrid({ width, height }: { width: number; height: number }) {
+  const majorSpacing = 50;
+  const minorSpacing = 10;
   
-  const xLen = Math.max(stockWidth, 200);
-  const yLen = Math.max(stockDepth, 200);
-  const zLen = 100;
+  const lines = useMemo(() => {
+    const minorLines: number[] = [];
+    const majorLines: number[] = [];
+    
+    // Vertical lines (X = constant)
+    for (let x = 0; x <= width + 0.1; x += minorSpacing) {
+      const isMajor = Math.abs(x % majorSpacing) < 0.1;
+      const target = isMajor ? majorLines : minorLines;
+      target.push(x - width / 2, 0, -height / 2);
+      target.push(x - width / 2, 0, height / 2);
+    }
+    
+    // Horizontal lines (Z = constant)
+    for (let z = 0; z <= height + 0.1; z += minorSpacing) {
+      const isMajor = Math.abs(z % majorSpacing) < 0.1;
+      const target = isMajor ? majorLines : minorLines;
+      target.push(-width / 2, 0, z - height / 2);
+      target.push(width / 2, 0, z - height / 2);
+    }
+    
+    return {
+      minor: new Float32Array(minorLines),
+      major: new Float32Array(majorLines)
+    };
+  }, [width, height]);
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* Origin Marker at 0,0,0 (Front Left Corner) */}
-      <mesh>
-        <sphereGeometry args={[2, 16, 16]} />
-        <meshBasicMaterial color="#f59e0b" />
-      </mesh>
+    <group>
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[lines.minor, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color="#475569" transparent opacity={0.3} />
+      </lineSegments>
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[lines.major, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color="#94a3b8" transparent opacity={0.6} />
+      </lineSegments>
+    </group>
+  );
+}
 
-      {/* Axis Lines - BedVisualizer Standard (X-Red, Y-Blue, Z-Green) */}
-      <Line points={[[0, 0, 0], [xLen, 0, 0]]} color="#ef4444" lineWidth={3} /> {/* X - Red */}
-      <Line points={[[0, 0, 0], [0, 0, -yLen]]} color="#3b82f6" lineWidth={3} /> {/* Y - Blue (Back) */}
-      <Line points={[[0, 0, 0], [0, zLen, 0]]} color="#10b981" lineWidth={2} /> {/* Z - Green (Up) */}
-      
-      {/* Axis Name Labels at the tips */}
-      <Text position={[xLen + 15, 5, 0]} fontSize={14} color="#ef4444" rotation={[-Math.PI/2, 0, 0]}>X</Text>
-      <Text position={[0, 5, -yLen - 15]} fontSize={14} color="#3b82f6" rotation={[-Math.PI/2, 0, 0]}>Y</Text>
-      <Text position={[-5, zLen + 15, 0]} fontSize={14} color="#10b981">Z</Text>
+function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number; stockDepth: number }) {
+  const { settings } = useSettingsStore();
+  const physicalStockHeight = settings.stock.thickness;
+  const labelColor = "#94a3b8";
+  const labelSize = 8;
+  
+  const xLen = Math.max(stockWidth, 100);
+  const yLen = Math.max(stockDepth, 100);
+  const zLen = Math.max(physicalStockHeight + 20, 60);
 
-      {/* Rulers - X (Right) */}
-      {Array.from({ length: Math.floor(xLen / 50) + 1 }).map((_, i) => (
-        <Text
-          key={`x-${i}`}
-          position={[i * 50, 1, 15]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          fontSize={labelSize}
-          color={labelColor}
-          anchorX="center"
-          anchorY="middle"
+  return (
+    <group>
+      {/* Main Axes Lines */}
+      <Line points={[[0, 0.2, 0], [xLen, 0.2, 0]]} color="#ef4444" lineWidth={3} /> {/* Red = X */}
+      <Line points={[[0, 0.2, 0], [0, 0.2, -yLen]]} color="#3b82f6" lineWidth={3} /> {/* Blue = Y */}
+      <Line points={[[0, 0, 0], [0, zLen, 0]]} color="#10b981" lineWidth={3} /> {/* Green = Z */}
+
+
+      {/* Axis Labels */}
+      <Text position={[xLen + 10, 0, 0]} fontSize={12} color="#ef4444">X</Text>
+      <Text position={[0, 0, -yLen - 10]} fontSize={12} color="#3b82f6">Y</Text>
+      <Text position={[0, zLen + 10, 0]} fontSize={12} color="#10b981">Z</Text>
+
+      {/* Rulers - X */}
+      {Array.from({ length: Math.floor(xLen / 50) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`x-${i}`} position={[i * 50, 2, 10]} rotation={[-Math.PI / 2, 0, 0]}
+          fontSize={labelSize} color={labelColor} anchorX="center" anchorY="middle"
         >
           {(i * 50).toString()}
         </Text>
       ))}
 
       {/* Rulers - Y (Backwards) */}
-      {Array.from({ length: Math.floor(yLen / 50) + 1 }).map((_, i) => (
-        <Text
-          key={`y-${i}`}
-          position={[-15, 1, -i * 50]}
-          rotation={[-Math.PI / 2, 0, Math.PI / 2]}
-          fontSize={labelSize}
-          color={labelColor}
-          anchorX="center"
-          anchorY="middle"
+      {Array.from({ length: Math.floor(yLen / 50) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`y-${i}`} position={[-15, 2, -i * 50]} rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+          fontSize={labelSize} color={labelColor} anchorX="center" anchorY="middle"
         >
           {(i * 50).toString()}
         </Text>
       ))}
 
       {/* Rulers - Z (Up) */}
-      {Array.from({ length: Math.floor(zLen / 20) + 1 }).map((_, i) => (
-        <Text
-          key={`z-${i}`}
-          position={[-15, i * 20, 0]}
-          rotation={[0, Math.PI / 4, 0]}
-          fontSize={labelSize}
-          color={labelColor}
-          anchorX="right"
-          anchorY="middle"
+      {Array.from({ length: Math.floor(zLen / 20) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`z-${i}`} position={[-15, i * 20, 0]} rotation={[0, Math.PI / 4, 0]}
+          fontSize={labelSize} color={labelColor} anchorX="right" anchorY="middle"
         >
           {(i * 20).toString()}
         </Text>
@@ -144,253 +142,224 @@ function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number, stockDepth: n
   );
 }
 
-function CarvedStock({ analysis, progress, stockWidth, stockDepth, midX, midZ }: SceneProps) {
-  const { stockOrigin } = useVisualizerStore();
-  const dispCanvasRef = useRef<HTMLCanvasElement>(null);
-  const aoCanvasRef = useRef<HTMLCanvasElement>(null);
-  const dispTexRef = useRef<THREE.CanvasTexture | null>(null);
-  const aoTexRef = useRef<THREE.CanvasTexture | null>(null);
-  const [currentPos, setCurrentPos] = useState<[number, number, number]>([0, 20, 0]);
+function CarvedStock({ 
+  analysis, 
+  progress, 
+  offsetX, 
+  offsetY,
+  stockOrigin 
+}: { 
+  analysis: GCodeAnalysis; 
+  progress: number;
+  offsetX: number;
+  offsetY: number;
+  stockOrigin: string;
+}) {
+  const { settings } = useSettingsStore();
+  const { 
+    width: stockWidth, 
+    height: stockDepth, 
+    thickness: physicalStockHeight
+  } = settings.stock;
 
-  const deepestZ = Math.abs(analysis.bbox_min[2]);
-  const physicalStockHeight = Math.max(6, deepestZ + 1);
-  const dispScale = -physicalStockHeight;
+  const totalOX = offsetX;
+  const totalOY = offsetY;
+  
+  const dispCanvasRef = useRef<HTMLCanvasElement>(null);
+  const dispTexRef = useRef<THREE.CanvasTexture | null>(null);
+  const [currentPos, setCurrentPos] = useState<[number, number, number]>([0, 20, 0]);
 
   const woodTexture = useLoader(THREE.TextureLoader, '/wood_texture_seamless.png');
   
-  // Enhanced Wood Look - Tiling and Physical Correctness
   useEffect(() => {
     if (woodTexture) {
       woodTexture.wrapS = woodTexture.wrapT = THREE.RepeatWrapping;
-      // Revert to original stretch behavior for a high-detail broad grain
       woodTexture.repeat.set(1, 1);
       woodTexture.needsUpdate = true;
     }
-  }, [woodTexture, stockWidth, stockDepth]);
+  }, [woodTexture]);
 
-  const minX = analysis.bbox_min[0];
-  const maxX = analysis.bbox_max[0];
-  const minY = analysis.bbox_min[1];
-  const maxY = analysis.bbox_max[1];
-  
-  const midDesignX = (minX + maxX) / 2;
-  const midDesignY = (minY + maxY) / 2;
-
-  const originX = useMemo(() => {
-    if (stockOrigin === 'Center') return midDesignX;
-    if (stockOrigin === 'FrontLeft' || stockOrigin === 'BackLeft') return minX;
-    if (stockOrigin === 'FrontRight' || stockOrigin === 'BackRight') return maxX;
-    return 0;
-  }, [stockOrigin, minX, maxX, midDesignX]);
-
-  const originY = useMemo(() => {
-    if (stockOrigin === 'Center') return midDesignY;
-    if (stockOrigin === 'FrontLeft' || stockOrigin === 'FrontRight') return minY;
-    if (stockOrigin === 'BackLeft' || stockOrigin === 'BackRight') return maxY;
-    return 0;
-  }, [stockOrigin, minY, maxY, midDesignY]);
-
-  // DRAW THE CARVE MAP
+  // Handle Displacement Mapping
   useEffect(() => {
-    if (!dispCanvasRef.current || !aoCanvasRef.current || !analysis.points.length) return;
+    if (!dispCanvasRef.current || !analysis.points.length) return;
     
-    const dispCtx = dispCanvasRef.current.getContext('2d', { alpha: false });
-    const aoCtx = aoCanvasRef.current.getContext('2d', { alpha: false });
-    if (!dispCtx || !aoCtx) return;
+    const ctx = dispCanvasRef.current.getContext('2d', { alpha: false });
+    if (!ctx) return;
 
-    dispCtx.fillStyle = '#000000';
-    dispCtx.fillRect(0, 0, 1024, 1024);
-    aoCtx.fillStyle = '#ffffff';
-    aoCtx.fillRect(0, 0, 1024, 1024);
+    // Background is Black (Surface)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 512, 512);
 
     const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
     const processedPoints = analysis.points.slice(0, pointLimit);
 
     if (pointLimit === 0) {
-      setCurrentPos([0, physicalStockHeight + 20, 0]);
+      // Park spindle at the total calculated zero at clearance height
+      setCurrentPos([offsetX, physicalStockHeight + 30, -offsetY]);
       return;
     }
 
-    let lastX = analysis.points[0].x;
-    let lastY = analysis.points[0].y;
+    ctx.lineWidth = 6; 
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    dispCtx.lineWidth = 45; 
-    dispCtx.lineCap = 'round';
-    dispCtx.lineJoin = 'round';
-    aoCtx.lineWidth = 45; 
-    aoCtx.lineCap = 'round';
-    aoCtx.lineJoin = 'round';
+    const getX = (val: number) => ((val + offsetX) / stockWidth) * 512;
+    // Invert Y mapping: G-code Y+ goes BACK, which is Y=0 in canvas space (top)
+    const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 512;
 
-    const getX = (val: number) => {
-      const worldX = val - originX;
-      const worldLeft = midX - stockWidth / 2;
-      const canvasRel = worldX - worldLeft;
-      return (canvasRel / stockWidth) * 1024;
-    };
-    const getY = (val: number) => {
-      const worldZ = -(val - originY);
-      const worldBack = midZ - stockDepth / 2;
-      const canvasRel = worldZ - worldBack; 
-      const relPos = canvasRel / stockDepth; 
-      return (1 - relPos) * 1024;
-    };
-
-    for (let i = 0; i < processedPoints.length; i++) {
-        const p = processedPoints[i];
-        if (!p.is_rapid) {
-            const depthVal = Math.max(0, 0 - p.z);
+    for (let i = 1; i < processedPoints.length; i++) {
+        const p1 = processedPoints[i-1];
+        const p2 = processedPoints[i];
+        if (!p2.is_rapid && p2.z < 0) {
+            const depthVal = Math.abs(p2.z);
             const ratio = Math.min(1, depthVal / physicalStockHeight);
-            const gray = Math.floor(ratio * 255);
+            const grayValue = Math.floor(ratio * 255);
             
-            dispCtx.strokeStyle = `rgb(${gray}, ${gray}, ${gray})`;
-            dispCtx.beginPath();
-            dispCtx.moveTo(getX(lastX), getY(lastY));
-            dispCtx.lineTo(getX(p.x), getY(p.y));
-            dispCtx.stroke();
-
-            const aoRatio = Math.min(1, ratio * 1.5);
-            const aoGray = 255 - Math.floor(aoRatio * 200);
-            aoCtx.strokeStyle = `rgb(${aoGray}, ${aoGray}, ${aoGray})`;
-            aoCtx.beginPath();
-            aoCtx.moveTo(getX(lastX), getY(lastY));
-            aoCtx.lineTo(getX(p.x), getY(p.y));
-            aoCtx.stroke();
+            ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+            ctx.beginPath();
+            ctx.moveTo(getX(p1.x), getY(p1.y));
+            ctx.lineTo(getX(p2.x), getY(p2.y));
+            ctx.stroke();
         }
-        lastX = p.x;
-        lastY = p.y;
     }
 
     if (dispTexRef.current) dispTexRef.current.needsUpdate = true;
-    if (aoTexRef.current) aoTexRef.current.needsUpdate = true;
     
-    const lastP = processedPoints[processedPoints.length - 1];
-    setCurrentPos([lastP.x - originX, lastP.z + physicalStockHeight, -(lastP.y - originY)]);
-  }, [analysis, progress, stockOrigin, stockWidth, stockDepth, physicalStockHeight, midX, midZ, originX, originY]);
+    const lastP = processedPoints.length > 0 ? processedPoints[processedPoints.length - 1] : analysis.points[0];
+    // G-code Z=0 is top surface. Bit center is at Z + StockHeight + BitLength
+    setCurrentPos([lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)]);
+  }, [analysis, progress, stockOrigin, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY]);
 
-  const textures = useMemo(() => {
-    if (typeof document === 'undefined') return { disp: null, ao: null };
-    const dispTex = new THREE.CanvasTexture(document.createElement('canvas'));
-    dispCanvasRef.current = dispTex.image as HTMLCanvasElement;
-    dispCanvasRef.current.width = 1024;
-    dispCanvasRef.current.height = 1024;
-    dispTex.anisotropy = 16;
-    dispTexRef.current = dispTex;
-
-    const aoTex = new THREE.CanvasTexture(document.createElement('canvas'));
-    aoCanvasRef.current = aoTex.image as HTMLCanvasElement;
-    aoCanvasRef.current.width = 1024;
-    aoCanvasRef.current.height = 1024;
-    aoTex.anisotropy = 16;
-    aoTexRef.current = aoTex;
-
-    return { disp: dispTex, ao: aoTex };
+  const dispTex = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const tex = new THREE.CanvasTexture(canvas);
+    dispCanvasRef.current = canvas;
+    dispTexRef.current = tex;
+    return tex;
   }, []);
+
+  const midX = stockWidth / 2;
+  const midZ = -stockDepth / 2;
 
   return (
     <group>
-      {/* CNC Base Bed */}
-      <mesh position={[0, -physicalStockHeight - 0.5, 0]} receiveShadow>
-        <boxGeometry args={[1000, 1, 1000]} />
-        <meshStandardMaterial color="#111" metalness={0.8} roughness={0.2} />
-      </mesh>
-
-      {/* Main Stock Mesh */}
-      {/* Main Stock Mesh - Shifted Up so Bed is Y=0 */}
-      <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
-        <planeGeometry args={[stockWidth, stockDepth, 512, 512]} />
-        <meshStandardMaterial
-          map={woodTexture}
-          displacementMap={textures.disp!}
-          displacementScale={-physicalStockHeight * 2.0}
-          aoMap={textures.ao!}
-          aoMapIntensity={8.0}
-          roughness={0.7}
-          metalness={0.2}
-        />
-      </mesh>
-
-      <mesh position={[midX, physicalStockHeight / 2 - 0.1, midZ]} receiveShadow>
+      {/* Wood base block - sitting on Bed (Y=0) */}
+      <mesh position={[midX, physicalStockHeight / 2, midZ]} receiveShadow>
         <boxGeometry args={[stockWidth, physicalStockHeight, stockDepth]} />
         <meshStandardMaterial color="#5d4037" roughness={0.9} />
       </mesh>
 
-      <WCSAxes stockWidth={stockWidth} stockDepth={stockDepth} />
+      {/* Carved Surface - Perfectly on top of Box (Y=physicalStockHeight) */}
+      <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[stockWidth, stockDepth, 256, 256]} />
+        <meshStandardMaterial
+          map={woodTexture}
+          displacementMap={dispTex}
+          displacementScale={-physicalStockHeight} // Map 0-255 (black to white) to 0 to -physicalStockHeight (surface to bed)
+          displacementBias={0}
+          roughness={0.7}
+          metalness={0.2}
+          envMapIntensity={0.5}
+          aoMap={woodTexture}
+          aoMapIntensity={25.0}
+        />
+      </mesh>
+
       <ToolBit position={currentPos} />
+
+
+      {/* Job Footprint Bounding Box */}
+      <group position={[totalOX + (analysis.bbox_min[0] + analysis.bbox_max[0])/2, physicalStockHeight + 0.1, -(totalOY + (analysis.bbox_min[1] + analysis.bbox_max[1])/2)]}>
+        <mesh rotation={[-Math.PI/2, 0, 0]}>
+          <planeGeometry args={[analysis.bbox_max[0] - analysis.bbox_min[0], analysis.bbox_max[1] - analysis.bbox_min[1]]} />
+          <meshBasicMaterial color="#3b82f6" wireframe opacity={0.2} transparent />
+        </mesh>
+      </group>
     </group>
   );
 }
 
 export function VisualizerScene() {
   const { analysis, progress, stockOrigin } = useVisualizerStore();
+  const { settings } = useSettingsStore();
   
-  const stockInfo = useMemo(() => {
-    if (!analysis) return null;
-    const designWidth = analysis.bbox_max[0] - analysis.bbox_min[0];
-    const designDepth = analysis.bbox_max[1] - analysis.bbox_min[1];
-    
-    const padding = (stockOrigin === 'Center') ? 20 : 2;
-    const stockWidth = designWidth + padding;
-    const stockDepth = designDepth + padding;
-    
-    let midX = 0; let midZ = 0;
-    if (stockOrigin === 'FrontLeft') { midX = stockWidth/2; midZ = -(stockDepth/2); }
-    else if (stockOrigin === 'FrontRight') { midX = -(stockWidth/2); midZ = -(stockDepth/2); }
-    else if (stockOrigin === 'BackLeft') { midX = stockWidth/2; midZ = stockDepth/2; }
-    else if (stockOrigin === 'BackRight') { midX = -(stockWidth/2); midZ = stockDepth/2; }
-    
-    return { stockWidth, stockDepth, midX, midZ };
-  }, [analysis, stockOrigin]);
+  const stockWidth = settings.stock.width;
+  const stockDepth = settings.stock.height;
+  const physicalStockHeight = settings.stock.thickness;
+
 
   const center = useMemo(() => {
-    if (!stockInfo) return new THREE.Vector3(0, 0, 0);
-    return new THREE.Vector3(stockInfo.midX, 0, stockInfo.midZ);
-  }, [stockInfo]);
+    // The camera target should be the center of the stock, not the G-code origin.
+    return new THREE.Vector3(stockWidth / 2, 0, -stockDepth / 2);
+  }, [stockWidth, stockDepth]);
 
   if (!analysis) return null;
 
   return (
     <Canvas 
       shadows 
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
-      onCreated={({ gl }) => {
-        gl.domElement.style.background = 'radial-gradient(circle at center, #111 0%, #050505 100%)';
-      }}
+      gl={{ antialias: true, logarithmicDepthBuffer: true }}
+      className="w-full h-full cursor-move"
     >
-      <PerspectiveCamera makeDefault position={[200, 250, 200]} fov={30} />
-      <Environment preset="studio" />
-      <ambientLight intensity={0.3} />
-      <spotLight position={[500, 800, 500]} angle={0.15} penumbra={1} intensity={3} castShadow />
-      <directionalLight position={[-200, 400, 200]} intensity={0.4} color="#fff" />
+      <Suspense fallback={null}>
+        <PerspectiveCamera makeDefault position={[200, 250, 200]} fov={30} />
+        <Environment preset="studio" />
+        
+        {/* Balanced Lighting */}
+        <ambientLight intensity={0.2} />
+        <directionalLight 
+          position={[100, 200, 100]} 
+          intensity={2.0} 
+          castShadow 
+          shadow-mapSize={[1024, 1024]}
+        />
+        <spotLight 
+          position={[-100, 300, 50]} 
+          angle={0.2} 
+          penumbra={1} 
+          intensity={1.5} 
+          castShadow 
+        />
+        
+        <OrbitControls makeDefault enableDamping dampingFactor={0.08} target={center} />
+        
+        {/* Professional Brushed Metal Machine Bed */}
+        <group position={[settings.general.bedSizeX / 2, -0.05, -settings.general.bedSizeY / 2]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[settings.general.bedSizeX, settings.general.bedSizeY]} />
+            <meshStandardMaterial 
+              color="#1e293b" 
+              metalness={0.7} 
+              roughness={0.25} 
+              envMapIntensity={0.8} 
+            />
+          </mesh>
+          
+          {/* Robust Technical Grid */}
+          <group position={[0, 0.05, 0]}>
+            <BedGrid width={settings.general.bedSizeX} height={settings.general.bedSizeY} />
+          </group>
+        </group>
+        
+        <CarvedStock 
+          analysis={analysis} 
+          progress={progress} 
+          offsetX={settings.stock.offsetX}
+          offsetY={settings.stock.offsetY}
+          stockOrigin={stockOrigin}
+        />
 
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} target={center} />
-      
-      {/* Background Global Grid */}
-      <Grid 
-        infiniteGrid 
-        fadeDistance={400} 
-        sectionSize={50} 
-        cellSize={10}
-        sectionColor="#222"
-        cellColor="#111"
-        position={[0, -5.1, 0]}
-      />
+        {/* WCS Axes pinned to Front-Left Corner of Workpiece at surface height */}
+        <group position={[0, physicalStockHeight + 0.1, 0]}>
+          <WCSAxes stockWidth={stockWidth} stockDepth={stockDepth} />
+        </group>
 
-      <React.Suspense fallback={null}>
-        {stockInfo && (
-          <CarvedStock 
-            analysis={analysis} 
-            progress={progress}
-            stockWidth={stockInfo.stockWidth}
-            stockDepth={stockInfo.stockDepth}
-            midX={stockInfo.midX}
-            midZ={stockInfo.midZ}
-          />
-        )}
-      </React.Suspense>
-
-      <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-        <GizmoViewcube />
-      </GizmoHelper>
+        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+          <GizmoViewcube />
+        </GizmoHelper>
+      </Suspense>
     </Canvas>
   );
 }

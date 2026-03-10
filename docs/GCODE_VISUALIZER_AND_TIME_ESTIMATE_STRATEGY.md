@@ -46,7 +46,7 @@ To maintain 60FPS fluid interaction during preview:
 - **Heatmap Overlays**: Toggleable views for feedrate and Z-depth intensity.
 - **InstancedMesh**: For rendering identical tool markers or repeated features.
 
-### 2.1 Visual Tokens:
+### 2.1 Visual Tokens
 
 - **Plunges**: Bright high-contrast markers for material entry points.
 - **Rapids**: Dashed or dim red lines for G0 travel.
@@ -68,7 +68,7 @@ To maintain 60FPS fluid interaction during preview:
 
 A simple $D/F$ (Distance / Feedrate) calculation is insufficient for modern CNC operations. Gtaurus implements a multi-pass kinematic model:
 
-### 3.1 Kinematic Model Parameters:
+### 3.1 Kinematic Model Parameters
 
 - **Max Acceleration ($A_{max}$)**: Defined per axis in $mm/s^2$.
 - **Junction Deviation ($J_d$)**: Determines the maximum allowable velocity change at path corners.
@@ -86,7 +86,7 @@ For every segment, the estimator calculates:
 ### 3.3 Canned Cycles & Dwells
 
 - **G4 Dwells**: Add literal seconds.
-- **G8x Cycles**: Expand "pecking" cycles into individual movements to calculate the true vertical distance traveled.
+- **G8x Cycles**: Expand "pecking" cycles into individual movements to calculate total distance and moves.
 
 ---
 

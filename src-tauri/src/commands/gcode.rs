@@ -1,7 +1,6 @@
 use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GCodePoint {
@@ -75,6 +74,9 @@ pub struct GCodeAnalysis {
     pub workpiece_max_z: f32,
     pub min_feedrate: f32,
     pub max_feedrate: f32,
+    pub wcs: String,
+    pub unit: String,
+    pub comments: Vec<String>,
 }
 
 #[tauri::command]
@@ -104,77 +106,92 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     let mut workpiece_max_z = 0.0f32;
     let mut first_move = true;
 
-    // A very simple time estimate for now: total_dist / average_feed
-    // We will refine this in later phases with proper kinematics.
+    let mut wcs = "G54".to_string(); // Default to G54
+    let mut header_comments = Vec::new();
+    let mut detected_unit = "Metric (mm)".to_string();
 
     for (i, line) in reader.lines().enumerate() {
         let line = line.map_err(|e| e.to_string())?;
         let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with(';') || trimmed.starts_with('(') {
-            continue;
+        if trimmed.is_empty() { continue; }
+        
+        if trimmed.starts_with('(') || trimmed.starts_with(';') {
+            if i < 50 { 
+                header_comments.push(trimmed.to_string());
+            }
+            continue; 
         }
+
+        let line_content = if let Some(idx) = trimmed.find(|c| c == ';' || c == '(') {
+            let comment = &trimmed[idx..];
+            if i < 50 { header_comments.push(comment.to_string()); }
+            &trimmed[..idx]
+        } else {
+            trimmed
+        }.trim();
+
+        if line_content.is_empty() { continue; }
 
         let mut current_x = last_x;
         let mut current_y = last_y;
         let mut current_z = last_z;
         let mut current_f = last_f;
-        let mut move_type: Option<i32> = None; // 0=rapid, 1=linear, 2=CW, 3=CCW
+        let mut move_type: Option<i32> = None;
         let mut changed = false;
         let mut arc_i = 0.0;
         let mut arc_j = 0.0;
 
-        // Simple G-code tokenizing
-        let parts = trimmed.split_whitespace();
-        for part in parts {
+        // Optimized tokenization
+        for part in line_content.split_whitespace() {
             if part.is_empty() { continue; }
-            let cmd = &part[0..1].to_uppercase();
-            let val_str = &part[1..];
-            let val = val_str.parse::<f32>().unwrap_or(0.0);
+            let cmd = part.chars().next().unwrap_or(' ').to_ascii_uppercase();
+            let val = part[1..].parse::<f32>().unwrap_or(0.0);
 
-            match cmd.as_str() {
-                "G" => {
+            match cmd {
+                'G' => {
                     let g_val = val as i32;
                     match g_val {
                         0 | 1 | 2 | 3 => {
                             move_type = Some(g_val);
-                            changed = true; // Any move command counts as a change even if coords stay same
+                            changed = true; 
                         },
-                        20 => is_inch = true,
-                        21 => is_inch = false,
+                        20 => { is_inch = true; detected_unit = "Inches".to_string(); },
+                        21 => { is_inch = false; detected_unit = "Metric (mm)".to_string(); },
+                        54..=59 => wcs = format!("G{}", g_val),
                         90 => is_relative = false,
                         91 => is_relative = true,
                         _ => {}
                     }
                 },
-                "X" => {
+                'X' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     current_x = if is_relative { last_x + v } else { v };
                     changed = true;
                 },
-                "Y" => {
+                'Y' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     current_y = if is_relative { last_y + v } else { v };
                     changed = true;
                 },
-                "Z" => {
+                'Z' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     current_z = if is_relative { last_z + v } else { v };
                     changed = true;
                 },
-                "I" => {
+                'I' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     arc_i = v;
                 },
-                "J" => {
+                'J' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     arc_j = v;
                 },
-                "F" => {
+                'F' => {
                     let mut v = val;
                     if is_inch { v *= 25.4; }
                     current_f = v;
@@ -295,6 +312,9 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
         workpiece_min_z,
         workpiece_max_z,
         min_feedrate: if min_feedrate == f32::MAX { 0.0 } else { min_feedrate },
-        max_feedrate: max_feedrate,
+        max_feedrate,
+        wcs,
+        unit: detected_unit,
+        comments: header_comments,
     })
 }
