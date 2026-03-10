@@ -2,6 +2,14 @@
 
 This document outlines the technical strategy for implementing a high-performance 3D toolpath visualizer and a precise job duration estimator within the Gtaurus (Tauri/Next.js) environment.
 
+## Current Implementation Snapshot (March 2026)
+
+- Rust parser is active in production and returns point-level toolpath data plus aggregate metadata.
+- Heightmap-based material removal is implemented and visually validated with correct depth scaling (example: 3mm cut on 6mm stock).
+- Carved surface depth is generated from a canvas heightfield and applied to geometry vertices on the CPU, followed by normal recomputation for stable lighting.
+- UI includes stock visualization, tool bit position/progress, bed/grid, WCS axes, and job footprint overlay.
+- Time estimation currently uses distance/feed based approximation; advanced kinematic estimation remains planned.
+
 ## 1. Executive Summary
 
 G-code files for complex 3D carvings can reach millions of lines. To maintain a responsive T3/Tauri UI, heavy lifting must be offloaded to the Rust backend. The visualization will utilize **React Three Fiber (R3F)** for high-performance WebGL rendering, while the time estimation algorithm will simulate machine kinematics (acceleration, feedrate limits) to provide realistic job completion times.
@@ -19,19 +27,39 @@ The parser operates on a line-by-line streaming basis to minimize memory footpri
   - Track current machine state (last X, Y, Z, F).
 - **Arc Interpolation (G2/G3)**:
   - Convert circular arcs into a series of small linear segments.
-  - **Resolution Strategy**: Dynamic segmentation based on a configurable tolerance (e.g., $0.01\text{mm}$ or $0.5^\circ$ steps).
+  - **Current Resolution Strategy**: Fixed segmentation (64 segments per arc) for stable preview quality.
+  - **Planned Improvement**: Dynamic segmentation based on tolerance (e.g., $0.01\text{mm}$ or $0.5^\circ$ steps).
 
-### 1.2 Data Structure
+### 1.2 Current Backend Data Structure
 
-The backend returns a serialized JSON array of segments optimized for GPU buffers.
+The backend currently returns point-based motion data plus aggregate analysis metadata.
 
 ```rust
-struct ToolpathSegment {
-    start: [f32; 3],  // X, Y, Z
-    end: [f32; 3],    // X, Y, Z
-    is_rapid: bool,   // G0 vs G1/2/3
-    feedrate: f32,    // Associated feed for time calc
-    line_number: u32, // Mapping back to G-code editor
+struct GCodePoint {
+  x: f32,
+  y: f32,
+  z: f32,
+  is_rapid: bool,
+  line_number: u32,
+  feedrate: f32,
+}
+
+struct GCodeAnalysis {
+  points: Vec<GCodePoint>,
+  bbox_min: [f32; 3],
+  bbox_max: [f32; 3],
+  total_dist_cut: f32,
+  total_dist_rapid: f32,
+  estimated_time_s: f32,
+  min_z: f32,
+  max_z: f32,
+  workpiece_min_z: f32,
+  workpiece_max_z: f32,
+  min_feedrate: f32,
+  max_feedrate: f32,
+  wcs: String,
+  unit: String,
+  comments: Vec<String>,
 }
 ```
 
@@ -41,10 +69,11 @@ struct ToolpathSegment {
 
 To maintain 60FPS fluid interaction during preview:
 
-- **Procedural Geometry**: Use `BufferGeometry` to minimize draw calls.
-- **Instanced Scrubbing**: Allow users to slide through the toolpath chronological progression.
-- **Heatmap Overlays**: Toggleable views for feedrate and Z-depth intensity.
-- **InstancedMesh**: For rendering identical tool markers or repeated features.
+- **Current Approach**: Heightmap-driven stock carving rendered in React Three Fiber.
+- **Geometry Path**: A high-resolution plane stores carved topology; vertex heights are rebuilt from a canvas heightmap.
+- **Lighting Fidelity**: Vertex normals are recomputed after displacement so cut depth reads correctly under scene lighting.
+- **Interactive Progress**: Tool position and carved state update with progress through parsed points.
+- **Planned Extensions**: Toolpath overlays, feedrate/depth heatmaps, and stronger segment-level diagnostics.
 
 ### 2.1 Visual Tokens
 
@@ -94,9 +123,9 @@ For every segment, the estimator calculates:
 
 - [x] **Phase 1**: Rust backend parser for bbox and basic distance.
 - [x] **Phase 2**: Frontend Integration & Global Modal.
-- [ ] **Phase 3**: R3F implementation with BufferGeometry. (In Progress)
+- [x] **Phase 3**: R3F carving MVP (heightmap stock removal, tool progress, scene overlays).
 - [ ] **Phase 4**: Advanced Kinematic Time Estimation.
-- [ ] **Phase 5**: Progress scrubber & Layer analysis.
+- [ ] **Phase 5**: Advanced progress scrubber, layer analysis, and richer path diagnostics.
 
 ---
 
@@ -126,16 +155,17 @@ Subtracts a cutter mesh from the stock block for every toolpath segment.
 - **Pros**: Produces actual manifold geometry; supports complex tool shapes.
 - **Cons**: Computationally expensive for long paths; requires batching to maintain UI fluidity.
 
-### 6.2 Heightmap Displacement (Optimized 2.5D)
+### 6.2 Heightmap Carving (Current Production Method)
 
 Deforms a top-down grid based on Z-depth. This is the fastest method for 3-axis milling.
 
 - **How it works**:
-  - Create a highly subdivided `PlaneGeometry` (e.g., 512×512).
-  - Use a displacement texture representing depth.
-  - As the tool moves, update the texture pixels under the tool radius with the lowest Z-value reached.
-- **Pros**: Native GPU acceleration via displacement shaders; extremely interactive.
-- **Cons**: Limited to top-down "height-field" cuts; cannot represent undercuts or side-drilled holes.
+  - Create a highly subdivided `PlaneGeometry` (currently 512×512).
+  - Paint a grayscale heightmap from parsed G-code points (white = surface, darker = deeper cut).
+  - Use depth-preserving compositing so overlapping passes keep the deepest value.
+  - Sample that heightmap to update geometry vertex heights, then recompute normals.
+- **Pros**: Accurate and readable depth visualization for 3-axis top-down carving, interactive update speed, stable shading.
+- **Cons**: Still a 2.5D model (no undercuts/side cuts), and steep walls can show resolution artifacts on extreme geometry.
 
 ### 6.3 Voxel-based Carving (Balanced Simulation)
 
@@ -154,7 +184,135 @@ The industry standard for complex CNC simulation.
 
 Given the T3 stack's architecture and the current focus on 3-axis desktop milling:
 
-1. **Immediate Step**: Perfect the **Heightmap Displacement** method. It provides the best UX for the majority of user projects (signs, PCB, pockets) with zero lag.
+1. **Immediate Step**: Continue refining the implemented **Heightmap Carving** method (edge quality, adaptive resolution, and performance on very large files). It currently provides the best UX for the majority of user projects (signs, PCB, pockets) with zero lag.
 2. **Long-term Step**: Transition to **Voxel-based** simulation or **BVH Booleans** if the user needs full 5-axis or rotary axis simulation (e.g., carving a 3D statue).
 
-If you want to start implementing one of these, I can provide the boilerplate for a Voxel or CSG-based approach.
+## Visualizing Bit Changes
+
+Multi-bit visualization should be implemented as an operation timeline, not a single monolithic stock state. The key idea is that each tool-change segment is its own operation, and each operation contributes to one cumulative stock result.
+
+### 8.1 Required Data Model Changes (Parser + Store)
+
+Current parser output is point-centric (`GCodePoint[]`). To support bit-change visualization, extend the analysis model with operation metadata and per-point operation assignment.
+
+Proposed additions:
+
+```rust
+struct OperationInfo {
+  id: u32,
+  tool_number: Option<u32>,
+  tool_name: Option<String>,
+  start_point_idx: usize,
+  end_point_idx: usize,
+  start_line: u32,
+  end_line: u32,
+}
+
+struct GCodePoint {
+  x: f32,
+  y: f32,
+  z: f32,
+  is_rapid: bool,
+  line_number: u32,
+  feedrate: f32,
+  operation_id: u32,
+}
+
+struct GCodeAnalysis {
+  // existing fields...
+  operations: Vec<OperationInfo>,
+}
+```
+
+Operation boundaries should be detected from:
+
+- `Tn` tool selection
+- `M6` tool change
+- known tool-change comments when present
+
+Notes:
+
+- `operation_id` should be the canonical timeline identity.
+- `tool_number` is metadata only (a tool can appear in multiple operations).
+
+### 8.2 Heightmap Execution Model for Multi-Bit Jobs
+
+For the current production method (heightmap carving), multi-bit support should remain cumulative:
+
+1. Operation 1 paints/cuts the base heightmap.
+2. Operation N paints only additional removal on top of prior state.
+3. Composition mode remains depth-preserving (minimum height / deepest cut wins).
+
+This preserves accuracy while avoiding a full architecture rewrite.
+
+### 8.3 First Deliverable (Highest ROI): Color-per-Bit
+
+Implement this first because it is high-value and low-risk.
+
+- Assign each operation a stable color.
+- Render operation tint as an overlay in playback/progress mode.
+- Add legend: operation id, tool number/name, line range.
+
+Outcome:
+
+- Users can immediately see roughing vs finishing contribution.
+- Multi-stage jobs become legible without changing carve-depth math.
+
+### 8.4 Timeline and Tool-Change UX
+
+Add operation-aware controls:
+
+- **Playback Mode**: continuous (existing) and operation-step mode.
+- **Jump Targets**: "After Operation N" quick navigation.
+- **Tool Change Pause**: auto pause on operation boundary with instruction banner ("Swap to Tool X").
+
+This aligns preview flow with real machine workflow.
+
+### 8.5 Z-Offset Calibration (Mid-Carve Risk Preview)
+
+Add a per-operation Z calibration value for simulation-only what-if analysis:
+
+$$Z_{effective} = Z_{programmed} + \Delta Z_{operation}$$
+
+Use this in the heightmap paint pass for that operation.
+
+Warnings:
+
+- if $Z_{effective} > Z_{programmed}$: air-cut risk
+- if $Z_{effective} < Z_{programmed}$: overcut/gouge risk
+
+This is especially useful for users who re-zero Z after an `M6`.
+
+### 8.6 Rest Material Highlight (Advanced)
+
+After operation metadata is available:
+
+1. Build final reference heightmap from all operations.
+2. Build current-operation heightmap for selected timeline point.
+3. Compute remaining material map:
+
+$$H_{remaining} = H_{current} - H_{final}$$
+
+4. Highlight cells where $H_{remaining}$ exceeds tolerance.
+
+This gives a clear "what this tool cannot reach" visualization.
+
+### 8.7 Performance Plan
+
+Avoid storing full heightmap snapshots for every operation at first.
+
+- Store operation ranges and deterministically replay paint.
+- Add checkpoint caching every N operations for fast scrubbing.
+- Recompute only operation deltas between nearest checkpoint and target operation.
+
+This keeps memory bounded while preserving interactivity on large files.
+
+### 8.8 Recommended Rollout Order
+
+1. Parser/store schema extension (`operation_id`, `operations[]`).
+2. Color-per-Bit rendering + legend.
+3. Operation-step timeline + tool-change pause UI.
+4. Per-operation Z-offset calibration.
+5. Rest material highlight.
+
+This order delivers immediate user value while minimizing regression risk to the now-stable carve-depth implementation.
