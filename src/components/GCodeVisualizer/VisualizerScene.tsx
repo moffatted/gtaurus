@@ -93,7 +93,7 @@ function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number; stockDepth: n
   const { settings } = useSettingsStore();
   const physicalStockHeight = settings.stock.thickness;
   const labelColor = "#94a3b8";
-  const labelSize = 8;
+  const labelSize = 5;
   
   const xLen = Math.max(stockWidth, 100);
   const yLen = Math.max(stockDepth, 100);
@@ -113,29 +113,29 @@ function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number; stockDepth: n
       <Text position={[0, zLen + 10, 0]} fontSize={12} color="#10b981">Z</Text>
 
       {/* Rulers - X */}
-      {Array.from({ length: Math.floor(xLen / 50) + 1 }).map((_, i) => i > 0 && (
-        <Text key={`x-${i}`} position={[i * 50, 2, 10]} rotation={[-Math.PI / 2, 0, 0]}
+      {Array.from({ length: Math.floor(xLen / 10) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`x-${i}`} position={[i * 10, 2, 10]} rotation={[-Math.PI / 2, 0, 0]}
           fontSize={labelSize} color={labelColor} anchorX="center" anchorY="middle"
         >
-          {(i * 50).toString()}
+          {(i * 10).toString()}
         </Text>
       ))}
 
       {/* Rulers - Y (Backwards) */}
-      {Array.from({ length: Math.floor(yLen / 50) + 1 }).map((_, i) => i > 0 && (
-        <Text key={`y-${i}`} position={[-15, 2, -i * 50]} rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+      {Array.from({ length: Math.floor(yLen / 10) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`y-${i}`} position={[-15, 2, -i * 10]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]}
           fontSize={labelSize} color={labelColor} anchorX="center" anchorY="middle"
         >
-          {(i * 50).toString()}
+          {(i * 10).toString()}
         </Text>
       ))}
 
       {/* Rulers - Z (Up) */}
-      {Array.from({ length: Math.floor(zLen / 20) + 1 }).map((_, i) => i > 0 && (
-        <Text key={`z-${i}`} position={[-15, i * 20, 0]} rotation={[0, Math.PI / 4, 0]}
+      {Array.from({ length: Math.floor(zLen / 10) + 1 }).map((_, i) => i > 0 && (
+        <Text key={`z-${i}`} position={[-15, i * 10, 0]} rotation={[0, Math.PI / 4, 0]}
           fontSize={labelSize} color={labelColor} anchorX="right" anchorY="middle"
         >
-          {(i * 20).toString()}
+          {(i * 10).toString()}
         </Text>
       ))}
     </group>
