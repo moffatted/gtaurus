@@ -2,12 +2,90 @@ import { useMemo, useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube, PerspectiveCamera, Environment, Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { useVisualizerStore, type GCodeAnalysis } from '../../stores/visualizerStore';
+import { useVisualizerStore, type GCodeAnalysis, type OperationInfo } from '../../stores/visualizerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 
-function ToolBit({ position }: { position: [number, number, number] }) {
+interface ToolBitProps {
+  position: [number, number, number];
+  toolType?: string;
+  toolDiameter?: number;
+}
+
+function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6 }: ToolBitProps) {
   const bitLength = 30;
-  const toolRadius = 2.5;
+  const toolRadius = (toolDiameter || 6) / 2 * 0.8; // Scale down for visualization
+
+  // Color mapping by tool type
+  const getToolColor = () => {
+    switch (toolType) {
+      case 'vbit': return '#A855F7';      // Purple
+      case 'chamfer': return '#F59E0B';   // Amber
+      case 'ballnose': return '#10B981';  // Green
+      case 'flatendmill': return '#3B82F6'; // Blue
+      default: return '#94a3b8';           // Gray
+    }
+  };
+
+  // Render different bit geometries
+  const renderBitGeometry = () => {
+    const color = getToolColor();
+    const material = <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />;
+
+    switch (toolType) {
+      case 'vbit': {
+        // V-bit: cone shape
+        return (
+          <mesh position={[0, -bitLength / 2, 0]} castShadow>
+            <coneGeometry args={[toolRadius, bitLength, 32]} />
+            {material}
+          </mesh>
+        );
+      }
+      
+      case 'ballnose': {
+        // Ball nose: cylinder followed by hemisphere
+        return (
+          <>
+            <mesh position={[0, -bitLength * 0.7, 0]} castShadow>
+              <cylinderGeometry args={[toolRadius, toolRadius, bitLength * 0.7, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, -bitLength, 0]} castShadow>
+              <sphereGeometry args={[toolRadius, 32, 32]} />
+              {material}
+            </mesh>
+          </>
+        );
+      }
+      
+      case 'chamfer': {
+        // Chamfer: inverted cone (taper)
+        return (
+          <mesh position={[0, -bitLength / 2, 0]} castShadow>
+            <coneGeometry args={[toolRadius * 0.3, bitLength, 32]} />
+            {material}
+          </mesh>
+        );
+      }
+      
+      case 'flatendmill':
+      default: {
+        // Flat endmill: cylinder with flat bottom
+        return (
+          <>
+            <mesh position={[0, -bitLength / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, -bitLength, 0]} castShadow>
+              <cylinderGeometry args={[toolRadius, toolRadius, 0.5, 32]} />
+              {material}
+            </mesh>
+          </>
+        );
+      }
+    }
+  };
 
   return (
     <group position={position}>
@@ -25,17 +103,8 @@ function ToolBit({ position }: { position: [number, number, number] }) {
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
       
-      {/* Tool Bit */}
-      <mesh position={[0, -bitLength / 2, 0]} castShadow>
-        <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 32]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
-      </mesh>
-      
-      {/* Pointy Tip */}
-      <mesh position={[0, -bitLength, 0]} castShadow>
-        <sphereGeometry args={[toolRadius, 16, 16]} />
-        <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
-      </mesh>
+      {/* Tool Bit - Rendered based on type */}
+      {renderBitGeometry()}
 
       {/* Point Light at tip to highlight the current carve area */}
       <pointLight position={[0, -bitLength, 5]} intensity={50} distance={50} color="#ffffff" decay={2} />
@@ -149,13 +218,15 @@ function CarvedStock({
   progress, 
   offsetX, 
   offsetY,
-  stockOrigin 
+  stockOrigin,
+  currentOperation
 }: { 
   analysis: GCodeAnalysis; 
   progress: number;
   offsetX: number;
   offsetY: number;
   stockOrigin: string;
+  currentOperation?: OperationInfo | null;
 }) {
   const { settings } = useSettingsStore();
   const { 
@@ -197,14 +268,17 @@ function CarvedStock({
 
     if (pointLimit > 0) {
       ctx.lineCap = 'round';
-      ctx.lineJoin = 'round'; 
-      
-      const toolDiameter = 5;
-      const pxScaleX = 1024 / stockWidth;
-      ctx.lineWidth = toolDiameter * pxScaleX; 
+      ctx.lineJoin = 'round';
 
+      const pxScaleX = 1024 / stockWidth;
       const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
       const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
+
+      // Create operation -> tool diameter map
+      const operationDiameterMap = new Map<number, number>();
+      analysis.operations.forEach(op => {
+        operationDiameterMap.set(op.id, op.tool_diameter);
+      });
 
       // darken: each pixel keeps the minimum (deepest) value across overlapping passes
       ctx.globalCompositeOperation = 'darken';
@@ -220,6 +294,10 @@ function CarvedStock({
               ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
               // Avoid extra blurred halos that create jagged vertical walls after displacement.
               ctx.shadowBlur = 0;
+              
+              // Use actual tool diameter from operation metadata
+              const toolDiameter = operationDiameterMap.get(p2.operation_id) || 5;
+              ctx.lineWidth = toolDiameter * pxScaleX;
               
               ctx.beginPath();
               ctx.moveTo(getX(p1.x), getY(p1.y));
@@ -384,7 +462,11 @@ function CarvedStock({
         </lineSegments>
       )}
 
-      <ToolBit position={currentPos} />
+      <ToolBit 
+        position={currentPos} 
+        toolType={currentOperation?.tool_type}
+        toolDiameter={currentOperation?.tool_diameter}
+      />
 
 
       {/* Job Footprint Bounding Box */}
@@ -480,6 +562,7 @@ export function VisualizerScene() {
           offsetX={settings.stock.offsetX}
           offsetY={settings.stock.offsetY}
           stockOrigin={stockOrigin}
+          currentOperation={currentOperation}
         />
 
         {/* WCS Axes pinned to Front-Left Corner of Bed */}

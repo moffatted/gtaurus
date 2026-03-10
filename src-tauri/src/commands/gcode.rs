@@ -18,10 +18,53 @@ pub struct OperationInfo {
     pub id: u32,
     pub tool_number: Option<u32>,
     pub tool_name: Option<String>,
+    pub tool_diameter: f32,
+    pub tool_type: String,
     pub start_point_idx: usize,
     pub end_point_idx: usize,
     pub start_line: u32,
     pub end_line: u32,
+}
+
+fn extract_tool_info(tool_name: Option<&str>) -> (f32, String) {
+    if let Some(name) = tool_name {
+        let lower = name.to_lowercase();
+        
+        // Extract diameter (e.g., "6mm", "8mm")
+        let diameter = if let Some(mm_pos) = lower.find("mm") {
+            if mm_pos >= 2 {
+                let num_str = &lower[..mm_pos];
+                // Find the start of the number
+                if let Some(first_digit) = num_str.rfind(|c: char| !c.is_numeric() && c != '.') {
+                    let num_part = &num_str[first_digit + 1..];
+                    num_part.parse::<f32>().unwrap_or(5.0)
+                } else {
+                    num_str.parse::<f32>().unwrap_or(5.0)
+                }
+            } else {
+                5.0
+            }
+        } else {
+            5.0
+        };
+        
+        // Extract tool type
+        let tool_type = if lower.contains("flat") || lower.contains("endmill") {
+            if lower.contains("ball") { "ballnose".to_string() } else { "flatendmill".to_string() }
+        } else if lower.contains("chamfer") {
+            "chamfer".to_string()
+        } else if lower.contains("v-bit") || lower.contains("vbit") {
+            "vbit".to_string()
+        } else if lower.contains("bull") {
+            "bullnose".to_string()
+        } else {
+            "unknown".to_string()
+        };
+        
+        (diameter, tool_type)
+    } else {
+        (5.0, "unknown".to_string())
+    }
 }
 
 fn linearize_arc(
@@ -127,6 +170,10 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     let mut current_operation_id: u32 = 1;
     let mut current_operation_tool: Option<u32> = None;
     let mut pending_tool_number: Option<u32> = None;
+    let mut pending_tool_name: Option<String> = None;
+    let mut current_operation_tool_name: Option<String> = None;
+    let mut current_operation_tool_diameter: f32 = 5.0;
+    let mut current_operation_tool_type: String = "unknown".to_string();
     let mut current_operation_start_point_idx: usize = 0;
     let mut current_operation_start_line: u32 = 1;
     let mut has_points_in_current_operation = false;
@@ -153,6 +200,13 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
         }.trim();
 
         if line_content.is_empty() { continue; }
+
+        // Extract comment if present
+        let line_comment = if let Some(idx) = trimmed.find(|c| c == ';' || c == '(') {
+            Some(&trimmed[idx..])
+        } else {
+            None
+        };
 
         let mut current_x = last_x;
         let mut current_y = last_y;
@@ -241,6 +295,14 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
 
         if line_tool_number.is_some() {
             pending_tool_number = line_tool_number;
+            // Extract tool name from comment if present
+            if let Some(comment) = line_comment {
+                // Remove parentheses and semicolons, extract the text
+                let clean_comment = comment
+                    .trim_start_matches(|c| c == '(' || c == ';')
+                    .trim_end_matches(')');
+                pending_tool_name = Some(clean_comment.to_string());
+            }
         }
 
         if line_has_m6 {
@@ -248,7 +310,9 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                 operations.push(OperationInfo {
                     id: current_operation_id,
                     tool_number: current_operation_tool,
-                    tool_name: None,
+                    tool_name: current_operation_tool_name.clone(),
+                    tool_diameter: current_operation_tool_diameter,
+                    tool_type: current_operation_tool_type.clone(),
                     start_point_idx: current_operation_start_point_idx,
                     end_point_idx: points.len().saturating_sub(1),
                     start_line: current_operation_start_line,
@@ -262,6 +326,12 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                 current_operation_start_line = (i + 1) as u32;
             }
             current_operation_tool = pending_tool_number;
+            current_operation_tool_name = pending_tool_name.clone();
+            
+            // Extract tool diameter and type from tool name
+            let (diameter, tool_type) = extract_tool_info(pending_tool_name.as_deref());
+            current_operation_tool_diameter = diameter;
+            current_operation_tool_type = tool_type;
         }
 
         if changed {
@@ -363,7 +433,9 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
         operations.push(OperationInfo {
             id: current_operation_id,
             tool_number: current_operation_tool,
-            tool_name: None,
+            tool_name: current_operation_tool_name.clone(),
+            tool_diameter: current_operation_tool_diameter,
+            tool_type: current_operation_tool_type.clone(),
             start_point_idx: current_operation_start_point_idx,
             end_point_idx: points.len().saturating_sub(1),
             start_line: current_operation_start_line,

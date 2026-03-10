@@ -15,6 +15,8 @@ export interface OperationInfo {
   id: number;
   tool_number: number | null;
   tool_name: string | null;
+  tool_diameter: number;
+  tool_type: string;
   start_point_idx: number;
   end_point_idx: number;
   start_line: number;
