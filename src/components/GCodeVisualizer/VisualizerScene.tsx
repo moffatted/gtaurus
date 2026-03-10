@@ -168,7 +168,6 @@ function CarvedStock({
   const totalOY = offsetY;
   
   const dispCanvasRef = useRef<HTMLCanvasElement>(null);
-  const dispTexRef = useRef<THREE.CanvasTexture | null>(null);
   const geoRef = useRef<THREE.PlaneGeometry>(null);
   const [currentPos, setCurrentPos] = useState<[number, number, number]>([0, 20, 0]);
 
@@ -219,8 +218,8 @@ function CarvedStock({
               const grayValue = 255 - Math.floor(ratio * 255);
               
               ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-              ctx.shadowColor = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-              ctx.shadowBlur = 1; 
+              // Avoid extra blurred halos that create jagged vertical walls after displacement.
+              ctx.shadowBlur = 0;
               
               ctx.beginPath();
               ctx.moveTo(getX(p1.x), getY(p1.y));
@@ -232,8 +231,6 @@ function CarvedStock({
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    if (dispTexRef.current) dispTexRef.current.needsUpdate = true;
-
     // CPU-side vertex displacement: read heightmap, move vertices, recompute normals
     if (geoRef.current) {
       const geo = geoRef.current;
@@ -242,14 +239,56 @@ function CarvedStock({
       const pos = geo.attributes.position;
       const wSegs = 512;
       const hSegs = 512;
+
+      const sampleGrayBilinear = (u: number, v: number): number => {
+        const x = u * 1023;
+        const y = v * 1023;
+
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const x1 = Math.min(1023, x0 + 1);
+        const y1 = Math.min(1023, y0 + 1);
+
+        const tx = x - x0;
+        const ty = y - y0;
+
+        const i00 = (y0 * 1024 + x0) * 4;
+        const i10 = (y0 * 1024 + x1) * 4;
+        const i01 = (y1 * 1024 + x0) * 4;
+        const i11 = (y1 * 1024 + x1) * 4;
+
+        const g00 = pixels[i00];
+        const g10 = pixels[i10];
+        const g01 = pixels[i01];
+        const g11 = pixels[i11];
+
+        const gx0 = g00 * (1 - tx) + g10 * tx;
+        const gx1 = g01 * (1 - tx) + g11 * tx;
+        return gx0 * (1 - ty) + gx1 * ty;
+      };
+
+      const sampleGraySmooth = (u: number, v: number): number => {
+        // Small cross-kernel smooth suppresses stair-step spikes at steep cut walls.
+        const du = 1 / 1023;
+        const dv = 1 / 1023;
+        const uc = Math.min(1, Math.max(0, u));
+        const vc = Math.min(1, Math.max(0, v));
+
+        const c = sampleGrayBilinear(uc, vc);
+        const l = sampleGrayBilinear(Math.max(0, uc - du), vc);
+        const r = sampleGrayBilinear(Math.min(1, uc + du), vc);
+        const d = sampleGrayBilinear(uc, Math.max(0, vc - dv));
+        const up = sampleGrayBilinear(uc, Math.min(1, vc + dv));
+
+        return (c * 4 + l + r + d + up) / 8;
+      };
       
       for (let iy = 0; iy <= hSegs; iy++) {
         for (let ix = 0; ix <= wSegs; ix++) {
           const vIdx = iy * (wSegs + 1) + ix;
-          const px = Math.min(1023, Math.round((ix / wSegs) * 1023));
-          const py = Math.min(1023, Math.round((iy / hSegs) * 1023));
-          const pIdx = (py * 1024 + px) * 4;
-          const heightVal = pixels[pIdx]; // R channel (grayscale)
+          const u = ix / wSegs;
+          const v = iy / hSegs;
+          const heightVal = sampleGraySmooth(u, v);
           // White(255) = surface (z=0), Black(0) = deepest (z=-stockHeight)
           pos.setZ(vIdx, -(1 - heightVal / 255) * physicalStockHeight);
         }
@@ -263,17 +302,12 @@ function CarvedStock({
     setCurrentPos([lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)]);
   }, [analysis, progress, stockOrigin, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY]);
 
-  const dispTex = useMemo(() => {
+  useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.generateMipmaps = false;
-    tex.minFilter = THREE.LinearFilter;
-    tex.magFilter = THREE.LinearFilter;
     dispCanvasRef.current = canvas;
-    dispTexRef.current = tex;
-    return tex;
+    return canvas;
   }, []);
 
   const midX = stockWidth / 2;
@@ -298,8 +332,6 @@ function CarvedStock({
         <planeGeometry ref={geoRef} args={[stockWidth, stockDepth, 512, 512]} />
         <meshStandardMaterial
           map={woodTexture}
-          aoMap={dispTex}
-          aoMapIntensity={4.0}
           roughness={0.4}
           metalness={0.05}
           envMapIntensity={0.5}
