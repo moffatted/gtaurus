@@ -257,9 +257,9 @@ function CarvedStock({
 
   return (
     <group>
-      {/* Wood base block - Full stock height so sides are fully visible */}
-      <mesh position={[midX, physicalStockHeight / 2, midZ]} receiveShadow>
-        <boxGeometry args={[stockWidth, physicalStockHeight, stockDepth]} />
+      {/* Wood base block - Slightly shorter than physicalStockHeight to prevent z-fighting with the carved surface plane */}
+      <mesh position={[midX, (physicalStockHeight - 0.1) / 2, midZ]} receiveShadow>
+        <boxGeometry args={[stockWidth, physicalStockHeight - 0.1, stockDepth]} />
         <meshStandardMaterial color="#5d4037" roughness={0.9} />
       </mesh>
 
@@ -271,8 +271,6 @@ function CarvedStock({
           displacementMap={dispTex}
           displacementScale={physicalStockHeight} 
           displacementBias={-physicalStockHeight} // Top (White) @ Y=0, Bottom (Black) @ Y=-Thickness
-          normalMap={dispTex} 
-          normalScale={new THREE.Vector2(0.8, 0.8)} // Adjusted for better balance with anti-aliasing
           aoMap={dispTex}
           aoMapIntensity={12.0} // Strong shadows for depth
           roughness={0.4}
