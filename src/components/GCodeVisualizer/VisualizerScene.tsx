@@ -169,6 +169,7 @@ function CarvedStock({
   
   const dispCanvasRef = useRef<HTMLCanvasElement>(null);
   const dispTexRef = useRef<THREE.CanvasTexture | null>(null);
+  const geoRef = useRef<THREE.PlaneGeometry>(null);
   const [currentPos, setCurrentPos] = useState<[number, number, number]>([0, 20, 0]);
 
   const woodTexture = useLoader(THREE.TextureLoader, '/wood_texture_seamless.png');
@@ -181,61 +182,84 @@ function CarvedStock({
     }
   }, [woodTexture]);
 
-  // Handle Displacement Mapping
+  // Paint heightmap canvas, then apply CPU vertex displacement for correct 3D normals
   useEffect(() => {
     if (!dispCanvasRef.current || !analysis.points.length) return;
     
     const ctx = dispCanvasRef.current.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Background is White (Surface/0 depth) - This allows AO map to work correctly (Darker = deeper = more occluded)
+    // Background is White (Surface/0 depth) - AO map uses this (Darker = deeper = more occluded)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 1024, 1024);
 
     const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
     const processedPoints = analysis.points.slice(0, pointLimit);
 
-    if (pointLimit === 0) {
-      setCurrentPos([offsetX, physicalStockHeight + 30, -offsetY]);
-      return;
-    }
+    if (pointLimit > 0) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round'; 
+      
+      const toolDiameter = 5;
+      const pxScaleX = 1024 / stockWidth;
+      ctx.lineWidth = toolDiameter * pxScaleX; 
 
-    ctx.lineCap = 'round'; // Round for smooth curve segment joins
-    ctx.lineJoin = 'round'; 
-    
-    const toolDiameter = 5; // Matches ToolBit radius * 2
-    const pxScaleX = 1024 / stockWidth;
-    ctx.lineWidth = toolDiameter * pxScaleX; 
+      const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
+      const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
 
-    const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
-    const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
+      // darken: each pixel keeps the minimum (deepest) value across overlapping passes
+      ctx.globalCompositeOperation = 'darken';
 
-    for (let i = 1; i < processedPoints.length; i++) {
-        const p1 = processedPoints[i-1];
-        const p2 = processedPoints[i];
-        if (!p2.is_rapid && p2.z < 0) {
-            const depthVal = Math.abs(p2.z);
-            const ratio = Math.min(1, depthVal / physicalStockHeight);
-            
-            // Map depth to Gray: 255 (top surface) -> 0 (deepest bed)
-            const grayValue = 255 - Math.floor(ratio * 255);
-            
-            ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-            // Small shadowBlur acts as anti-aliasing to prevent "spikes/teeth" artifacts
-            ctx.shadowColor = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-            ctx.shadowBlur = 1; 
-            
-            ctx.beginPath();
-            ctx.moveTo(getX(p1.x), getY(p1.y));
-            ctx.lineTo(getX(p2.x), getY(p2.y));
-            ctx.stroke();
-        }
+      for (let i = 1; i < processedPoints.length; i++) {
+          const p1 = processedPoints[i-1];
+          const p2 = processedPoints[i];
+          if (!p2.is_rapid && p2.z < 0) {
+              const depthVal = Math.abs(p2.z);
+              const ratio = Math.min(1, depthVal / physicalStockHeight);
+              const grayValue = 255 - Math.floor(ratio * 255);
+              
+              ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+              ctx.shadowColor = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+              ctx.shadowBlur = 1; 
+              
+              ctx.beginPath();
+              ctx.moveTo(getX(p1.x), getY(p1.y));
+              ctx.lineTo(getX(p2.x), getY(p2.y));
+              ctx.stroke();
+          }
+      }
+
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     if (dispTexRef.current) dispTexRef.current.needsUpdate = true;
+
+    // CPU-side vertex displacement: read heightmap, move vertices, recompute normals
+    if (geoRef.current) {
+      const geo = geoRef.current;
+      const imgData = ctx.getImageData(0, 0, 1024, 1024);
+      const pixels = imgData.data;
+      const pos = geo.attributes.position;
+      const wSegs = 512;
+      const hSegs = 512;
+      
+      for (let iy = 0; iy <= hSegs; iy++) {
+        for (let ix = 0; ix <= wSegs; ix++) {
+          const vIdx = iy * (wSegs + 1) + ix;
+          const px = Math.min(1023, Math.round((ix / wSegs) * 1023));
+          const py = Math.min(1023, Math.round((iy / hSegs) * 1023));
+          const pIdx = (py * 1024 + px) * 4;
+          const heightVal = pixels[pIdx]; // R channel (grayscale)
+          // White(255) = surface (z=0), Black(0) = deepest (z=-stockHeight)
+          pos.setZ(vIdx, -(1 - heightVal / 255) * physicalStockHeight);
+        }
+      }
+      
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
     
     const lastP = processedPoints.length > 0 ? processedPoints[processedPoints.length - 1] : analysis.points[0];
-    // G-code Z=0 is top surface. Bit center is at Z + StockHeight + BitLength
     setCurrentPos([lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)]);
   }, [analysis, progress, stockOrigin, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY]);
 
@@ -260,19 +284,22 @@ function CarvedStock({
       {/* Wood base block - Slightly shorter than physicalStockHeight to prevent z-fighting with the carved surface plane */}
       <mesh position={[midX, (physicalStockHeight - 0.1) / 2, midZ]} receiveShadow>
         <boxGeometry args={[stockWidth, physicalStockHeight - 0.1, stockDepth]} />
-        <meshStandardMaterial color="#5d4037" roughness={0.9} />
+        <meshStandardMaterial attach="material-0" color="#5d4037" roughness={0.9} />
+        <meshStandardMaterial attach="material-1" color="#5d4037" roughness={0.9} />
+        {/* Top face must be transparent so displaced carve depths are not visually occluded by a flat cap */}
+        <meshStandardMaterial attach="material-2" transparent opacity={0} depthWrite={false} />
+        <meshStandardMaterial attach="material-3" color="#5d4037" roughness={0.9} />
+        <meshStandardMaterial attach="material-4" color="#5d4037" roughness={0.9} />
+        <meshStandardMaterial attach="material-5" color="#5d4037" roughness={0.9} />
       </mesh>
 
       {/* Carved Surface - Elevated slightly to be the true top surface */}
       <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[stockWidth, stockDepth, 512, 512]} />
+        <planeGeometry ref={geoRef} args={[stockWidth, stockDepth, 512, 512]} />
         <meshStandardMaterial
           map={woodTexture}
-          displacementMap={dispTex}
-          displacementScale={physicalStockHeight} 
-          displacementBias={-physicalStockHeight} // Top (White) @ Y=0, Bottom (Black) @ Y=-Thickness
           aoMap={dispTex}
-          aoMapIntensity={12.0} // Strong shadows for depth
+          aoMapIntensity={4.0}
           roughness={0.4}
           metalness={0.05}
           envMapIntensity={0.5}
