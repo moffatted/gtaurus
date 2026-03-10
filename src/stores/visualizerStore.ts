@@ -8,10 +8,22 @@ export interface GCodePoint {
   is_rapid: boolean;
   line_number: number;
   feedrate: number;
+  operation_id: number;
+}
+
+export interface OperationInfo {
+  id: number;
+  tool_number: number | null;
+  tool_name: string | null;
+  start_point_idx: number;
+  end_point_idx: number;
+  start_line: number;
+  end_line: number;
 }
 
 export interface GCodeAnalysis {
   points: GCodePoint[];
+  operations: OperationInfo[];
   bbox_min: [number, number, number];
   bbox_max: [number, number, number];
   total_dist_cut: number;

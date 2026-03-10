@@ -10,6 +10,18 @@ pub struct GCodePoint {
     pub is_rapid: bool,
     pub line_number: u32,
     pub feedrate: f32,
+    pub operation_id: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OperationInfo {
+    pub id: u32,
+    pub tool_number: Option<u32>,
+    pub tool_name: Option<String>,
+    pub start_point_idx: usize,
+    pub end_point_idx: usize,
+    pub start_line: u32,
+    pub end_line: u32,
 }
 
 fn linearize_arc(
@@ -63,6 +75,7 @@ fn linearize_arc(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCodeAnalysis {
     pub points: Vec<GCodePoint>,
+    pub operations: Vec<OperationInfo>,
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
     pub total_dist_cut: f32,
@@ -85,6 +98,7 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     let reader = BufReader::new(file);
 
     let mut points = Vec::new();
+    let mut operations = Vec::new();
     let mut last_x = 0.0;
     let mut last_y = 0.0;
     let mut last_z = 0.0;
@@ -109,6 +123,14 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     let mut wcs = "G54".to_string(); // Default to G54
     let mut header_comments = Vec::new();
     let mut detected_unit = "Metric (mm)".to_string();
+
+    let mut current_operation_id: u32 = 1;
+    let mut current_operation_tool: Option<u32> = None;
+    let mut pending_tool_number: Option<u32> = None;
+    let mut current_operation_start_point_idx: usize = 0;
+    let mut current_operation_start_line: u32 = 1;
+    let mut has_points_in_current_operation = false;
+    let mut last_motion_line: u32 = 1;
 
     for (i, line) in reader.lines().enumerate() {
         let line = line.map_err(|e| e.to_string())?;
@@ -140,6 +162,8 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
         let mut changed = false;
         let mut arc_i = 0.0;
         let mut arc_j = 0.0;
+        let mut line_has_m6 = false;
+        let mut line_tool_number: Option<u32> = None;
 
         // Optimized tokenization
         for part in line_content.split_whitespace() {
@@ -161,6 +185,17 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                         90 => is_relative = false,
                         91 => is_relative = true,
                         _ => {}
+                    }
+                },
+                'M' => {
+                    let m_val = val as i32;
+                    if m_val == 6 {
+                        line_has_m6 = true;
+                    }
+                },
+                'T' => {
+                    if let Ok(t_val) = part[1..].parse::<u32>() {
+                        line_tool_number = Some(t_val);
                     }
                 },
                 'X' => {
@@ -204,6 +239,31 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
             }
         }
 
+        if line_tool_number.is_some() {
+            pending_tool_number = line_tool_number;
+        }
+
+        if line_has_m6 {
+            if has_points_in_current_operation {
+                operations.push(OperationInfo {
+                    id: current_operation_id,
+                    tool_number: current_operation_tool,
+                    tool_name: None,
+                    start_point_idx: current_operation_start_point_idx,
+                    end_point_idx: points.len().saturating_sub(1),
+                    start_line: current_operation_start_line,
+                    end_line: last_motion_line,
+                });
+                current_operation_id += 1;
+                current_operation_start_point_idx = points.len();
+                current_operation_start_line = (i + 1) as u32;
+                has_points_in_current_operation = false;
+            } else {
+                current_operation_start_line = (i + 1) as u32;
+            }
+            current_operation_tool = pending_tool_number;
+        }
+
         if changed {
             let m_type = move_type.unwrap_or(if last_is_rapid { 0 } else { 1 });
             
@@ -225,7 +285,10 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                         is_rapid: false,
                         line_number: (i + 1) as u32,
                         feedrate: current_f,
+                        operation_id: current_operation_id,
                     });
+                    has_points_in_current_operation = true;
+                    last_motion_line = (i + 1) as u32;
                     
                     bbox_min[0] = bbox_min[0].min(p[0]);
                     bbox_min[1] = bbox_min[1].min(p[1]);
@@ -260,7 +323,10 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                     is_rapid,
                     line_number: (i + 1) as u32,
                     feedrate: current_f,
+                    operation_id: current_operation_id,
                 });
+                has_points_in_current_operation = true;
+                last_motion_line = (i + 1) as u32;
 
                 if !is_rapid {
                     if first_move {
@@ -293,6 +359,16 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     if points.is_empty() {
         bbox_min = [0.0, 0.0, 0.0];
         bbox_max = [0.0, 0.0, 0.0];
+    } else if has_points_in_current_operation {
+        operations.push(OperationInfo {
+            id: current_operation_id,
+            tool_number: current_operation_tool,
+            tool_name: None,
+            start_point_idx: current_operation_start_point_idx,
+            end_point_idx: points.len().saturating_sub(1),
+            start_line: current_operation_start_line,
+            end_line: last_motion_line,
+        });
     }
 
     // Basic time estimate
@@ -302,6 +378,7 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
 
     Ok(GCodeAnalysis {
         points,
+        operations,
         bbox_min,
         bbox_max,
         total_dist_cut,
