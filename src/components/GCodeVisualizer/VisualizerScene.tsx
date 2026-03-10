@@ -310,6 +310,41 @@ function CarvedStock({
     return canvas;
   }, []);
 
+  const operationOverlay = useMemo(() => {
+    const positions: number[] = [];
+    const colors: number[] = [];
+
+    const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
+    const overlayY = physicalStockHeight + 0.03;
+
+    const opColor = (opId: number) => {
+      // Stable hue spacing so each operation/tool remains visually distinct.
+      const hue = (opId * 0.217) % 1;
+      return new THREE.Color().setHSL(hue, 0.85, 0.52);
+    };
+
+    for (let i = 1; i < pointLimit; i++) {
+      const p1 = analysis.points[i - 1];
+      const p2 = analysis.points[i];
+
+      if (p2.is_rapid || p2.z >= 0) continue;
+
+      const c = opColor(p2.operation_id || 1);
+
+      positions.push(p1.x + offsetX, overlayY, -(p1.y + offsetY));
+      positions.push(p2.x + offsetX, overlayY, -(p2.y + offsetY));
+
+      colors.push(c.r, c.g, c.b);
+      colors.push(c.r, c.g, c.b);
+    }
+
+    return {
+      positions: new Float32Array(positions),
+      colors: new Float32Array(colors),
+      hasData: positions.length > 0,
+    };
+  }, [analysis.points, progress, offsetX, offsetY, physicalStockHeight]);
+
   const midX = stockWidth / 2;
   const midZ = -stockDepth / 2;
 
@@ -337,6 +372,17 @@ function CarvedStock({
           envMapIntensity={0.5}
         />
       </mesh>
+
+      {/* Per-operation cut overlay (color-per-bit) */}
+      {operationOverlay.hasData && (
+        <lineSegments>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[operationOverlay.positions, 3]} />
+            <bufferAttribute attach="attributes-color" args={[operationOverlay.colors, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial vertexColors transparent opacity={0.95} />
+        </lineSegments>
+      )}
 
       <ToolBit position={currentPos} />
 
