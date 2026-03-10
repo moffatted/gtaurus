@@ -186,26 +186,30 @@ function CarvedStock({
     const ctx = dispCanvasRef.current.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Background is Black (Surface)
+    // Background is Black (Surface/0 depth)
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 1024, 1024);
 
     const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
     const processedPoints = analysis.points.slice(0, pointLimit);
 
     if (pointLimit === 0) {
-      // Park spindle at the total calculated zero at clearance height
       setCurrentPos([offsetX, physicalStockHeight + 30, -offsetY]);
       return;
     }
 
-    ctx.lineWidth = 6; 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.shadowBlur = 2; // Soften edges for smoother displacement transitions
+    ctx.shadowColor = 'white';
 
-    const getX = (val: number) => ((val + offsetX) / stockWidth) * 512;
-    // Invert Y mapping: G-code Y+ goes BACK, which is Y=0 in canvas space (top)
-    const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 512;
+    const toolDiameter = 5; // Matches ToolBit radius * 2
+    const pxScaleX = 1024 / stockWidth;
+    const pxScaleY = 1024 / stockDepth;
+    ctx.lineWidth = toolDiameter * pxScaleX; 
+
+    const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
+    const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
 
     for (let i = 1; i < processedPoints.length; i++) {
         const p1 = processedPoints[i-1];
@@ -232,9 +236,12 @@ function CarvedStock({
 
   const dispTex = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 1024;
+    canvas.height = 1024;
     const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
     dispCanvasRef.current = canvas;
     dispTexRef.current = tex;
     return tex;
@@ -245,25 +252,23 @@ function CarvedStock({
 
   return (
     <group>
-      {/* Wood base block - sitting on Bed (Y=0) */}
-      <mesh position={[midX, physicalStockHeight / 2, midZ]} receiveShadow>
-        <boxGeometry args={[stockWidth, physicalStockHeight, stockDepth]} />
+      {/* Wood base block - sitting on Bed (Y=0), slightly shorter to allow surface plane on top */}
+      <mesh position={[midX, (physicalStockHeight - 0.1) / 2, midZ]} receiveShadow>
+        <boxGeometry args={[stockWidth - 0.2, physicalStockHeight - 0.1, stockDepth - 0.2]} />
         <meshStandardMaterial color="#5d4037" roughness={0.9} />
       </mesh>
 
-      {/* Carved Surface - Perfectly on top of Box (Y=physicalStockHeight) */}
+      {/* Carved Surface - Elevated slightly (+0.05) to avoid Z-fighting with base block */}
       <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[stockWidth, stockDepth, 256, 256]} />
+        <planeGeometry args={[stockWidth, stockDepth, 512, 512]} />
         <meshStandardMaterial
           map={woodTexture}
           displacementMap={dispTex}
-          displacementScale={-physicalStockHeight} // Map 0-255 (black to white) to 0 to -physicalStockHeight (surface to bed)
+          displacementScale={-physicalStockHeight} 
           displacementBias={0}
           roughness={0.7}
           metalness={0.2}
           envMapIntensity={0.5}
-          aoMap={woodTexture}
-          aoMapIntensity={25.0}
         />
       </mesh>
 
