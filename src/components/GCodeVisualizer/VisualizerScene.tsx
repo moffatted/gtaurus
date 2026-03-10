@@ -409,12 +409,16 @@ function CarvedStock({
 }
 
 export function VisualizerScene() {
-  const { analysis, progress, stockOrigin } = useVisualizerStore();
+  const { analysis, progress, stockOrigin, isToolChangePaused, currentOperationId, clearToolChangePause } = useVisualizerStore();
   const { settings } = useSettingsStore();
   
   const stockWidth = settings.stock.width;
   const stockDepth = settings.stock.height;
 
+  const currentOperation = useMemo(() => {
+    if (!analysis || !currentOperationId) return null;
+    return analysis.operations.find(op => op.id === currentOperationId);
+  }, [analysis, currentOperationId]);
 
   const center = useMemo(() => {
     // The camera target should be the center of the stock, not the G-code origin.
@@ -424,10 +428,11 @@ export function VisualizerScene() {
   if (!analysis) return null;
 
   return (
+    <div className="relative w-full h-full flex flex-col">
     <Canvas 
       shadows 
       gl={{ antialias: true, logarithmicDepthBuffer: true }}
-      className="w-full h-full cursor-move"
+      className="w-full flex-1 cursor-move"
     >
       <Suspense fallback={null}>
         <PerspectiveCamera makeDefault position={[200, 250, 200]} fov={30} />
@@ -487,5 +492,24 @@ export function VisualizerScene() {
         </GizmoHelper>
       </Suspense>
     </Canvas>
+    
+    {/* Tool-change pause banner */}
+    {isToolChangePaused && currentOperation && (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="bg-orange-500 text-white px-8 py-6 rounded-lg shadow-2xl pointer-events-auto flex flex-col items-center gap-4">
+          <div className="text-2xl font-bold">Tool Change Required</div>
+          <div className="text-lg">
+            {currentOperation.tool_number ? `Swap to Tool T${currentOperation.tool_number}` : 'Swap to next tool'}
+          </div>
+          <button 
+            onClick={() => clearToolChangePause()}
+            className="bg-white text-orange-500 font-bold px-6 py-2 rounded hover:bg-gray-100 transition"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    )}
+    </div>
   );
 }

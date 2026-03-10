@@ -41,6 +41,7 @@ export interface GCodeAnalysis {
 }
 
 export type StockOrigin = 'Center' | 'FrontLeft' | 'FrontRight' | 'BackLeft' | 'BackRight';
+export type PlaybackMode = 'continuous' | 'operation-step';
 
 interface VisualizerState {
   isOpen: boolean;
@@ -49,12 +50,20 @@ interface VisualizerState {
   error: string | null;
   progress: number; // 0 to 1
   stockOrigin: StockOrigin;
+  playbackMode: PlaybackMode;
+  isToolChangePaused: boolean;
+  currentOperationId: number | null;
   
   // Actions
   openVisualizer: (filePath: string) => Promise<void>;
   closeVisualizer: () => void;
   setProgress: (p: number) => void;
   setStockOrigin: (origin: StockOrigin, stockWidth?: number, stockHeight?: number, updateFn?: (patch: any) => void) => void;
+  setPlaybackMode: (mode: PlaybackMode) => void;
+  goToOperationStart: (opId: number) => void;
+  goToOperationEnd: (opId: number) => void;
+  nextOperation: () => void;
+  clearToolChangePause: () => void;
 }
 
 export const useVisualizerStore = create<VisualizerState>((set, get) => ({
@@ -63,19 +72,36 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
   analysis: null,
   error: null,
   progress: 0, 
-  stockOrigin: 'FrontLeft', 
+  stockOrigin: 'FrontLeft',
+  playbackMode: 'continuous',
+  isToolChangePaused: false,
+  currentOperationId: null, 
 
   openVisualizer: async (filePath: string) => {
     set({ isOpen: true, isParsing: true, error: null, analysis: null });
     try {
       const result = await invoke<GCodeAnalysis>('parse_gcode_file', { path: filePath });
-      set({ analysis: result, isParsing: false });
+      set({ 
+        analysis: result, 
+        isParsing: false,
+        isToolChangePaused: false,
+        currentOperationId: result.operations.length > 0 ? result.operations[0].id : null
+      });
     } catch (err) {
       set({ error: String(err), isParsing: false });
     }
   },
 
-  closeVisualizer: () => set({ isOpen: false, analysis: null, error: null, progress: 0, stockOrigin: 'FrontLeft' }),
+  closeVisualizer: () => set({ 
+    isOpen: false, 
+    analysis: null, 
+    error: null, 
+    progress: 0, 
+    stockOrigin: 'FrontLeft',
+    playbackMode: 'continuous',
+    isToolChangePaused: false,
+    currentOperationId: null
+  }),
   setProgress: (p: number) => set({ progress: p }),
   setStockOrigin: (origin: StockOrigin, stockWidth?: number, stockHeight?: number, updateFn?: (patch: any) => void) => {
     const { analysis } = get();
@@ -113,5 +139,42 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
       
       updateFn({ offsetX: targetOX, offsetY: targetOY });
     }
+  },
+
+  setPlaybackMode: (mode: PlaybackMode) => {
+    set({ playbackMode: mode, isToolChangePaused: false, progress: 0 });
+  },
+
+  goToOperationStart: (opId: number) => {
+    const { analysis } = get();
+    if (!analysis) return;
+    const op = analysis.operations.find(o => o.id === opId);
+    if (!op) return;
+    const targetProgress = op.start_point_idx / analysis.points.length;
+    set({ progress: targetProgress, currentOperationId: opId, isToolChangePaused: false });
+  },
+
+  goToOperationEnd: (opId: number) => {
+    const { analysis } = get();
+    if (!analysis) return;
+    const op = analysis.operations.find(o => o.id === opId);
+    if (!op) return;
+    const targetProgress = (op.end_point_idx + 1) / analysis.points.length;
+    set({ progress: Math.min(1, targetProgress), currentOperationId: opId, isToolChangePaused: false });
+  },
+
+  nextOperation: () => {
+    const { analysis, currentOperationId } = get();
+    if (!analysis || currentOperationId === null) return;
+    const currentIdx = analysis.operations.findIndex(o => o.id === currentOperationId);
+    if (currentIdx < 0 || currentIdx >= analysis.operations.length - 1) return;
+    const nextOp = analysis.operations[currentIdx + 1];
+    set({ currentOperationId: nextOp.id, isToolChangePaused: true });
+    const targetProgress = nextOp.start_point_idx / analysis.points.length;
+    set({ progress: targetProgress });
+  },
+
+  clearToolChangePause: () => {
+    set({ isToolChangePaused: false });
   },
 }));
