@@ -37,7 +37,7 @@ const ControlsPanel = () => {
 const FileManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full">{ctx.fileManagerPanel}</div>;
+    return <div className="h-full w-full overflow-hidden">{ctx.fileManagerPanel}</div>;
 }
 const ProbePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
@@ -67,22 +67,20 @@ export function DockLayout(props: DockLayoutProps) {
               .filter(p => p.enabled)
               .sort((a, b) => a.order - b.order);
 
+          const PANEL_MIN_WIDTHS:  Record<string, number> = { controls: 380, probe: 300, workpiece: 280, macros: 280, autolevel: 360, fileManager: 280, console: 280 };
+          const PANEL_MIN_HEIGHTS: Record<string, number> = { controls: 450 };
+
           activePanels.forEach((panelData, index) => {
               const panelConfig: any = {
                   id: panelData.id,
                   component: panelData.id,
                   title: panelData.label,
                   renderer: 'always',
-                  minimumHeight: 100,
-                  minimumWidth: 100,
+                  minimumWidth:  PANEL_MIN_WIDTHS[panelData.id]  ?? 100,
+                  minimumHeight: PANEL_MIN_HEIGHTS[panelData.id] ?? 100,
                   initialWidth: panelData.defaultWidth,
                   initialHeight: panelData.defaultHeight
               };
-
-              if (panelData.id === 'controls') {
-                  panelConfig.minimumWidth = 380;
-                  panelConfig.minimumHeight = 450;
-              }
 
               if (index === 0) {
                  apiInstance.addPanel(panelConfig);
@@ -170,8 +168,10 @@ export function DockLayout(props: DockLayoutProps) {
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            const minH = id === 'controls' ? 450 : 100;
-            const minW = id === 'controls' ? 380 : 100;
+            const minWidths:  Record<string, number> = { controls: 380, probe: 300, workpiece: 280, macros: 280, autolevel: 360, fileManager: 280, console: 280 };
+            const minHeights: Record<string, number> = { controls: 450 };
+            const minH = minHeights[id] ?? 100;
+            const minW = minWidths[id] ?? 100;
 
             const size = dir === 'right' ? defaultWidth : defaultHeight;
 

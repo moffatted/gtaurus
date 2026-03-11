@@ -49,7 +49,7 @@ export function MacrosPanel() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-x-auto min-w-[320px]">
+        <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden min-w-[280px]">
             <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-400" />
