@@ -367,6 +367,8 @@ export function Sidebar({ className }: SidebarProps) {
     const collapsed = useLayoutStore((state) => state.sidebarCollapsed);
     const toggle    = useLayoutStore((state) => state.toggleSidebarCollapsed);
     const [status, setStatus] = useState("Disconnected");
+    const legacyGrblMode = useSettingsStore((state) => state.settings.general.legacyGrblMode);
+    const firmwareLabel  = legacyGrblMode ? "GRBL 1.1" : "FluidNC";
 
     // Poll connection status for collapsed indicator
     useEffect(() => {
@@ -409,11 +411,31 @@ export function Sidebar({ className }: SidebarProps) {
                 "p-4 border-b border-[var(--border-color)] flex items-center h-14 overflow-hidden",
                 collapsed ? "justify-center" : "justify-start gap-3"
             )}>
-                <TaurusLogo className="w-8 h-8 text-blue-500 flex-shrink-0" />
+                <div className="relative flex-shrink-0">
+                    <TaurusLogo className="w-8 h-8 text-blue-500" />
+                    {collapsed && (
+                        <Tooltip content={firmwareLabel} position="right">
+                            <span className={clsx(
+                                "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-sidebar)]",
+                                legacyGrblMode ? "bg-orange-500" : "bg-teal-400"
+                            )} />
+                        </Tooltip>
+                    )}
+                </div>
                 {!collapsed && (
-                    <h1 className="font-bold text-lg text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-300">
-                        Gtaurus
-                    </h1>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <h1 className="font-bold text-lg text-[var(--text-primary)] whitespace-nowrap transition-opacity duration-300">
+                            Gtaurus
+                        </h1>
+                        <span className={clsx(
+                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
+                            legacyGrblMode
+                                ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                                : "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+                        )}>
+                            {firmwareLabel}
+                        </span>
+                    </div>
                 )}
             </div>
 
