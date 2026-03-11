@@ -637,10 +637,7 @@ export function VisualizerScene() {
     return analysis.operations.find(op => op.id === currentOperationId);
   }, [analysis, currentOperationId]);
 
-  const { x: wcsX, z: wcsZ } = useMemo(
-    () => getWcsAnchor(settings.stock.zeroPosition, stockWidth, stockDepth),
-    [settings.stock.zeroPosition, stockWidth, stockDepth]
-  );
+
 
   const center = useMemo(() => {
     const stockCenter = getStockCenter(stockWidth, stockDepth);
@@ -700,9 +697,9 @@ export function VisualizerScene() {
           analysis={analysis} 
         />
 
-        {/* WCS Axes at G-code zero on the fixed front-left stock */}
-        <group position={[wcsX, 0.1, wcsZ]}>
-          <WCSAxes stockWidth={stockWidth} stockDepth={stockDepth} />
+        {/* Machine Axes at bed zero (front-left corner) */}
+        <group position={[0, 0.1, 0]}>
+          <WCSAxes stockWidth={settings.general.bedSizeX} stockDepth={settings.general.bedSizeY} />
         </group>
 
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
