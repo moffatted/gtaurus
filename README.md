@@ -223,6 +223,15 @@ Gtaurus has a multi-layered testing strategy covering frontend, shared logic, an
 
 ---
 
+## 🔙 Retroactive GRBL 1.1 Compatibility
+
+Because FluidNC is a direct descendant/port of Grbl v1.1, the core communication protocol between the two is identical. That means Gtaurus is highly reverse-compatible with any standard Grbl v1.1 board (e.g. older Arduino Uno CNC shields) via USB connection:
+
+- **What Works Perfectly:** The 127-byte lookahead buffering, real-time polling/status reporting, jogging, probing, and the complete 3D Carve Visualizer feature set.
+- **What Does NOT Work:** The FluidNC Config Editor panel (standard GRBL still uses `$x=y` numerical settings, whereas FluidNC uses a YAML tree), FluidNC-specific Alarm Code interpretation, and Telnet network connectivity (unless you have a custom Wi-Fi bridge).
+
+---
+
 ## 🔌 FluidNC References
 
 | Resource | URL |
