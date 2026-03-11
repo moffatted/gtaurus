@@ -28,7 +28,7 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 
 - **Location**: `deps/gtaurus_server` (Submodule)
 - **Functions**:
-  - Headless WebSocket bridge for remote web access.
+  - Headless WebSocket bridge for remote web access, ideal for running on small Single Board Computers (like a Raspberry Pi) connected directly to your CNC machine.
   - Wraps `gtaurus_common` to provide hardware access to browser clients.
 
 ## 🛠️ Prerequisites
@@ -116,14 +116,24 @@ npm run tauri:build # Production Build
 
 ### 2. Web Mode & Remote Access
 
-Allows control via any device on your network (phone, tablet, etc.).
+Allows control via any device on your network (phone, tablet, etc.). This architecture is split into two parts: the backend server (running on the machine connected to the CNC) and the frontend UI.
 
 1. **Start the Server Bridge** (Handles USB/Serial communication):
 
+    If you are developing or running on a full OS with Node installed:
+
     ```bash
     npm run server
-    # OR manually via cargo:
-    cd deps/gtaurus_server && cargo run
+    ```
+
+    **Headless Host Deployment (e.g., Raspberry Pi)**:
+    When deploying purely for remote access on a headless host, you only need the compiled Rust backend binary; Node.js is not required.
+
+    ```bash
+    cd deps/gtaurus_server
+    cargo build --release
+    # Run the compiled binary directly (you can also configure this as a systemd service)
+    ./target/release/gtaurus_server
     ```
 
 2. **Start the Web Frontend**:
