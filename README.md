@@ -130,7 +130,8 @@ Before running the application, decide how Gtaurus will connect to your CNC mach
 3. **Bridge Server Connection**: Best for remote access using tablets or older laptops.
    - **Scenario**: You have a tiny, heavily-protected Raspberry Pi plugged into the CNC via USB in the dusty shop. You want to use a nice iPad or your powerful office PC to actually run the UI and complex 3D visualizations.
    - **Why use it?**: The iPad connects to the Raspberry Pi over the network. The Pi runs the lightweight `gtaurus_server` bridge, which securely handles the physical USB connection to the CNC. If your iPad goes to sleep or disconnects from Wi-Fi, the Pi keeps running the G-code safely in the background.
-   - **Default Ports**: The `gtaurus_server` bridge accepts real-time WebSocket connections on port **9001** and simultaneously hosts a basic HTTP server for the web app UI on port **14201**.
+   - **Default Ports**: The `gtaurus_server` bridge accepts real-time WebSocket connections on port **9001** and simultaneously hosts a basic HTTP server for the web app UI on port **1420**.
+   - **Changing Ports**: If these default ports conflict with other services running on your network/host, you can easily change them by editing the `server_config.json` file that is automatically generated next to the compiled `gtaurus_server` binary upon its first run. Simply edit the `"port"` (WebSocket) or `"http_port"` (Web UI) fields and restart the server.
 
 ### 1. Desktop Mode (Tauri) - Recommended
 
