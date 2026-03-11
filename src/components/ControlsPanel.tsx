@@ -809,9 +809,11 @@ export function ControlsPanel() {
                             </div>
                             <div className="flex flex-col overflow-hidden">
                                 <span className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-tight">Active G-Code File</span>
-                                <span className="text-sm font-mono text-[var(--text-primary)] truncate">
-                                    {activeFileName || "No file selected"}
-                                </span>
+                                <Tooltip content={activeFileName || "No file selected"} position="top">
+                                    <span className="text-sm font-mono text-[var(--text-primary)] truncate block w-full text-left">
+                                        {activeFileName || "No file selected"}
+                                    </span>
+                                </Tooltip>
                             </div>
                         </div>
                         {activeFileName && (
