@@ -13,86 +13,141 @@ interface ToolBitProps {
 }
 
 function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAngleDeg }: ToolBitProps) {
-  const bitLength = 30;
-  const toolRadius = (toolDiameter || 6) / 2 * 0.8; // Scale down for visualization
-
-  // Color mapping by tool type
+  // Color mapping by tool type for the flute (cutting part)
   const getToolColor = () => {
     switch (toolType) {
-      case 'vbit': return '#A855F7';      // Purple
-      case 'chamfer': return '#F59E0B';   // Amber
-      case 'ballnose': return '#10B981';  // Green
-      case 'flatendmill': return '#3B82F6'; // Blue
+      case 'vbit': 
+      case 'v-bit': return '#A855F7';      // Purple
+      case 'chamfer': return '#F59E0B';    // Amber
+      case 'ballnose': return '#10B981';   // Green
+      case 'flatendmill': 
+      case 'endmill': return '#3B82F6';    // Blue
+      case 'surfacing': return '#F59E0B';  // Orange/Amber (Surfacing)
+      case 'other':
       default: return '#94a3b8';           // Gray
     }
   };
 
-  // Render different bit geometries
+  // Calculate proportional dimensions similar to BitVisualizer
+  const toolDiam = toolDiameter || 6;
+  const toolR = toolDiam / 2;
+  const fl = toolDiam * 3;
+  const ol = fl * 2.5;
+  const bitLength = Math.min(Math.max(ol, 20), 45); 
+  const fluteLength = bitLength * Math.min(fl / ol, 0.65);
+  const shankLength = bitLength - fluteLength;
+  // Shank is typically equal to tool diam, but commonly at least 1/8" (3.175mm)
+  let shankRadius = Math.max(toolR, 3.175 / 2); 
+  if (toolType === 'surfacing') {
+    shankRadius = Math.min(shankRadius, 6.35); // Cap shank at 1/2" for surfacing bits
+  }
+
   const renderBitGeometry = () => {
-    const color = getToolColor();
-    const material = <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />;
+    const fluteColor = getToolColor();
+    const shankMaterial = <meshStandardMaterial color="#cbd5e1" roughness={0.4} metalness={0.8} />;
+    const fluteMaterial = <meshStandardMaterial color={fluteColor} roughness={0.3} metalness={0.8} />;
+
+    const shankMesh = (
+      <mesh position={[0, -shankLength / 2, 0]} castShadow>
+        <cylinderGeometry args={[shankRadius, shankRadius, shankLength, 32]} />
+        {shankMaterial}
+      </mesh>
+    );
 
     switch (toolType) {
+      case 'v-bit':
       case 'vbit': {
-        // V-bit: cone shape, angle-aware when provided
         const angle = toolAngleDeg && toolAngleDeg > 0 ? toolAngleDeg : 60;
-        const angleRadius = Math.tan((angle * Math.PI) / 360) * (bitLength * 0.85);
-        const vRadius = Math.max(toolRadius * 0.5, Math.min(toolRadius * 1.6, angleRadius));
+        const angleRad = (angle * Math.PI) / 360; 
+        let h = toolR / Math.tan(angleRad);
+        h = Math.min(h, fluteLength);
+        const straightFluteLen = Math.max(0, fluteLength - h);
+
         return (
-          <mesh position={[0, -bitLength / 2, 0]} rotation={[Math.PI, 0, 0]} castShadow>
-            <coneGeometry args={[vRadius, bitLength, 32]} />
-            {material}
-          </mesh>
+          <>
+            {shankMesh}
+            {straightFluteLen > 0 && (
+              <mesh position={[0, -shankLength - straightFluteLen / 2, 0]} castShadow>
+                 <cylinderGeometry args={[toolR, toolR, straightFluteLen, 32]} />
+                 {fluteMaterial}
+              </mesh>
+            )}
+            <mesh position={[0, -shankLength - straightFluteLen - h / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolR, 0, h, 32]} />
+              {fluteMaterial}
+            </mesh>
+          </>
         );
       }
       
       case 'ballnose': {
-        // Ball nose: cylinder followed by hemisphere
+        const h = Math.max(0, fluteLength - toolR);
         return (
           <>
-            <mesh position={[0, -bitLength * 0.7, 0]} castShadow>
-              <cylinderGeometry args={[toolRadius, toolRadius, bitLength * 0.7, 32]} />
-              {material}
+            {shankMesh}
+            <mesh position={[0, -shankLength - h / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolR, toolR, h, 32]} />
+              {fluteMaterial}
             </mesh>
-            <mesh position={[0, -bitLength, 0]} castShadow>
-              <sphereGeometry args={[toolRadius, 32, 32]} />
-              {material}
+            <mesh position={[0, -shankLength - h, 0]} castShadow>
+              {/* parameters: radius, widthSeg, heightSeg, phiStart, phiLength, thetaStart, thetaLength */}
+              <sphereGeometry args={[toolR, 32, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
+              {fluteMaterial}
             </mesh>
           </>
         );
       }
       
       case 'chamfer': {
-        // Chamfer: short frustum cutter + short pilot tip, angle-aware and distinct from V-bit
         const angle = toolAngleDeg && toolAngleDeg > 0 ? toolAngleDeg : 90;
-        const tipRadius = Math.max(0.35, toolRadius * 0.2);
-        const edgeRadius = Math.max(tipRadius + 0.25, Math.min(toolRadius * 1.2, Math.tan((angle * Math.PI) / 360) * (bitLength * 0.35)));
+        const tipRadius = Math.max(0.35, toolR * 0.2);
+        const angleRad = (angle * Math.PI) / 360; 
+        let h = (toolR - tipRadius) / Math.tan(angleRad);
+        h = Math.min(h, fluteLength);
+        const straightFluteLen = Math.max(0, fluteLength - h);
+
         return (
           <>
-            <mesh position={[0, -bitLength * 0.45, 0]} castShadow>
-              <cylinderGeometry args={[edgeRadius, tipRadius, bitLength * 0.55, 32]} />
-              {material}
-            </mesh>
-            <mesh position={[0, -bitLength * 0.73, 0]} castShadow>
-              <cylinderGeometry args={[tipRadius, tipRadius * 0.75, bitLength * 0.16, 24]} />
-              {material}
+            {shankMesh}
+            {straightFluteLen > 0 && (
+              <mesh position={[0, -shankLength - straightFluteLen / 2, 0]} castShadow>
+                 <cylinderGeometry args={[toolR, toolR, straightFluteLen, 32]} />
+                 {fluteMaterial}
+              </mesh>
+            )}
+            <mesh position={[0, -shankLength - straightFluteLen - h / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolR, tipRadius, h, 32]} />
+              {fluteMaterial}
             </mesh>
           </>
         );
       }
       
-      case 'flatendmill':
-      default: {
-        // Flat endmill: cylinder with flat bottom
+      case 'surfacing': {
+        // Wide cutting head, standard capped shank
+        const headH = Math.min(fluteLength, toolR * 0.35); // Short, wide flange
+
         return (
           <>
-            <mesh position={[0, -bitLength / 2, 0]} castShadow>
-              <cylinderGeometry args={[toolRadius, toolRadius, bitLength, 32]} />
-              {material}
+            {shankMesh}
+            <mesh position={[0, -shankLength - headH / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolR, toolR, headH, 32]} />
+              {fluteMaterial}
             </mesh>
-            <mesh position={[0, -bitLength, 0]} castShadow>
-              <cylinderGeometry args={[toolRadius, toolRadius, 0.5, 32]} />
-              {material}
+          </>
+        );
+      }
+      
+      case 'other':
+      case 'endmill':
+      case 'flatendmill':
+      default: {
+        return (
+          <>
+            {shankMesh}
+            <mesh position={[0, -shankLength - fluteLength / 2, 0]} castShadow>
+              <cylinderGeometry args={[toolR, toolR, fluteLength, 32]} />
+              {fluteMaterial}
             </mesh>
           </>
         );
