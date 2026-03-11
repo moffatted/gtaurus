@@ -34,7 +34,7 @@ export function WorkpiecePanel() {
 
   return (
     <div className="flex flex-col bg-[var(--bg-primary)] h-full min-w-[320px] overflow-hidden">
-      <div className="p-2.5 pb-0 space-y-3 overflow-y-auto">
+      <div className="p-2.5 pb-0 space-y-3 overflow-y-auto flex-1">
         
         {/* 0. Visibility Toggle */}
         <div className="flex items-center justify-between p-2 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] shadow-sm">
@@ -282,7 +282,6 @@ export function WorkpiecePanel() {
           </div>
         </div>
       </div>
-      <div className="flex-1" />
     </div>
   );
 }

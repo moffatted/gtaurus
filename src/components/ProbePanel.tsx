@@ -13,8 +13,8 @@ export function ProbePanel() {
   const [showHelp, setShowHelp] = useState(false);
 
   return (
-    <div className="relative h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden min-w-[320px]">
-      <div className="p-3 space-y-3 overflow-y-auto">
+    <div className="relative h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
+      <div className="p-3 space-y-3 overflow-y-auto flex-1">
         
         {/* Header Info Banner - Compacted */}
         <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--border-color)] bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] shadow-sm">
@@ -52,9 +52,6 @@ export function ProbePanel() {
           <span className="text-[9px] text-[var(--text-tertiary)] font-mono">v1.0.4</span>
         </div>
       </div>
-
-      {/* Spacer to push everything up */}
-      <div className="flex-1" />
 
       {/* Help Modal Overlay */}
       {showHelp && (
