@@ -432,18 +432,10 @@ export function ControlsPanel() {
                     </div>
                 </Tooltip>
                 <div className="flex flex-col">
-                    {activeFileName && (
-                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-t border-x border-t border-[var(--accent-primary)]/20 truncate max-w-[140px]">
-                            <FileCode className="w-3 h-3" />
-                            {activeFileName}
-                        </div>
-                    )}
                     <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
                         <button 
                             onClick={() => sendGcode('$H')}
                             className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
-                                activeFileName ? "rounded-t-none border-t-0" : ""
-                            } ${
                                 hasHomed 
                                 ? "bg-green-500/10 text-green-400 border-green-500/30" 
                                 : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
