@@ -20,13 +20,14 @@ pub struct OperationInfo {
     pub tool_name: Option<String>,
     pub tool_diameter: f32,
     pub tool_type: String,
+    pub tool_angle_deg: Option<f32>,
     pub start_point_idx: usize,
     pub end_point_idx: usize,
     pub start_line: u32,
     pub end_line: u32,
 }
 
-fn extract_tool_info(tool_name: Option<&str>) -> (f32, String) {
+fn extract_tool_info(tool_name: Option<&str>) -> (f32, String, Option<f32>) {
     if let Some(name) = tool_name {
         let lower = name.to_lowercase();
         
@@ -60,10 +61,25 @@ fn extract_tool_info(tool_name: Option<&str>) -> (f32, String) {
         } else {
             "unknown".to_string()
         };
+
+        // Extract angle if present (e.g. "60deg", "90 deg", "60°")
+        let mut angle_deg: Option<f32> = None;
+        for token in lower.split_whitespace() {
+            let cleaned = token.replace('°', "deg");
+            if let Some(idx) = cleaned.find("deg") {
+                let number_part = &cleaned[..idx];
+                if !number_part.is_empty() {
+                    if let Ok(v) = number_part.parse::<f32>() {
+                        angle_deg = Some(v);
+                        break;
+                    }
+                }
+            }
+        }
         
-        (diameter, tool_type)
+        (diameter, tool_type, angle_deg)
     } else {
-        (5.0, "unknown".to_string())
+        (5.0, "unknown".to_string(), None)
     }
 }
 
@@ -133,6 +149,7 @@ pub struct GCodeAnalysis {
     pub wcs: String,
     pub unit: String,
     pub comments: Vec<String>,
+    pub raw_lines: Vec<String>,
 }
 
 #[tauri::command]
@@ -142,6 +159,7 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
 
     let mut points = Vec::new();
     let mut operations = Vec::new();
+    let mut raw_lines = Vec::new();
     let mut last_x = 0.0;
     let mut last_y = 0.0;
     let mut last_z = 0.0;
@@ -171,9 +189,11 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     let mut current_operation_tool: Option<u32> = None;
     let mut pending_tool_number: Option<u32> = None;
     let mut pending_tool_name: Option<String> = None;
+    let mut recent_tool_context: Option<String> = None;
     let mut current_operation_tool_name: Option<String> = None;
     let mut current_operation_tool_diameter: f32 = 5.0;
     let mut current_operation_tool_type: String = "unknown".to_string();
+    let mut current_operation_tool_angle_deg: Option<f32> = None;
     let mut current_operation_start_point_idx: usize = 0;
     let mut current_operation_start_line: u32 = 1;
     let mut has_points_in_current_operation = false;
@@ -182,11 +202,34 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
     for (i, line) in reader.lines().enumerate() {
         let line = line.map_err(|e| e.to_string())?;
         let trimmed = line.trim();
+        
+        // Collect raw lines for display during playback
+        raw_lines.push(trimmed.to_string());
+        
         if trimmed.is_empty() { continue; }
         
         if trimmed.starts_with('(') || trimmed.starts_with(';') {
             if i < 50 { 
                 header_comments.push(trimmed.to_string());
+            }
+            let comment_lower = trimmed.to_lowercase();
+            if comment_lower.contains("tool")
+                || comment_lower.contains("endmill")
+                || comment_lower.contains("chamfer")
+                || comment_lower.contains("v-bit")
+                || comment_lower.contains("vbit")
+                || comment_lower.contains("mm")
+                || comment_lower.contains("deg")
+                || comment_lower.contains('°')
+            {
+                let clean = trimmed
+                    .trim_start_matches(|c| c == '(' || c == ';')
+                    .trim_end_matches(')')
+                    .trim()
+                    .to_string();
+                if !clean.is_empty() {
+                    recent_tool_context = Some(clean);
+                }
             }
             continue; 
         }
@@ -295,13 +338,20 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
 
         if line_tool_number.is_some() {
             pending_tool_number = line_tool_number;
-            // Extract tool name from comment if present
+            // Reset tool name per tool-selection line so stale previous tool labels cannot leak.
+            pending_tool_name = None;
             if let Some(comment) = line_comment {
-                // Remove parentheses and semicolons, extract the text
                 let clean_comment = comment
                     .trim_start_matches(|c| c == '(' || c == ';')
-                    .trim_end_matches(')');
-                pending_tool_name = Some(clean_comment.to_string());
+                    .trim_end_matches(')')
+                    .trim();
+                if !clean_comment.is_empty() {
+                    pending_tool_name = Some(clean_comment.to_string());
+                }
+            }
+
+            if pending_tool_name.is_none() {
+                pending_tool_name = recent_tool_context.clone();
             }
         }
 
@@ -313,6 +363,7 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
                     tool_name: current_operation_tool_name.clone(),
                     tool_diameter: current_operation_tool_diameter,
                     tool_type: current_operation_tool_type.clone(),
+                    tool_angle_deg: current_operation_tool_angle_deg,
                     start_point_idx: current_operation_start_point_idx,
                     end_point_idx: points.len().saturating_sub(1),
                     start_line: current_operation_start_line,
@@ -329,9 +380,10 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
             current_operation_tool_name = pending_tool_name.clone();
             
             // Extract tool diameter and type from tool name
-            let (diameter, tool_type) = extract_tool_info(pending_tool_name.as_deref());
+            let (diameter, tool_type, angle_deg) = extract_tool_info(pending_tool_name.as_deref());
             current_operation_tool_diameter = diameter;
             current_operation_tool_type = tool_type;
+            current_operation_tool_angle_deg = angle_deg;
         }
 
         if changed {
@@ -436,6 +488,7 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
             tool_name: current_operation_tool_name.clone(),
             tool_diameter: current_operation_tool_diameter,
             tool_type: current_operation_tool_type.clone(),
+            tool_angle_deg: current_operation_tool_angle_deg,
             start_point_idx: current_operation_start_point_idx,
             end_point_idx: points.len().saturating_sub(1),
             start_line: current_operation_start_line,
@@ -465,5 +518,6 @@ pub fn parse_gcode_file(path: String) -> Result<GCodeAnalysis, String> {
         wcs,
         unit: detected_unit,
         comments: header_comments,
+        raw_lines,
     })
 }

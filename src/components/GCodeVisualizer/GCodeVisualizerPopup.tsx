@@ -4,24 +4,73 @@ import { useVisualizerStore, type StockOrigin } from '../../stores/visualizerSto
 import { useSettingsStore } from '../../stores/settingsStore';
 import { VisualizerScene } from './VisualizerScene';
 import { Tooltip } from '../ui/Tooltip';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function GCodeVisualizerPopup() {
-  const { isOpen, isParsing, analysis, error, progress, stockOrigin, setProgress, closeVisualizer, setStockOrigin } = useVisualizerStore();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const {
+    isOpen,
+    isParsing,
+    analysis,
+    error,
+    progress,
+    currentLineIdx,
+    stockOrigin,
+    playbackMode,
+    isPlaying,
+    isToolChangePaused,
+    setProgress,
+    setIsPlaying,
+    closeVisualizer,
+    setStockOrigin,
+    setPlaybackMode,
+    clearToolChangePause,
+    resumeFromToolChangePause,
+  } = useVisualizerStore();
+  const gcodeScrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-play logic
+  // 1-based line number for G-code panel highlighting and auto-scroll
+  const currentLineNum = currentLineIdx + 1;
+
+  // Auto-play logic — variable speed: fast through setup/rapids, slow on cutting moves
   useEffect(() => {
-    let interval: any;
-    if (isPlaying && progress < 1) {
-      interval = setInterval(() => {
-        setProgress(Math.min(1, progress + 0.005));
-      }, 50);
-    } else if (progress >= 1) {
-      setIsPlaying(false);
+    if (!isPlaying) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      const state = useVisualizerStore.getState();
+      if (!state.isPlaying) return; // store already stopped us
+
+      // Read current line BEFORE advancing to decide how long to show it.
+      const currentLine = state.analysis?.raw_lines[state.currentLineIdx] ?? '';
+      const upper = currentLine.trim().toUpperCase();
+
+      state.stepLine(); // advance one line (sets isPlaying:false on pause/finish internally)
+
+      // Variable delay based on line content:
+      //   Cutting moves (G1/G2/G3)  → 450 ms — slow enough to read
+      //   Everything else (G0, comments, setup) → 40 ms — zip through
+      const isCuttingMove = /\bG0?[123]\b/.test(upper);
+      const delay = isCuttingMove ? 450 : 40;
+
+      timeoutId = setTimeout(tick, delay);
+    };
+
+    timeoutId = setTimeout(tick, 40);
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying]);
+
+  // Auto-scroll G-code panel to the currently executing line
+  useEffect(() => {
+    if (!gcodeScrollRef.current || !analysis) return;
+    const lineElements = gcodeScrollRef.current.querySelectorAll('[data-line]');
+    const currentLineEl = Array.from(lineElements).find(el =>
+      parseInt(el.getAttribute('data-line') || '0') === currentLineNum
+    ) as HTMLElement;
+    if (currentLineEl) {
+      currentLineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, progress, setProgress]);
+  }, [analysis, currentLineNum]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -115,6 +164,34 @@ export function GCodeVisualizerPopup() {
             </div>
           </div>
 
+          <div className="flex items-center gap-2 border-l border-white/5 pl-6">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold mb-1">Playback</span>
+              <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 shadow-inner">
+                <button
+                  onClick={() => setPlaybackMode('continuous')}
+                  className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all uppercase tracking-tighter ${
+                    playbackMode === 'continuous'
+                      ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.3)]'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+                  }`}
+                >
+                  Continuous
+                </button>
+                <button
+                  onClick={() => setPlaybackMode('operation-step')}
+                  className={`px-2 py-1 text-[9px] font-bold rounded-md transition-all uppercase tracking-tighter ${
+                    playbackMode === 'operation-step'
+                      ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.3)]'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+                  }`}
+                >
+                  Operation Step
+                </button>
+              </div>
+            </div>
+          </div>
+
           
           <div className="flex-1" />
           
@@ -123,6 +200,7 @@ export function GCodeVisualizerPopup() {
                <button 
                 onClick={() => {
                   setProgress(0);
+                  clearToolChangePause();
                   setIsPlaying(false);
                 }}
                 className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
@@ -163,7 +241,17 @@ export function GCodeVisualizerPopup() {
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-20">
                  <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-4">
                     <button
-                      onClick={() => setIsPlaying(!isPlaying)}
+                      onClick={() => {
+                        if (isPlaying) {
+                          setIsPlaying(false);
+                          return;
+                        }
+                        if (isToolChangePaused) {
+                          resumeFromToolChangePause(); // sets isPlaying:true in store
+                        } else {
+                          setIsPlaying(true);
+                        }
+                      }}
                       className={`p-2 rounded-xl transition-all shadow-lg active:scale-95 group flex items-center justify-center ${
                         isPlaying 
                           ? 'bg-orange-500 hover:bg-orange-400 text-white' 
@@ -196,6 +284,12 @@ export function GCodeVisualizerPopup() {
                        {analysis.points.length.toLocaleString()} pts
                     </span>
                  </div>
+                 {isToolChangePaused && (
+                   <div className="absolute -top-12 left-0 right-0 bg-yellow-600/40 border border-yellow-500/50 backdrop-blur-sm p-3 rounded-lg text-center">
+                     <p className="text-xs font-bold text-yellow-200">⏸ PAUSED AT TOOL CHANGE</p>
+                     <p className="text-[9px] text-yellow-100/70 mt-1">Click Play to continue</p>
+                   </div>
+                 )}
               </div>
             </>
           ) : (
@@ -206,48 +300,74 @@ export function GCodeVisualizerPopup() {
           )}
           
           {analysis && !isParsing && (
-            <div className="absolute top-6 left-6 z-10 pointer-events-none">
-               <div className="bg-black/90 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl min-w-[200px] flex flex-col gap-4">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">G-Code Info</p>
-                    <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-[9px] font-mono border border-cyan-400/30">{analysis.wcs}</span>
+            <div className="absolute top-6 left-6 z-10 pointer-events-auto">
+               <div 
+                 className="bg-black/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl w-96 max-h-96 flex flex-col gap-1 overflow-hidden"
+                 onWheel={(e) => e.stopPropagation()}
+                 onScroll={(e) => e.stopPropagation()}
+               >
+                  <div className="flex items-center justify-between border-b border-white/10 pb-1">
+                    <p className="text-xs text-[var(--accent-primary)] font-bold uppercase tracking-widest">G-Code Info</p>
+                    <span className="px-1 py-0.5 bg-cyan-500/20 text-[var(--accent-primary)] rounded text-[10px] font-mono border border-cyan-400/30">{analysis.wcs}</span>
                   </div>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-1 text-xs overflow-y-auto overflow-x-auto select-text">
                     {/* Size Context */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1 tracking-tighter">Job Footprint</p>
-                        <div className="grid grid-cols-2 gap-x-2 font-mono text-[10px]">
-                          <span className="text-[var(--text-tertiary)]">X</span>
-                          <span className="text-[var(--text-primary)]">{(analysis.bbox_max[0] - analysis.bbox_min[0]).toFixed(1)}</span>
-                          <span className="text-[var(--text-tertiary)]">Y</span>
-                          <span className="text-[var(--text-primary)]">{(analysis.bbox_max[1] - analysis.bbox_min[1]).toFixed(1)}</span>
-                          <span className="text-[var(--text-tertiary)]">Z</span>
-                          <span className="text-orange-400">{(analysis.bbox_max[2] - analysis.bbox_min[2]).toFixed(2)}</span>
-                        </div>
+                    <div>
+                      <p className="text-[var(--accent-primary)] font-bold mb-0.5 tracking-tighter">Footprint</p>
+                      <div className="grid grid-cols-3 gap-x-1 font-mono text-xs">
+                        <span className="text-[var(--text-secondary)]">X:</span>
+                        <span className="text-[var(--text-primary)] col-span-2">{(analysis.bbox_max[0] - analysis.bbox_min[0]).toFixed(1)}</span>
+                        <span className="text-[var(--text-secondary)]">Y:</span>
+                        <span className="text-[var(--text-primary)] col-span-2">{(analysis.bbox_max[1] - analysis.bbox_min[1]).toFixed(1)}</span>
+                        <span className="text-[var(--text-secondary)]">Z:</span>
+                        <span className="text-orange-400 col-span-2">{(analysis.bbox_max[2] - analysis.bbox_min[2]).toFixed(2)}</span>
                       </div>
-                      <div className="border-l border-white/5 pl-4">
-                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1 tracking-tighter">Workpiece</p>
-                        <div className="grid grid-cols-2 gap-x-2 font-mono text-[10px]">
-                          <span className="text-[var(--text-tertiary)]">W</span>
-                          <span className="text-cyan-400">{useSettingsStore.getState().settings.stock.width}</span>
-                          <span className="text-[var(--text-tertiary)]">D</span>
-                          <span className="text-cyan-400">{useSettingsStore.getState().settings.stock.height}</span>
-                          <span className="text-[var(--text-tertiary)]">U</span>
-                          <span className="text-white/60">{analysis.unit === 'Inches' ? 'IN' : 'MM'}</span>
-                        </div>
+                    </div>
+                    
+                    <div className="pt-1 border-t border-white/5">
+                      <p className="text-[var(--accent-primary)] font-bold mb-0.5 tracking-tighter">Workpiece</p>
+                      <div className="grid grid-cols-3 gap-x-1 font-mono text-xs">
+                        <span className="text-[var(--text-secondary)]">W:</span>
+                        <span className="text-[var(--text-primary)] col-span-2">{useSettingsStore.getState().settings.stock.width}</span>
+                        <span className="text-[var(--text-secondary)]">D:</span>
+                        <span className="text-[var(--text-primary)] col-span-2">{useSettingsStore.getState().settings.stock.height}</span>
                       </div>
                     </div>
 
-                    {/* Header Comments */}
-                    {analysis.comments.length > 0 && (
-                      <div className="pt-3 border-t border-white/5">
-                        <p className="text-[8px] text-[var(--text-tertiary)] uppercase font-bold mb-1.5 tracking-tighter">Program Header</p>
-                        <div className="bg-black/40 rounded-lg p-2 border border-white/5 max-h-[80px] overflow-y-auto no-scrollbar">
-                           {analysis.comments.map((c: string, idx: number) => (
-                             <p key={idx} className="text-[9px] font-mono text-white/40 leading-tight mb-1 last:mb-0 break-words">{c}</p>
-                           ))}
+                    {/* G-Code Execution Display */}
+                    {analysis && analysis.raw_lines.length > 0 && (
+                      <div className="pt-1 border-t border-white/5">
+                        <p className="text-[var(--accent-primary)] font-bold mb-0.5 tracking-tighter text-xs">▶ G-Code</p>
+                        <div 
+                          ref={gcodeScrollRef}
+                          className="bg-black/40 rounded p-1 border border-white/5 max-h-48 overflow-y-auto overflow-x-auto select-text"
+                          style={{ scrollBehavior: 'smooth' }}
+                        >
+                          <div className="font-mono text-xs space-y-0 whitespace-nowrap">
+                            {analysis.raw_lines.map((line, idx) => {
+                              const lineNum = idx + 1;
+                              const isExecuting = lineNum === currentLineNum;
+                              const isExecuted = lineNum < currentLineNum;
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  data-line={lineNum}
+                                  className={`px-1 py-0.5 transition-colors ${
+                                    isExecuting
+                                      ? 'bg-yellow-600/40 text-yellow-200 border-l border-yellow-500'
+                                      : isExecuted
+                                      ? 'text-[var(--text-secondary)]'
+                                      : 'text-[var(--text-tertiary)]'
+                                  }`}
+                                >
+                                  <span className="inline-block w-8 text-[var(--text-tertiary)] text-right mr-1 text-[10px]">{lineNum}</span>
+                                  <span className="break-all">{line || '(empty)'}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}

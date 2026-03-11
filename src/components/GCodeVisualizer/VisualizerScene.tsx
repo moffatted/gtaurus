@@ -2,16 +2,17 @@ import { useMemo, useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube, PerspectiveCamera, Environment, Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { useVisualizerStore, type GCodeAnalysis, type OperationInfo } from '../../stores/visualizerStore';
+import { useVisualizerStore, type GCodeAnalysis } from '../../stores/visualizerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 
 interface ToolBitProps {
   position: [number, number, number];
   toolType?: string;
   toolDiameter?: number;
+  toolAngleDeg?: number | null;
 }
 
-function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6 }: ToolBitProps) {
+function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAngleDeg }: ToolBitProps) {
   const bitLength = 30;
   const toolRadius = (toolDiameter || 6) / 2 * 0.8; // Scale down for visualization
 
@@ -33,10 +34,13 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6 }: ToolB
 
     switch (toolType) {
       case 'vbit': {
-        // V-bit: cone shape
+        // V-bit: cone shape, angle-aware when provided
+        const angle = toolAngleDeg && toolAngleDeg > 0 ? toolAngleDeg : 60;
+        const angleRadius = Math.tan((angle * Math.PI) / 360) * (bitLength * 0.85);
+        const vRadius = Math.max(toolRadius * 0.5, Math.min(toolRadius * 1.6, angleRadius));
         return (
-          <mesh position={[0, -bitLength / 2, 0]} castShadow>
-            <coneGeometry args={[toolRadius, bitLength, 32]} />
+          <mesh position={[0, -bitLength / 2, 0]} rotation={[Math.PI, 0, 0]} castShadow>
+            <coneGeometry args={[vRadius, bitLength, 32]} />
             {material}
           </mesh>
         );
@@ -59,12 +63,21 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6 }: ToolB
       }
       
       case 'chamfer': {
-        // Chamfer: inverted cone (taper)
+        // Chamfer: short frustum cutter + short pilot tip, angle-aware and distinct from V-bit
+        const angle = toolAngleDeg && toolAngleDeg > 0 ? toolAngleDeg : 90;
+        const tipRadius = Math.max(0.35, toolRadius * 0.2);
+        const edgeRadius = Math.max(tipRadius + 0.25, Math.min(toolRadius * 1.2, Math.tan((angle * Math.PI) / 360) * (bitLength * 0.35)));
         return (
-          <mesh position={[0, -bitLength / 2, 0]} castShadow>
-            <coneGeometry args={[toolRadius * 0.3, bitLength, 32]} />
-            {material}
-          </mesh>
+          <>
+            <mesh position={[0, -bitLength * 0.45, 0]} castShadow>
+              <cylinderGeometry args={[edgeRadius, tipRadius, bitLength * 0.55, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, -bitLength * 0.73, 0]} castShadow>
+              <cylinderGeometry args={[tipRadius, tipRadius * 0.75, bitLength * 0.16, 24]} />
+              {material}
+            </mesh>
+          </>
         );
       }
       
@@ -215,18 +228,12 @@ function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number; stockDepth: n
 
 function CarvedStock({ 
   analysis, 
-  progress, 
   offsetX, 
-  offsetY,
-  stockOrigin,
-  currentOperation
+  offsetY
 }: { 
   analysis: GCodeAnalysis; 
-  progress: number;
   offsetX: number;
   offsetY: number;
-  stockOrigin: string;
-  currentOperation?: OperationInfo | null;
 }) {
   const { settings } = useSettingsStore();
   const { 
@@ -237,6 +244,7 @@ function CarvedStock({
 
   const totalOX = offsetX;
   const totalOY = offsetY;
+  const { playbackMode, currentOperationId, isToolChangePaused, currentLineIdx } = useVisualizerStore();
   
   const dispCanvasRef = useRef<HTMLCanvasElement>(null);
   const geoRef = useRef<THREE.PlaneGeometry>(null);
@@ -263,7 +271,21 @@ function CarvedStock({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 1024, 1024);
 
-    const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
+    let pointLimit = 0;
+    const lineNum = currentLineIdx + 1; // 1-based
+    for (let i = 0; i < analysis.points.length; i++) {
+      if (analysis.points[i].line_number <= lineNum) pointLimit = i + 1;
+      else break;
+    }
+
+    // In operation-step mode, clamp to the next operation's start boundary while paused.
+    if (playbackMode === 'operation-step' && isToolChangePaused && currentOperationId !== null) {
+      const nextOp = analysis.operations.find(op => op.id === currentOperationId);
+      if (nextOp) {
+        pointLimit = Math.min(pointLimit, nextOp.start_point_idx);
+      }
+    }
+
     const processedPoints = analysis.points.slice(0, pointLimit);
 
     if (pointLimit > 0) {
@@ -275,9 +297,13 @@ function CarvedStock({
       const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
 
       // Create operation -> tool diameter map
-      const operationDiameterMap = new Map<number, number>();
+      const operationDiameterMap = new Map<number, { diameter: number; type: string; angleDeg: number | null }>();
       analysis.operations.forEach(op => {
-        operationDiameterMap.set(op.id, op.tool_diameter);
+        operationDiameterMap.set(op.id, {
+          diameter: op.tool_diameter,
+          type: op.tool_type,
+          angleDeg: op.tool_angle_deg,
+        });
       });
 
       // darken: each pixel keeps the minimum (deepest) value across overlapping passes
@@ -295,9 +321,23 @@ function CarvedStock({
               // Avoid extra blurred halos that create jagged vertical walls after displacement.
               ctx.shadowBlur = 0;
               
-              // Use actual tool diameter from operation metadata
-              const toolDiameter = operationDiameterMap.get(p2.operation_id) || 5;
-              ctx.lineWidth = toolDiameter * pxScaleX;
+              // Use operation-aware cutter engagement width. Angle tools use depth+angle when diameter is not explicit.
+              const opTool = operationDiameterMap.get(p2.operation_id);
+              const fallbackDiameter = 5;
+              let effectiveDiameter = opTool?.diameter ?? fallbackDiameter;
+              if (opTool && (opTool.type === 'vbit' || opTool.type === 'chamfer')) {
+                if (opTool.angleDeg && opTool.angleDeg > 0) {
+                  const depth = Math.abs(p2.z);
+                  const angleRad = (opTool.angleDeg * Math.PI) / 180;
+                  const angleBasedWidth = 2 * depth * Math.tan(angleRad / 2);
+                  if (!(opTool.diameter > 0)) {
+                    effectiveDiameter = Math.max(0.6, angleBasedWidth);
+                  } else {
+                    effectiveDiameter = Math.min(opTool.diameter, Math.max(0.6, angleBasedWidth));
+                  }
+                }
+              }
+              ctx.lineWidth = Math.max(1, effectiveDiameter * pxScaleX);
               
               ctx.beginPath();
               ctx.moveTo(getX(p1.x), getY(p1.y));
@@ -377,8 +417,13 @@ function CarvedStock({
     }
     
     const lastP = processedPoints.length > 0 ? processedPoints[processedPoints.length - 1] : analysis.points[0];
-    setCurrentPos([lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)]);
-  }, [analysis, progress, stockOrigin, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY]);
+    // Only update position if significantly different to avoid unnecessary re-renders during autoplay
+    const newPos: [number, number, number] = [lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)];
+    setCurrentPos(prev => {
+      const changed = Math.abs(prev[0] - newPos[0]) > 0.1 || Math.abs(prev[1] - newPos[1]) > 0.1 || Math.abs(prev[2] - newPos[2]) > 0.1;
+      return changed ? newPos : prev;
+    });
+  }, [analysis, currentLineIdx, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY, playbackMode, currentOperationId, isToolChangePaused]);
 
   useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -392,7 +437,12 @@ function CarvedStock({
     const positions: number[] = [];
     const colors: number[] = [];
 
-    const pointLimit = Math.max(0, Math.floor(analysis.points.length * progress));
+    const lineNum = currentLineIdx + 1;
+    let pointLimit = 0;
+    for (let i = 0; i < analysis.points.length; i++) {
+      if (analysis.points[i].line_number <= lineNum) pointLimit = i + 1;
+      else break;
+    }
     const overlayY = physicalStockHeight + 0.03;
 
     const opColor = (opId: number) => {
@@ -421,7 +471,19 @@ function CarvedStock({
       colors: new Float32Array(colors),
       hasData: positions.length > 0,
     };
-  }, [analysis.points, progress, offsetX, offsetY, physicalStockHeight]);
+  }, [analysis.points, currentLineIdx, offsetX, offsetY, physicalStockHeight]);
+
+  const activeOperation = useMemo(() => {
+    if (!analysis.operations.length || !analysis.points.length) return null;
+    const lineNum = currentLineIdx + 1;
+    let lastPointIdx = 0;
+    for (let i = 0; i < analysis.points.length; i++) {
+      if (analysis.points[i].line_number <= lineNum) lastPointIdx = i;
+      else break;
+    }
+    const activePoint = analysis.points[lastPointIdx];
+    return analysis.operations.find(op => op.id === activePoint.operation_id) ?? analysis.operations[0];
+  }, [analysis.operations, analysis.points, currentLineIdx]);
 
   const midX = stockWidth / 2;
   const midZ = -stockDepth / 2;
@@ -464,8 +526,9 @@ function CarvedStock({
 
       <ToolBit 
         position={currentPos} 
-        toolType={currentOperation?.tool_type}
-        toolDiameter={currentOperation?.tool_diameter}
+        toolType={activeOperation?.tool_type}
+        toolDiameter={activeOperation?.tool_diameter}
+        toolAngleDeg={activeOperation?.tool_angle_deg}
       />
 
 
@@ -491,7 +554,7 @@ function CarvedStock({
 }
 
 export function VisualizerScene() {
-  const { analysis, progress, stockOrigin, isToolChangePaused, currentOperationId, clearToolChangePause } = useVisualizerStore();
+  const { analysis, isToolChangePaused, currentOperationId, resumeFromToolChangePause } = useVisualizerStore();
   const { settings } = useSettingsStore();
   
   const stockWidth = settings.stock.width;
@@ -558,11 +621,8 @@ export function VisualizerScene() {
         
         <CarvedStock 
           analysis={analysis} 
-          progress={progress} 
           offsetX={settings.stock.offsetX}
           offsetY={settings.stock.offsetY}
-          stockOrigin={stockOrigin}
-          currentOperation={currentOperation}
         />
 
         {/* WCS Axes pinned to Front-Left Corner of Bed */}
@@ -585,7 +645,7 @@ export function VisualizerScene() {
             {currentOperation.tool_number ? `Swap to Tool T${currentOperation.tool_number}` : 'Swap to next tool'}
           </div>
           <button 
-            onClick={() => clearToolChangePause()}
+            onClick={() => resumeFromToolChangePause()}
             className="bg-white text-orange-500 font-bold px-6 py-2 rounded hover:bg-gray-100 transition"
           >
             Continue
