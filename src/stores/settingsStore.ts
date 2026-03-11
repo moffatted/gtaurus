@@ -56,6 +56,7 @@ export interface GeneralSettings {
   feedRate: number;
   postJobAction: boolean;
   postJobMacroId: string | null;
+  uiScale: number;
 }
 
 export interface ProbeSettings {
@@ -320,6 +321,7 @@ export const DEFAULT_SETTINGS: Settings = {
     feedRate: 1000,
     postJobAction: false,
     postJobMacroId: '4', // Default to "Park Position" macro ID
+    uiScale: 1.0,
   },
   probe: {
     fastFeedrate: 500,

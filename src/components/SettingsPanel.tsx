@@ -132,6 +132,36 @@ function ThemeContent() {
           )}
         </button>
       ))}
+
+      {/* UI Scale */}
+      <div className="col-span-2 pt-4 border-t border-[var(--border-color)]">
+        <div className="space-y-3">
+          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+            UI Scale ({(useSettingsStore(s => s.settings.general.uiScale) || 1.0).toFixed(1)}x)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0.5"
+              max="2.0"
+              step="0.1"
+              value={useSettingsStore(s => s.settings.general.uiScale) || 1.0}
+              onChange={(e) => useSettingsStore.getState().setGeneralSettings({ uiScale: parseFloat(e.target.value) || 1.0 })}
+              className="flex-1 accent-[var(--accent-primary)] cursor-pointer"
+            />
+            <button
+              onClick={() => useSettingsStore.getState().setGeneralSettings({ uiScale: 1.0 })}
+              className="p-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)] transition-colors cursor-pointer text-xs flex items-center gap-1"
+              title="Reset to 1.0x"
+            >
+              Reset
+            </button>
+          </div>
+          <p className="text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
+            Adjust the overall size of the user interface. You can also use Ctrl/Cmd + and - to zoom, and 0 to reset.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

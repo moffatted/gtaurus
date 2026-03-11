@@ -66,6 +66,34 @@ function App() {
   const atcEnabled = useSettingsStore((state) => state.settings.atc.enabled);
   const fluidncManagerEnabled = useSettingsStore((state) => state.settings.fluidncManager.enabled && !state.settings.general.legacyGrblMode);
 
+  // UI Scale Binding and Shortcuts
+  const uiScale = useSettingsStore((state) => state.settings.general.uiScale);
+  const setGeneralSettings = useSettingsStore((state) => state.setGeneralSettings);
+
+  useEffect(() => {
+    // Apply the scale to the root html element
+    document.documentElement.style.fontSize = `${16 * uiScale}px`;
+    
+    // Add keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if Ctrl or Cmd is pressed
+      if (!e.ctrlKey && !e.metaKey) return;
+      
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        setGeneralSettings({ uiScale: Math.min(2.0, uiScale + 0.1) });
+      } else if (e.key === '-') {
+        e.preventDefault();
+        setGeneralSettings({ uiScale: Math.max(0.5, uiScale - 0.1) });
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setGeneralSettings({ uiScale: 1.0 });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [uiScale, setGeneralSettings]);
 
   useEffect(() => {
     initTheme();
