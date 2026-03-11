@@ -343,8 +343,10 @@ export function GCodeVisualizerPopup() {
                       <div className="grid grid-cols-3 gap-x-1 font-mono text-xs">
                         <span className="text-[var(--text-secondary)]">W:</span>
                         <span className="text-[var(--text-primary)] col-span-2">{useSettingsStore.getState().settings.stock.width}</span>
-                        <span className="text-[var(--text-secondary)]">D:</span>
+                        <span className="text-[var(--text-secondary)]">L:</span>
                         <span className="text-[var(--text-primary)] col-span-2">{useSettingsStore.getState().settings.stock.height}</span>
+                        <span className="text-[var(--text-secondary)]">H:</span>
+                        <span className="text-[var(--text-primary)] col-span-2">{useSettingsStore.getState().settings.stock.thickness}</span>
                       </div>
                     </div>
 

@@ -78,7 +78,7 @@ export function WorkpiecePanel() {
               </div>
             </div>
             <div>
-              <label className={labelCls}>Depth (Y)</label>
+              <label className={labelCls}>Length (Y)</label>
               <div className="relative">
                 <input
                   type="number"
@@ -91,7 +91,7 @@ export function WorkpiecePanel() {
               </div>
             </div>
             <div>
-              <label className={labelCls}>Thick (Z)</label>
+              <label className={labelCls}>Height (Z)</label>
               <div className="relative">
                 <input
                   type="number"
