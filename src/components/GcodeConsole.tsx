@@ -390,9 +390,9 @@ export function GcodeConsole() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[280px]">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-h-0">
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex-shrink-0 flex-wrap">
         <Terminal className="w-4 h-4 text-[var(--accent-primary)] mr-1" />
         <span className="text-xs font-semibold text-[var(--text-primary)] mr-2">G-code Console</span>
 
@@ -469,9 +469,28 @@ export function GcodeConsole() {
       </div>
 
       {/* ── Log ───────────────────────────────────────────────────────────── */}
+      <style>{`
+        .gcode-log-scroll::-webkit-scrollbar {
+          width: 14px;
+          height: 14px;
+          display: block;
+        }
+        .gcode-log-scroll::-webkit-scrollbar-track {
+          background: var(--bg-secondary);
+          border-left: 1px solid var(--border-color);
+        }
+        .gcode-log-scroll::-webkit-scrollbar-thumb {
+          background-color: var(--text-tertiary);
+          border-radius: 7px;
+          border: 3px solid var(--bg-secondary);
+        }
+        .gcode-log-scroll::-webkit-scrollbar-thumb:hover {
+          background-color: var(--text-secondary);
+        }
+      `}</style>
       <div
         ref={logRef}
-        className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed space-y-0.5 min-h-0"
+        className="flex-1 overflow-y-scroll gcode-log-scroll px-3 py-2 font-mono text-xs leading-relaxed space-y-0.5 min-h-0"
       >
         {lines.length === 0 && (
           <p className="text-[var(--text-tertiary)] italic mt-4 text-center">
