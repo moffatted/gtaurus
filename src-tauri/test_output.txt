@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running unittests src\lib.rs (target\debug\deps\gtaurus_lib-2ed4f6b0b383ff2f.exe)
+error: test failed, to rerun pass `--lib`
+
+Caused by:
+  process didn't exit successfully: `C:\Users\moffa\projects\gtaurus\src-tauri\target\debug\deps\gtaurus_lib-2ed4f6b0b383ff2f.exe` (exit code: 0xc0000139, STATUS_ENTRYPOINT_NOT_FOUND)
+note: test exited abnormally; to see the full output pass --no-capture to the harness.

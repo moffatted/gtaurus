@@ -25,6 +25,8 @@ export function GCodeVisualizerPopup() {
     setPlaybackMode,
     clearToolChangePause,
     resumeFromToolChangePause,
+    playbackSpeed,
+    setPlaybackSpeed,
   } = useVisualizerStore();
   const gcodeScrollRef = useRef<HTMLDivElement>(null);
 
@@ -43,14 +45,14 @@ export function GCodeVisualizerPopup() {
 
       state.stepLine(); // advance one line (sets isPlaying:false on pause/finish internally)
 
-      // Use a consistent delay for smooth, readable scrolling
-      const delay = 150;
+      // Use a dynamic delay based on playbackSpeed
+      const delay = Math.max(10, 150 / playbackSpeed);
       timeoutId = setTimeout(tick, delay);
     };
 
-    timeoutId = setTimeout(tick, 150);
+    timeoutId = setTimeout(tick, 150 / playbackSpeed);
     return () => clearTimeout(timeoutId);
-  }, [isPlaying]);
+  }, [isPlaying, playbackSpeed]);
 
   // Auto-scroll G-code panel to the currently executing line
   useEffect(() => {
@@ -275,6 +277,25 @@ export function GCodeVisualizerPopup() {
                     <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
                        {analysis.points.length.toLocaleString()} pts
                     </span>
+
+                    <div className="h-4 w-px bg-white/10 mx-2" />
+
+                    {/* Speed Selector */}
+                    <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 shadow-inner shrink-0">
+                      {[0.5, 1, 2, 5, 10].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setPlaybackSpeed(s)}
+                          className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${
+                            playbackSpeed === s
+                              ? 'bg-orange-500 text-white shadow-[0_0_8px_rgba(249,115,22,0.3)]'
+                              : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
                  </div>
                  {isToolChangePaused && (
                    <div className="absolute -top-12 left-0 right-0 bg-yellow-600/40 border border-yellow-500/50 backdrop-blur-sm p-3 rounded-lg text-center">

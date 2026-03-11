@@ -59,6 +59,7 @@ interface VisualizerState {
   isToolChangePaused: boolean;
   currentOperationId: number | null;
   currentLineIdx: number; // 0-based index into raw_lines — primary driver of playback
+  playbackSpeed: number;
   
   // Actions
   openVisualizer: (filePath: string) => Promise<void>;
@@ -73,6 +74,7 @@ interface VisualizerState {
   nextOperation: () => void;
   clearToolChangePause: () => void;
   resumeFromToolChangePause: () => void;
+  setPlaybackSpeed: (speed: number) => void;
 }
 
 export const useVisualizerStore = create<VisualizerState>((set, get) => ({
@@ -87,6 +89,7 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
   isToolChangePaused: false,
   currentOperationId: null, 
   currentLineIdx: 0,
+  playbackSpeed: 1.0,
 
   openVisualizer: async (filePath: string) => {
     set({ isOpen: true, isParsing: true, error: null, analysis: null });
@@ -134,7 +137,8 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
     stockOrigin: 'FrontLeft',
     playbackMode: 'operation-step',
     isToolChangePaused: false,
-    currentOperationId: null
+    currentOperationId: null,
+    playbackSpeed: 1.0
   }),
 
   setIsPlaying: (playing: boolean) => set({ isPlaying: playing }),
@@ -246,6 +250,10 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
 
   resumeFromToolChangePause: () => {
     set({ isToolChangePaused: false, isPlaying: true });
+  },
+
+  setPlaybackSpeed: (speed: number) => {
+    set({ playbackSpeed: speed });
   },
 
   stepLine: () => {
