@@ -38,6 +38,15 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 - **Git** (Required for submodules)
 - **Visual Studio Code** (Recommended IDE) with Tauri and Rust Analyzer extensions.
 
+### ⚡ System Requirements
+
+Because Gtaurus splits its architecture between a bridging server and a heavy visual client, hardware requirements differ based on where components run:
+
+- **Backend Host (`gtaurus_server`)**: Extremely lightweight headless Rust binary. It can comfortably run on older hardware or low-power Single Board Computers (like a Raspberry Pi 3 or Pi Zero 2 W) strapped directly to the CNC machine.
+- **Frontend Client (Browser / Tauri App)**: The UI utilizes WebGL-based hardware acceleration (Three.js) for real-time, million-point 3D rendering of the Carve Preview and stock displacement.
+  - *Standard PC / Mac*: Any moderately modern machine with integrated graphics or a dedicated GPU will handle this effortlessly.
+  - *Raspberry Pi Client*: If you are running the frontend UI directly on a Raspberry Pi (e.g. attached to a touchscreen), you must use a **Raspberry Pi 4B (4GB+ RAM)** or **Raspberry Pi 5** for a smooth framerate during complex 3D simulation playback.
+
 ### 🖥️ OS-Specific Dependencies
 
 Gtaurus is built with **Tauri v2** and **Rust**, which require native platform components to compile the backend:
