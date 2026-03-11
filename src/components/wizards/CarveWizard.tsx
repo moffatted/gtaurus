@@ -668,9 +668,9 @@ export function CarveWizard() {
                         sendGcode('G10 L20 P1 X0 Y0 Z0'); 
                         setHasZeroed(true);
                         setStockSettings({
-                          offsetX: machine.x.mpos,
-                          offsetY: machine.y.mpos,
-                          offsetZ: machine.z.mpos
+                          zeroX: machine.x.mpos,
+                          zeroY: machine.y.mpos,
+                          workOffsetZ: machine.z.mpos
                         });
                       }}
                       disabled={!isIdle}
@@ -701,9 +701,9 @@ export function CarveWizard() {
                     setHasProbed(true);
                     setHasZeroed(true);
                     setStockSettings({
-                      offsetX: machine.x.mpos,
-                      offsetY: machine.y.mpos,
-                      offsetZ: machine.z.mpos
+                      zeroX: machine.x.mpos,
+                      zeroY: machine.y.mpos,
+                      workOffsetZ: machine.z.mpos
                     });
                   }} />
                 </div>

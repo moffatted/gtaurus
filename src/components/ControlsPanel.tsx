@@ -265,22 +265,22 @@ export function ControlsPanel() {
 
       if (axis === 'ALL') {
           cmd = 'G10 L20 P0 X0 Y0 Z0';
-          patch.offsetX = machine.x.mpos;
-          patch.offsetY = machine.y.mpos;
-          patch.offsetZ = machine.z.mpos;
+          patch.zeroX = machine.x.mpos;
+          patch.zeroY = machine.y.mpos;
+          patch.workOffsetZ = machine.z.mpos;
       } else if (axis === 'XY') {
           cmd = 'G10 L20 P0 X0 Y0';
-          patch.offsetX = machine.x.mpos;
-          patch.offsetY = machine.y.mpos;
+          patch.zeroX = machine.x.mpos;
+          patch.zeroY = machine.y.mpos;
       } else if (axis === 'X') {
           cmd = 'G10 L20 P0 X0';
-          patch.offsetX = machine.x.mpos;
+          patch.zeroX = machine.x.mpos;
       } else if (axis === 'Y') {
           cmd = 'G10 L20 P0 Y0';
-          patch.offsetY = machine.y.mpos;
+          patch.zeroY = machine.y.mpos;
       } else if (axis === 'Z') {
           cmd = 'G10 L20 P0 Z0';
-          patch.offsetZ = machine.z.mpos;
+          patch.workOffsetZ = machine.z.mpos;
       }
 
       if (cmd) {

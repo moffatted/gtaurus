@@ -25,6 +25,26 @@ function Spindle() {
   const sparksRef = useRef<THREE.Group>(null);
   
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
+  const stock = useSettingsStore(state => state.settings.stock);
+
+  const width = Math.max(stock.width, 1);
+  const depth = Math.max(stock.height, 1);
+
+  const { wcsX, wcsY } = useMemo(() => {
+    switch (stock.zeroPosition) {
+      case 'center':
+        return { wcsX: width / 2, wcsY: depth / 2 };
+      case 'top-right':
+        return { wcsX: width, wcsY: depth };
+      case 'top-left':
+        return { wcsX: 0, wcsY: depth };
+      case 'bottom-right':
+        return { wcsX: width, wcsY: 0 };
+      case 'bottom-left':
+      default:
+        return { wcsX: 0, wcsY: 0 };
+    }
+  }, [stock.zeroPosition, width, depth]);
   
   // Get tool diameter
   const activeToolId = useToolStore(state => state.activeToolId);
@@ -56,13 +76,13 @@ function Spindle() {
     const simPos = gcodeState.simPos;
     
     // 1. Position Update
-    let tx = machine.x.mpos;
-    let ty = machine.y.mpos;
+    let tx = wcsX + (machine.x.mpos - machine.x.wco);
+    let ty = wcsY + (machine.y.mpos - machine.y.wco);
     let tz = machine.z.mpos;
 
     if (isSimulating && simPos) {
-      tx = simPos.x;
-      ty = simPos.y;
+      tx = wcsX + simPos.x;
+      ty = wcsY + simPos.y;
       tz = simPos.z;
     }
 
@@ -199,9 +219,29 @@ function Toolpath() {
   const stock = useSettingsStore(state => state.settings.stock);
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
 
+  const width = Math.max(stock.width, 1);
+  const depth = Math.max(stock.height, 1);
+
+  const { wcsX, wcsY } = useMemo(() => {
+    switch (stock.zeroPosition) {
+      case 'center':
+        return { wcsX: width / 2, wcsY: depth / 2 };
+      case 'top-right':
+        return { wcsX: width, wcsY: depth };
+      case 'top-left':
+        return { wcsX: 0, wcsY: depth };
+      case 'bottom-right':
+        return { wcsX: width, wcsY: 0 };
+      case 'bottom-left':
+      default:
+        return { wcsX: 0, wcsY: 0 };
+    }
+  }, [stock.zeroPosition, width, depth]);
+
+  // GCode points are in WCS space; shift by visual WCS zero on the fixed stock.
   const simPoints = useMemo(() => 
-    simulatedPath.map(p => new THREE.Vector3(p.x + stock.offsetX, p.z + stock.offsetZ + bedSizeZ, -(p.y + stock.offsetY))), 
-  [simulatedPath, bedSizeZ, stock.offsetX, stock.offsetY, stock.offsetZ]);
+    simulatedPath.map(p => new THREE.Vector3(wcsX + p.x, p.z + bedSizeZ, -(wcsY + p.y))), 
+  [simulatedPath, bedSizeZ, wcsX, wcsY]);
 
   const actPoints = useMemo(() => 
     actualPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
@@ -380,17 +420,10 @@ function StockMesh() {
   const thickness = Math.max(stock.thickness, 1);
   const depth = Math.max(stock.height, 1);
 
-  let posX = 0, posZ = 0;
-  switch (stock.zeroPosition) {
-    case 'top-left': posX = width / 2; posZ = depth / 2; break;
-    case 'top-right': posX = -width / 2; posZ = depth / 2; break;
-    case 'bottom-left': posX = width / 2; posZ = -depth / 2; break;
-    case 'bottom-right': posX = -width / 2; posZ = -depth / 2; break;
-    case 'center': posX = 0; posZ = 0; break;
-  }
-
-  const finalX = posX + stock.offsetX;
-  const finalZ = posZ - stock.offsetY;
+  // Keep workpiece fixed on the bed for visualization.
+  // Zero selection should move the WCS reference, not the stock body.
+  const finalX = width / 2;
+  const finalZ = -depth / 2;
   const finalY = thickness / 2 + 0.05;
 
   // Position the origin sphere based on zeroPosition

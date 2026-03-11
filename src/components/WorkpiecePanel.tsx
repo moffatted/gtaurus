@@ -3,11 +3,23 @@
  * @purpose UI panel for configuring workpiece dimensions, position offsets, and material appearance.
  */
 import { useSettingsStore } from '../stores/settingsStore';
-import { Box, Layers, MousePointer2 } from 'lucide-react';
+import { useVisualizerStore } from '../stores/visualizerStore';
+import { Box, Layers, MousePointer2, Route, Target } from 'lucide-react';
 
 export function WorkpiecePanel() {
   const { settings, setStockSettings } = useSettingsStore();
   const { stock } = settings;
+  const { analysis, setStockOrigin } = useVisualizerStore();
+
+  const originMap = {
+    'bottom-left': 'FrontLeft',
+    'bottom-right': 'FrontRight',
+    'top-left': 'BackLeft',
+    'top-right': 'BackRight',
+    'center': 'Center'
+  } as const;
+
+  const selectedOrigin = originMap[stock.zeroPosition];
 
   const labelCls = 'block text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1';
   const inputCls =
@@ -15,13 +27,13 @@ export function WorkpiecePanel() {
     'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
     'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all';
 
+  // Helper to get formatted origin name
+  const getOriginLabel = (origin: string) => {
+    return origin.replace(/([A-Z])/g, ' $1').trim();
+  };
+
   return (
     <div className="flex flex-col bg-[var(--bg-primary)] h-full min-w-[320px] overflow-hidden">
-      {/* 
-          Main Scrollable Content 
-          Removed 'flex-1' to prevent it from stretching and creating a gap before the footer.
-          We wrap it in a container that allows the footer to 'tuck' up directly under the content.
-      */}
       <div className="p-2.5 pb-0 space-y-3 overflow-y-auto">
         
         {/* 0. Visibility Toggle */}
@@ -57,7 +69,7 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.width || ''}
+                  value={stock.width ?? ''}
                   onChange={(e) => setStockSettings({ width: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   className={inputCls + " !py-1"}
@@ -70,7 +82,7 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.height || ''}
+                  value={stock.height ?? ''}
                   onChange={(e) => setStockSettings({ height: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   className={inputCls + " !py-1"}
@@ -83,7 +95,7 @@ export function WorkpiecePanel() {
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.thickness || ''}
+                  value={stock.thickness ?? ''}
                   onChange={(e) => setStockSettings({ thickness: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   className={inputCls + " !py-1"}
@@ -94,21 +106,21 @@ export function WorkpiecePanel() {
           </div>
         </div>
 
-        {/* 2. Position Offset */}
+        {/* 2. WCS Zero Position */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-[var(--accent-primary)]">
             <MousePointer2 className="w-3 h-3" />
-            <h3 className="text-[10px] font-bold uppercase tracking-widest">Position Offset</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">WCS Zero Position</h3>
           </div>
           
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelCls}>Offset X</label>
+              <label className={labelCls}>Zero X</label>
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.offsetX || ''}
-                  onChange={(e) => setStockSettings({ offsetX: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  value={stock.zeroX ?? ''}
+                  onChange={(e) => setStockSettings({ zeroX: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   className={inputCls + " !py-1"}
                 />
@@ -116,12 +128,12 @@ export function WorkpiecePanel() {
               </div>
             </div>
             <div>
-              <label className={labelCls}>Offset Y</label>
+              <label className={labelCls}>Zero Y</label>
               <div className="relative">
                 <input
                   type="number"
-                  value={stock.offsetY || ''}
-                  onChange={(e) => setStockSettings({ offsetY: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  value={stock.zeroY ?? ''}
+                  onChange={(e) => setStockSettings({ zeroY: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   onFocus={(e) => e.target.select()}
                   className={inputCls + " !py-1"}
                 />
@@ -129,31 +141,80 @@ export function WorkpiecePanel() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 3. Toolpath Origin */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[var(--accent-primary)]">
+              <Route className="w-3 h-3" />
+              <h3 className="text-[10px] font-bold uppercase tracking-widest">Toolpath Origin</h3>
+            </div>
+            {analysis && (
+              <button
+                onClick={() => setStockOrigin(selectedOrigin, stock.width, stock.height, setStockSettings)}
+                className="text-[9px] px-1.5 py-0.5 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded hover:bg-[var(--accent-primary)]/20 transition-colors font-bold uppercase flex items-center gap-1"
+              >
+                <Target className="w-2.5 h-2.5" />
+                Fit Job to Zero
+              </button>
+            )}
+          </div>
           
-          <div className="flex items-center justify-between gap-3 bg-[var(--bg-tertiary)]/50 p-1.5 rounded-xl border border-[var(--border-color)]">
-              <div className="flex-1">
-                <label className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Zero Origin</label>
-                <span className="text-[10px] font-mono font-bold text-[var(--accent-primary)] uppercase bg-[var(--accent-primary)]/10 px-1.5 py-0.5 rounded border border-[var(--accent-primary)]/20">
-                  {stock.zeroPosition.replace('-', ' ')}
-                </span>
+          <div className="flex items-center justify-between gap-3 bg-[var(--bg-tertiary)]/50 p-2 rounded-xl border border-[var(--border-color)]">
+              <div className="flex-1 space-y-2">
+                <div>
+                  <label className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-0.5">Selected Zero</label>
+                  <span className="text-[10px] font-mono font-bold text-[var(--accent-primary)] uppercase bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded border border-[var(--accent-primary)]/20">
+                    {getOriginLabel(selectedOrigin)}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={stock.workOffsetX ?? ''}
+                      onChange={(e) => setStockSettings({ workOffsetX: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                      className={inputCls + " !py-0.5 !text-[10px]"}
+                    />
+                    <span className="absolute right-1 text-[8px] top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">JOB X</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={stock.workOffsetY ?? ''}
+                      onChange={(e) => setStockSettings({ workOffsetY: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                      className={inputCls + " !py-0.5 !text-[10px]"}
+                    />
+                    <span className="absolute right-1 text-[8px] top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">JOB Y</span>
+                  </div>
+                </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-1 w-16 bg-[var(--bg-tertiary)] p-1 rounded-lg border border-[var(--border-color)]/30 shrink-0">
-                {(['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const).map((pos, idx) => {
-                  const isSelectable = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'].includes(pos);
-                  const isActive = stock.zeroPosition === pos;
-                  if (!isSelectable) return <div key={idx} />;
+              <div className="grid grid-cols-3 gap-1 w-20 bg-[var(--bg-tertiary)] p-1.5 rounded-lg border border-[var(--border-color)]/30 shrink-0">
+                {(['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const).map((pos) => {
+                  const mappedOrigin = pos in originMap ? originMap[pos as keyof typeof originMap] : undefined;
+                  const isClickable = !!mappedOrigin;
+                  const isActive = isClickable && stock.zeroPosition === pos;
+
                   return (
                     <button
                       key={pos}
-                      onClick={() => setStockSettings({ zeroPosition: pos as any })}
+                      disabled={!isClickable}
+                      onClick={() => {
+                        if (mappedOrigin) {
+                          setStockSettings({ zeroPosition: pos as any });
+                        }
+                      }}
                       className={`w-full aspect-square rounded-sm transition-all flex items-center justify-center ${
+                        !isClickable ? 'opacity-10 cursor-default' :
                         isActive 
-                        ? 'bg-[var(--accent-primary)] text-white' 
-                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
+                        ? 'bg-[var(--accent-primary)] text-white ring-1 ring-[var(--accent-primary)] shadow-[0_0_8px_rgba(var(--accent-primary-rgb),0.4)]' 
+                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)]/50'
                       }`}
                     >
-                      <div className={`w-0.5 h-0.5 rounded-full ${isActive ? 'bg-white' : 'bg-current opacity-30'}`} />
+                      <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-white' : 'bg-current opacity-30'}`} />
                     </button>
                   );
                 })}
@@ -161,7 +222,7 @@ export function WorkpiecePanel() {
           </div>
         </div>
 
-        {/* 3. Appearance - Tightened significantly */}
+        {/* 4. Appearance */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-[var(--accent-primary)]">
             <Layers className="w-3 h-3" />
@@ -188,6 +249,7 @@ export function WorkpiecePanel() {
                 <option value="aluminum">Aluminum</option>
                 <option value="pvc">PVC</option>
                 <option value="pcb">PCB</option>
+                <option value="darkoak">Dark Oak</option>
               </select>
             </div>
             <div className="pb-1.5">
@@ -207,29 +269,19 @@ export function WorkpiecePanel() {
           </div>
         </div>
 
-        {/* 
-            Footer Integrated as a simple row 
-            This removes the separate 'footer' block that creates that large gap.
-        */}
         <div className="py-2 border-t border-[var(--border-color)] flex items-center justify-between opacity-80">
           <div className="flex items-center gap-1.5">
             <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold tracking-tight">Settings Synced</span>
           </div>
           <div className="flex items-center gap-1.5">
-             <div className={`w-1 h-1 rounded-full ${stock.enabled ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+             <div className={`w-1 h-1 rounded-full ${stock.enabled ? 'bg-green-500' : 'bg-red-500'}`} />
              <span className="text-[9px] text-[var(--text-secondary)] font-mono font-bold tracking-tighter">
                {stock.enabled ? 'VISIBLE' : 'HIDDEN'}
              </span>
           </div>
         </div>
       </div>
-
-      {/* 
-          This spacer div takes all the remaining height.
-          Since the content ABOVE it is NOT flex-1, everything is pushed to the top,
-          and the footer is right under the Appearance section.
-      */}
       <div className="flex-1" />
     </div>
   );
