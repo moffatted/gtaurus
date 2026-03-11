@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { 
   FileText, Upload, Trash2, Search, 
-  RefreshCw, HardDrive, FileCode, MoreVertical,
+  RefreshCw, HardDrive, FileCode,
   Clock, Database, Eye, Route
 } from 'lucide-react';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
@@ -332,7 +332,7 @@ export default function FileManager() {
     }
   };
 
-  const handleSelect = async (filename: string) => {
+  const handleSelect = async (filename: string, shouldSimulate: boolean = false) => {
     try {
       const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
       const content = await transport.invoke<string>('read_local_file', { 
@@ -340,7 +340,9 @@ export default function FileManager() {
         filename 
       });
       setGcode(content, filename, fullPath);
-      simulate();
+      if (shouldSimulate) {
+        simulate();
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[FileManager] Select failed:", msg);
@@ -562,14 +564,10 @@ export default function FileManager() {
                   
                   <Tooltip content="Load Toolpath to Bed" position="top">
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleSelect(file.name); }}
-                      className={`p-2 rounded-lg transition-all ${
-                          activeFileName === file.name 
-                          ? "text-[var(--accent-primary)] bg-[var(--accent-primary)]/10" 
-                          : "text-[var(--text-secondary)] hover:text-orange-400 hover:bg-orange-500/10"
-                      }`}
+                      onClick={(e) => { e.stopPropagation(); handleSelect(file.name, true); }}
+                      className="p-2 rounded-lg transition-all text-[var(--text-secondary)] hover:text-orange-400 hover:bg-orange-500/10 active:scale-95"
                     >
-                      <Route className={`w-4 h-4 ${activeFileName === file.name ? 'text-[var(--accent-primary)]' : ''}`} />
+                      <Route className="w-4 h-4" />
                     </button>
                   </Tooltip>
 
@@ -592,13 +590,6 @@ export default function FileManager() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </Tooltip>
-
-                  <button 
-                    onClick={(e) => e.stopPropagation()} 
-                    className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] rounded-lg transition-all"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
             ))}
