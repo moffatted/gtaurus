@@ -38,6 +38,42 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 - **Git** (Required for submodules)
 - **Visual Studio Code** (Recommended IDE) with Tauri and Rust Analyzer extensions.
 
+### 🖥️ OS-Specific Dependencies
+
+Gtaurus is built with **Tauri v2** and **Rust**, which require native platform components to compile the backend:
+
+#### Windows
+
+- **[Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)**: Required for compiling the Rust backend. (Make sure to check "Desktop development with C++").
+- **WebView2**: Required for the frontend to render (Usually pre-installed on modern Windows 10/11 installations).
+
+#### macOS
+
+- **Xcode Command Line Tools**: Required for compiling C/C++ dependencies. Install via terminal:
+
+  ```bash
+  xcode-select --install
+  ```
+
+#### Linux (Debian/Ubuntu)
+
+You must install the system dependencies required by Tauri's webkit integration. Run the following command:
+
+```bash
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libxdo-dev \
+  libssl-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+```
+
+*For Arch, Fedora, or other distributions, check the [Tauri v2 Prerequisites Guide](https://v2.tauri.app/start/prerequisites/#linux).*
+
 ### 📷 Camera Support (Optional)
 
 To use the built-in Camera Viewer and hardware settings manager in Gtaurus:
