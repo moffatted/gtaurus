@@ -272,6 +272,30 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
+    id: 'carve-preview',
+    title: 'Carve Preview',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Carve Preview</h2>
+        <p>The Carve Preview panel provides a true-to-life 3D visualization of your G-code operations, simulating exactly what the bit will carve into the workpiece.</p>
+
+        <h3 className="text-lg font-semibold mt-4">Simulation & Playback</h3>
+        <ul className="list-disc pl-5 space-y-2 text-sm">
+            <li><strong>Operation Step:</strong> Playback automatically pauses at tool changes, allowing you to review the sequence exactly as your machine will execute it.</li>
+            <li><strong>Continuous:</strong> Playback runs straight through the entire file without pausing.</li>
+            <li><strong>Scrubber:</strong> Drag the slider along the bottom to jump instantly to any percentage of the carve.</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-4">Bit Visualization</h3>
+        <p className="text-sm">The 3D preview dynamically adjusts to match the tools assigned in your operation sequence. If you specify a tool type, diameter, or angle (for V-bits), the rendered bit will resize and change shape to match, ensuring your toolpaths are accurately visualized.</p>
+
+        <h3 className="text-lg font-semibold mt-4">Stock Alignment</h3>
+        <p className="text-sm">Use the <strong>Align Design</strong> buttons (F-L, Center, etc.) to position the simulated G-code footprint relative to your configured workpiece material dimensions.</p>
+      </div>
+    ),
+  },
+  {
     id: 'stats',
     title: 'Machine Stats',
     category: 'general',
