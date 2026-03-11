@@ -368,7 +368,7 @@ export function ControlsPanel() {
       const displayMpos = isMetric ? mpos : mpos / 25.4;
 
       return (
-        <div className="flex items-center gap-2.5 bg-[var(--bg-tertiary)]/40 p-1 rounded-lg border border-[var(--border-color)]/50 group hover:border-[var(--accent-primary)]/40 transition-colors flex-1 min-w-[100px]">
+        <div className="flex items-center gap-2.5 bg-[var(--bg-tertiary)] shadow-sm p-1 rounded-lg border border-[var(--border-color)] group hover:border-[var(--accent-primary)] transition-colors flex-1 min-w-[100px]">
             <div className="flex flex-col items-center justify-center w-6 h-6 rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)] shadow-sm shrink-0">
                 <span className="text-[10px] font-black font-mono text-[var(--accent-primary)] leading-none">{label}</span>
             </div>
@@ -466,7 +466,7 @@ export function ControlsPanel() {
         </div>
 
         {/* Jog Controls */}
-        <div className="flex flex-col gap-4 select-none bg-[var(--bg-secondary)]/30 p-3 rounded-2xl border border-[var(--border-color)]">
+        <div className="flex flex-col gap-4 select-none bg-[var(--bg-secondary)] shadow-sm p-3 rounded-2xl border border-[var(--border-color)]">
             <div className="flex flex-wrap gap-4 items-start justify-between">
                 <div className="flex flex-col gap-4 flex-1 min-w-[200px]">
                     <div className="space-y-3">
@@ -609,7 +609,7 @@ export function ControlsPanel() {
                         </div>
 
                         {/* Spindle Control Pad */}
-                        <div className="flex flex-col gap-2 w-28 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-2 rounded-2xl border border-[var(--border-color)]">
+                        <div className="flex flex-col gap-2 w-28 h-36 justify-between items-center bg-[var(--bg-tertiary)] shadow-sm p-2 rounded-2xl border border-[var(--border-color)]">
                             <div className="flex justify-between items-center w-full px-1">
                                 <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">Spindle</span>
                                 <button onClick={() => handleRPMChange(settings.spindle.maxRPM)} className="text-[9px] font-bold text-[var(--accent-primary)] hover:underline">MAX</button>
@@ -643,7 +643,7 @@ export function ControlsPanel() {
 
                         {/* Actions sidebar */}
                         <div className="flex items-center gap-2">
-                             <div className="flex flex-col gap-1 w-12 h-36 justify-between items-center bg-[var(--bg-tertiary)]/50 p-1 rounded-xl border border-[var(--border-color)]">
+                             <div className="flex flex-col gap-1 w-12 h-36 justify-between items-center bg-[var(--bg-tertiary)] shadow-sm p-1 rounded-xl border border-[var(--border-color)]">
                                 <Tooltip content={isHold ? "Resume Job (~)" : "Start Job"} position="right">
                                     <button 
                                         ref={startButtonRef}
@@ -738,7 +738,7 @@ export function ControlsPanel() {
                                 </Tooltip>
                             </div>
 
-                            <div className="flex flex-col gap-2 w-12 h-36 justify-center items-center bg-[var(--bg-tertiary)]/50 p-1 rounded-xl border border-[var(--border-color)] shadow-inner">
+                            <div className="flex flex-col gap-2 w-12 h-36 justify-center items-center bg-[var(--bg-tertiary)] shadow-sm p-1 rounded-xl border border-[var(--border-color)]">
                                 <div className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-tighter mb-1">Zero</div>
                                 
                                 <Tooltip content="Zero All Axes" position="right">

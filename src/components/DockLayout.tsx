@@ -214,7 +214,7 @@ export function DockLayout(props: DockLayoutProps) {
             <DockviewReact
                 components={components}
                 onReady={onReady}
-                className={theme === 'dark' ? "dockview-theme-dark flex-1" : "dockview-theme-light flex-1"}
+                className={theme === 'light' ? "dockview-theme-light flex-1" : "dockview-theme-dark flex-1"}
             />
         </div>
     </DockLayoutContext.Provider>
