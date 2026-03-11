@@ -31,7 +31,7 @@ export function GCodeVisualizerPopup() {
   // 1-based line number for G-code panel highlighting and auto-scroll
   const currentLineNum = currentLineIdx + 1;
 
-  // Auto-play logic — variable speed: fast through setup/rapids, slow on cutting moves
+  // Auto-play logic — consistent speed so humans can read the scrolling G-code
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -41,22 +41,14 @@ export function GCodeVisualizerPopup() {
       const state = useVisualizerStore.getState();
       if (!state.isPlaying) return; // store already stopped us
 
-      // Read current line BEFORE advancing to decide how long to show it.
-      const currentLine = state.analysis?.raw_lines[state.currentLineIdx] ?? '';
-      const upper = currentLine.trim().toUpperCase();
-
       state.stepLine(); // advance one line (sets isPlaying:false on pause/finish internally)
 
-      // Variable delay based on line content:
-      //   Cutting moves (G1/G2/G3)  → 450 ms — slow enough to read
-      //   Everything else (G0, comments, setup) → 40 ms — zip through
-      const isCuttingMove = /\bG0?[123]\b/.test(upper);
-      const delay = isCuttingMove ? 450 : 40;
-
+      // Use a consistent delay for smooth, readable scrolling
+      const delay = 150;
       timeoutId = setTimeout(tick, delay);
     };
 
-    timeoutId = setTimeout(tick, 40);
+    timeoutId = setTimeout(tick, 150);
     return () => clearTimeout(timeoutId);
   }, [isPlaying]);
 
