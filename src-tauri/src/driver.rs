@@ -1,3 +1,7 @@
+/*
+ * @file driver.rs
+ * @purpose Tauri frontend driver wrapper that bridges the FluidNC driver events to the Tauri event system for the UI.
+ */
 use gtaurus_common::{
     DriverEventObserver, FluidNCDriver as LibDriver, RX_EVENT as COMMON_RX_EVENT,
 };

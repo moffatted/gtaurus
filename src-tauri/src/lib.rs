@@ -1,3 +1,7 @@
+/*
+ * @file lib.rs
+ * @purpose Main library entry point for the Tauri backend, setting up state, plugins, handlers, and the application builder.
+ */
 //! lib.rs
 //! Purpose: Main entry point for the Tauri backend, defining state and invokable commands.
 

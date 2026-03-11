@@ -1,3 +1,7 @@
+/*
+ * @file height_map.rs
+ * @purpose Defines the HeightMap structure and functions for storing, interpolating, and managing probed surface data.
+ */
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

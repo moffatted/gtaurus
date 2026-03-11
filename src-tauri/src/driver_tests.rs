@@ -1,3 +1,7 @@
+/*
+ * @file driver_tests.rs
+ * @purpose Unit tests for the Tauri driver wrapper, ensuring correct event emission and state management.
+ */
 #[cfg(test)]
 mod tests {
     use super::super::driver::*;

@@ -1,3 +1,7 @@
+/*
+ * @file probe_runner.rs
+ * @purpose Core engine for orchestrating bed probing sequences, interacting with the CNC driver to generate a height map.
+ */
 use glam::DVec3;
 use regex::Regex;
 use std::sync::LazyLock;

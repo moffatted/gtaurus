@@ -1,3 +1,7 @@
+/*
+ * @file gcode.rs
+ * @purpose G-code parsing and simulation implementation, transforming raw G-code into drawable coordinate representations.
+ */
 use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{BufRead, BufReader};

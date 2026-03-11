@@ -1,3 +1,7 @@
+/*
+ * @file mod.rs
+ * @purpose AI module entry point, managing AI-related handlers and submodules.
+ */
 use serde::{Deserialize, Serialize};
 use std::env;
 
