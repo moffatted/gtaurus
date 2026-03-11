@@ -114,6 +114,24 @@ To use the built-in Camera Viewer and hardware settings manager in Gtaurus:
 
 Gtaurus supports **two deployment modes**: Desktop (Tauri) and Web (via Server Bridge).
 
+### 🔌 Connection Scenarios (How & Why)
+
+Before running the application, decide how Gtaurus will connect to your CNC machine. We support three primary connection methods to match how your workshop is set up:
+
+1. **USB (Serial) Connection**: Best for rock-solid reliability.
+   - **Scenario**: Your laptop/desktop (or a Raspberry Pi) is sitting right next to your CNC machine and plugged in directly using a USB cable.
+   - **Why use it?**: This is the traditional, bulletproof way to stream G-code. It requires zero network setup and drops the risk of a Wi-Fi disconnect ruining a 3-hour carve.
+
+2. **Telnet (Wi-Fi) Connection**: Best for clean, wire-free workshops.
+   - **Scenario**: Your CNC controller (like an ESP32-based MKS DLC32) is joined to your shop's Wi-Fi network. You want to sit at a desk across the room with your laptop.
+   - **Why use it?**: You hate tripping over cables. Modern FluidNC boards can receive streaming G-code over Wi-Fi via Telnet. You simply type your CNC's IP address (e.g., `192.168.1.55`) into the Gtaurus connection panel and gain full control instantly without stringing out a long USB cord.
+   - **Default Port**: FluidNC uses Telnet port **23** by default.
+
+3. **Bridge Server Connection**: Best for remote access using tablets or older laptops.
+   - **Scenario**: You have a tiny, heavily-protected Raspberry Pi plugged into the CNC via USB in the dusty shop. You want to use a nice iPad or your powerful office PC to actually run the UI and complex 3D visualizations.
+   - **Why use it?**: The iPad connects to the Raspberry Pi over the network. The Pi runs the lightweight `gtaurus_server` bridge, which securely handles the physical USB connection to the CNC. If your iPad goes to sleep or disconnects from Wi-Fi, the Pi keeps running the G-code safely in the background.
+   - **Default Ports**: The `gtaurus_server` bridge accepts real-time WebSocket connections on port **9001** and simultaneously hosts a basic HTTP server for the web app UI on port **14201**.
+
 ### 1. Desktop Mode (Tauri) - Recommended
 
 Runs as a native application with full hardware access.
