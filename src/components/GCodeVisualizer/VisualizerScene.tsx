@@ -596,31 +596,7 @@ function CarvedStock({
         );
       })()}
 
-      {/* Full Toolpath Simulation */}
-      {(() => {
-        const pathPoints = useMemo<[number, number, number][]>(() => 
-          analysis.points.map(p => [
-            wcx + p.x,
-            p.z + physicalStockHeight + 0.1,
-            wcz - p.y
-          ]), 
-          [analysis.points, wcx, wcz, physicalStockHeight]
-        );
-        
-        return (
-          <Line
-            points={pathPoints}
-            color="#ef4444"
-            lineWidth={1}
-            transparent
-            opacity={0.3}
-            dashed
-            dashScale={1}
-            dashSize={2}
-            gapSize={1}
-          />
-        );
-      })()}
+
     </group>
   );
 }
