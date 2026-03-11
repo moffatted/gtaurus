@@ -58,10 +58,10 @@ export function BasicAutolevelUI() {
   // Sync with Workpiece
   const handleSyncWorkpiece = () => {
     const { stock } = settings;
-    setMinX(stock.offsetX);
-    setMinY(stock.offsetY);
-    setMaxX(stock.offsetX + stock.width);
-    setMaxY(stock.offsetY + stock.height);
+    setMinX(stock.workOffsetX);
+    setMinY(stock.workOffsetY);
+    setMaxX(stock.workOffsetX + stock.width);
+    setMaxY(stock.workOffsetY + stock.height);
     setStatus("Bounds synced with Workpiece");
   };
 
@@ -78,8 +78,8 @@ export function BasicAutolevelUI() {
         enabled: true,
         width: maxX - minX,
         height: maxY - minY,
-        offsetX: minX,
-        offsetY: minY,
+        workOffsetX: minX,
+        workOffsetY: minY,
       });
     }
 

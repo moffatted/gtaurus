@@ -192,10 +192,12 @@ export interface StockSettings {
   width: number;
   height: number;
   thickness: number;
-  offsetX: number;
-  offsetY: number;
-  offsetZ: number;
-  material: 'pine' | 'mdf' | 'aluminum' | 'pvc' | 'pcb';
+  zeroX: number;
+  zeroY: number;
+  workOffsetX: number;
+  workOffsetY: number;
+  workOffsetZ: number;
+  material: 'pine' | 'mdf' | 'aluminum' | 'pvc' | 'pcb' | 'darkoak';
   opacity: number;
   zeroPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
 }
@@ -396,14 +398,16 @@ export const DEFAULT_SETTINGS: Settings = {
 
   stock: {
     enabled: false,
-    width: 100,
-    height: 100,
+    width: 112,
+    height: 112,
     thickness: 15,
-    offsetX: 0,
-    offsetY: 0,
-    offsetZ: 0,
+    zeroX: 0,
+    zeroY: 0,
+    workOffsetX: 56,
+    workOffsetY: 56,
+    workOffsetZ: 0,
     material: 'pine',
-    opacity: 0.6,
+    opacity: 1.0,
     zeroPosition: 'bottom-left',
   },
   atc: {
@@ -508,6 +512,19 @@ async function loadFromStorage(): Promise<Settings | null> {
     console.error("[settings] Failed to load from storage:", err);
     return null;
   }
+}
+
+function normalizeSavedStock(savedStock: any): Partial<StockSettings> {
+  if (!savedStock) return {};
+
+  return {
+    ...savedStock,
+    zeroX: savedStock.zeroX ?? savedStock.posX ?? DEFAULT_SETTINGS.stock.zeroX,
+    zeroY: savedStock.zeroY ?? savedStock.posY ?? DEFAULT_SETTINGS.stock.zeroY,
+    workOffsetX: savedStock.workOffsetX ?? savedStock.offsetX ?? DEFAULT_SETTINGS.stock.workOffsetX,
+    workOffsetY: savedStock.workOffsetY ?? savedStock.offsetY ?? DEFAULT_SETTINGS.stock.workOffsetY,
+    workOffsetZ: savedStock.workOffsetZ ?? savedStock.offsetZ ?? DEFAULT_SETTINGS.stock.workOffsetZ,
+  };
 }
 
 async function saveToStorage(settings: Settings): Promise<void> {
@@ -666,7 +683,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
           ai: aiSettings,
-          stock: { ...DEFAULT_SETTINGS.stock, ...saved?.stock },
+          stock: { ...DEFAULT_SETTINGS.stock, ...normalizeSavedStock(saved?.stock) },
           atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
           camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
           toolLibrary: { ...DEFAULT_SETTINGS.toolLibrary, ...saved?.toolLibrary },

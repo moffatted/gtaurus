@@ -12,6 +12,28 @@ interface ToolBitProps {
   toolAngleDeg?: number | null;
 }
 
+type ZeroPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+
+function getWcsAnchor(zeroPosition: ZeroPosition, stockWidth: number, stockDepth: number) {
+  switch (zeroPosition) {
+    case 'center':
+      return { x: stockWidth / 2, z: -stockDepth / 2 };
+    case 'top-right':
+      return { x: stockWidth, z: -stockDepth };
+    case 'top-left':
+      return { x: 0, z: -stockDepth };
+    case 'bottom-right':
+      return { x: stockWidth, z: 0 };
+    case 'bottom-left':
+    default:
+      return { x: 0, z: 0 };
+  }
+}
+
+function getStockCenter(stockWidth: number, stockDepth: number) {
+  return { x: stockWidth / 2, z: -stockDepth / 2 };
+}
+
 function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAngleDeg }: ToolBitProps) {
   // Color mapping by tool type for the flute (cutting part)
   const getToolColor = () => {
@@ -192,16 +214,16 @@ function BedGrid({ width, height }: { width: number; height: number }) {
     for (let x = 0; x <= width + 0.1; x += minorSpacing) {
       const isMajor = Math.abs(x % majorSpacing) < 0.1;
       const target = isMajor ? majorLines : minorLines;
-      target.push(x - width / 2, 0, -height / 2);
-      target.push(x - width / 2, 0, height / 2);
+      target.push(x, 0, 0);
+      target.push(x, 0, -height);
     }
     
     // Horizontal lines (Z = constant)
     for (let z = 0; z <= height + 0.1; z += minorSpacing) {
       const isMajor = Math.abs(z % majorSpacing) < 0.1;
       const target = isMajor ? majorLines : minorLines;
-      target.push(-width / 2, 0, z - height / 2);
-      target.push(width / 2, 0, z - height / 2);
+      target.push(0, 0, -z);
+      target.push(width, 0, -z);
     }
     
     return {
@@ -282,29 +304,33 @@ function WCSAxes({ stockWidth, stockDepth }: { stockWidth: number; stockDepth: n
 }
 
 function CarvedStock({ 
-  analysis, 
-  offsetX, 
-  offsetY
+  analysis
 }: { 
   analysis: GCodeAnalysis; 
-  offsetX: number;
-  offsetY: number;
 }) {
   const { settings } = useSettingsStore();
   const { 
     width: stockWidth, 
     height: stockDepth, 
-    thickness: physicalStockHeight
+    thickness: physicalStockHeight,
+    material: stockMaterial,
+    opacity: stockOpacity
   } = settings.stock;
 
-  const totalOX = offsetX;
-  const totalOY = offsetY;
+  // WCS zero in world space — workpiece always sits at front-left corner of bed (0,0).
+  // zeroPosition defines where on the workpiece the G-code origin (0,0) is located.
+  const { x: wcx, z: wcz } = useMemo(
+    () => getWcsAnchor(settings.stock.zeroPosition, stockWidth, stockDepth),
+    [stockWidth, stockDepth, settings.stock.zeroPosition]
+  );
+
   const { playbackMode, currentOperationId, isToolChangePaused, currentLineIdx } = useVisualizerStore();
   
   const dispCanvasRef = useRef<HTMLCanvasElement>(null);
   const geoRef = useRef<THREE.PlaneGeometry>(null);
   const [currentPos, setCurrentPos] = useState<[number, number, number]>([0, 20, 0]);
 
+  // Texture Loading
   const woodTexture = useLoader(THREE.TextureLoader, '/wood_texture_seamless.png');
   
   useEffect(() => {
@@ -315,30 +341,54 @@ function CarvedStock({
     }
   }, [woodTexture]);
 
-  // Paint heightmap canvas, then apply CPU vertex displacement for correct 3D normals
+  // Material selection
+  const getMaterialProps = () => {
+    switch (stockMaterial) {
+      case 'aluminum':
+        return { color: '#94a3b8', metalness: 0.9, roughness: 0.2, map: null };
+      case 'pcb':
+        return { 
+          color: '#064e3b', // Deep forest green
+          metalness: 0.6, 
+          roughness: 0.2, 
+          map: null,
+          emissive: '#112211',
+          emissiveIntensity: 0.1
+        };
+      case 'pvc':
+        return { color: '#f8fafc', metalness: 0.1, roughness: 0.5, map: null };
+      case 'mdf':
+        return { color: '#d97706', metalness: 0, roughness: 0.8, map: null };
+      case 'darkoak':
+        return { color: '#451a03', metalness: 0.05, roughness: 0.6, map: woodTexture };
+      case 'pine':
+      default:
+        return { color: '#ffffff', metalness: 0.05, roughness: 0.4, map: woodTexture };
+    }
+  };
+
+  const matProps = getMaterialProps();
+
+  // Paint heightmap canvas
   useEffect(() => {
     if (!dispCanvasRef.current || !analysis.points.length) return;
     
     const ctx = dispCanvasRef.current.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Background is White (Surface/0 depth) - AO map uses this (Darker = deeper = more occluded)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 1024, 1024);
 
     let pointLimit = 0;
-    const lineNum = currentLineIdx + 1; // 1-based
+    const lineNum = currentLineIdx + 1;
     for (let i = 0; i < analysis.points.length; i++) {
       if (analysis.points[i].line_number <= lineNum) pointLimit = i + 1;
       else break;
     }
 
-    // In operation-step mode, clamp to the next operation's start boundary while paused.
     if (playbackMode === 'operation-step' && isToolChangePaused && currentOperationId !== null) {
       const nextOp = analysis.operations.find(op => op.id === currentOperationId);
-      if (nextOp) {
-        pointLimit = Math.min(pointLimit, nextOp.start_point_idx);
-      }
+      if (nextOp) pointLimit = Math.min(pointLimit, nextOp.start_point_idx);
     }
 
     const processedPoints = analysis.points.slice(0, pointLimit);
@@ -346,12 +396,10 @@ function CarvedStock({
     if (pointLimit > 0) {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-
       const pxScaleX = 1024 / stockWidth;
-      const getX = (val: number) => ((val + offsetX) / stockWidth) * 1024;
-      const getY = (val: number) => (1 - (val + offsetY) / stockDepth) * 1024;
+      const getX = (val: number) => ((val + wcx) / stockWidth) * 1024;
+      const getY = (val: number) => (1 - (val + (-wcz)) / stockDepth) * 1024;
 
-      // Create operation -> tool diameter map
       const operationDiameterMap = new Map<number, { diameter: number; type: string; angleDeg: number | null }>();
       analysis.operations.forEach(op => {
         operationDiameterMap.set(op.id, {
@@ -361,7 +409,6 @@ function CarvedStock({
         });
       });
 
-      // darken: each pixel keeps the minimum (deepest) value across overlapping passes
       ctx.globalCompositeOperation = 'darken';
 
       for (let i = 1; i < processedPoints.length; i++) {
@@ -373,23 +420,16 @@ function CarvedStock({
               const grayValue = 255 - Math.floor(ratio * 255);
               
               ctx.strokeStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
-              // Avoid extra blurred halos that create jagged vertical walls after displacement.
               ctx.shadowBlur = 0;
               
-              // Use operation-aware cutter engagement width. Angle tools use depth+angle when diameter is not explicit.
               const opTool = operationDiameterMap.get(p2.operation_id);
-              const fallbackDiameter = 5;
-              let effectiveDiameter = opTool?.diameter ?? fallbackDiameter;
+              let effectiveDiameter = opTool?.diameter ?? 5;
               if (opTool && (opTool.type === 'vbit' || opTool.type === 'chamfer')) {
                 if (opTool.angleDeg && opTool.angleDeg > 0) {
                   const depth = Math.abs(p2.z);
                   const angleRad = (opTool.angleDeg * Math.PI) / 180;
                   const angleBasedWidth = 2 * depth * Math.tan(angleRad / 2);
-                  if (!(opTool.diameter > 0)) {
-                    effectiveDiameter = Math.max(0.6, angleBasedWidth);
-                  } else {
-                    effectiveDiameter = Math.min(opTool.diameter, Math.max(0.6, angleBasedWidth));
-                  }
+                  effectiveDiameter = opTool.diameter > 0 ? Math.min(opTool.diameter, Math.max(0.6, angleBasedWidth)) : Math.max(0.6, angleBasedWidth);
                 }
               }
               ctx.lineWidth = Math.max(1, effectiveDiameter * pxScaleX);
@@ -400,11 +440,9 @@ function CarvedStock({
               ctx.stroke();
           }
       }
-
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // CPU-side vertex displacement: read heightmap, move vertices, recompute normals
     if (geoRef.current) {
       const geo = geoRef.current;
       const imgData = ctx.getImageData(0, 0, 1024, 1024);
@@ -413,77 +451,45 @@ function CarvedStock({
       const wSegs = 512;
       const hSegs = 512;
 
-      const sampleGrayBilinear = (u: number, v: number): number => {
-        const x = u * 1023;
-        const y = v * 1023;
-
-        const x0 = Math.floor(x);
-        const y0 = Math.floor(y);
-        const x1 = Math.min(1023, x0 + 1);
-        const y1 = Math.min(1023, y0 + 1);
-
-        const tx = x - x0;
-        const ty = y - y0;
-
-        const i00 = (y0 * 1024 + x0) * 4;
-        const i10 = (y0 * 1024 + x1) * 4;
-        const i01 = (y1 * 1024 + x0) * 4;
-        const i11 = (y1 * 1024 + x1) * 4;
-
-        const g00 = pixels[i00];
-        const g10 = pixels[i10];
-        const g01 = pixels[i01];
-        const g11 = pixels[i11];
-
-        const gx0 = g00 * (1 - tx) + g10 * tx;
-        const gx1 = g01 * (1 - tx) + g11 * tx;
-        return gx0 * (1 - ty) + gx1 * ty;
-      };
-
       const sampleGraySmooth = (u: number, v: number): number => {
-        // Small cross-kernel smooth suppresses stair-step spikes at steep cut walls.
-        const du = 1 / 1023;
-        const dv = 1 / 1023;
-        const uc = Math.min(1, Math.max(0, u));
-        const vc = Math.min(1, Math.max(0, v));
-
-        const c = sampleGrayBilinear(uc, vc);
-        const l = sampleGrayBilinear(Math.max(0, uc - du), vc);
-        const r = sampleGrayBilinear(Math.min(1, uc + du), vc);
-        const d = sampleGrayBilinear(uc, Math.max(0, vc - dv));
-        const up = sampleGrayBilinear(uc, Math.min(1, vc + dv));
-
-        return (c * 4 + l + r + d + up) / 8;
+        const x = u * 1023; const y = v * 1023;
+        const x0 = Math.floor(x); const y0 = Math.floor(y);
+        const x1 = Math.min(1023, x0 + 1); const y1 = Math.min(1023, y0 + 1);
+        const tx = x - x0; const ty = y - y0;
+        const i00 = (y0 * 1024 + x0) * 4; const i10 = (y0 * 1024 + x1) * 4;
+        const i01 = (y1 * 1024 + x0) * 4; const i11 = (y1 * 1024 + x1) * 4;
+        const g00 = pixels[i00]; const g10 = pixels[i10]; const g01 = pixels[i01]; const g11 = pixels[i11];
+        const gx0 = g00 * (1 - tx) + g10 * tx; const gx1 = g01 * (1 - tx) + g11 * tx;
+        return gx0 * (1 - ty) + gx1 * ty;
       };
       
       for (let iy = 0; iy <= hSegs; iy++) {
         for (let ix = 0; ix <= wSegs; ix++) {
           const vIdx = iy * (wSegs + 1) + ix;
-          const u = ix / wSegs;
-          const v = iy / hSegs;
+          const u = ix / wSegs; const v = iy / hSegs;
           const heightVal = sampleGraySmooth(u, v);
-          // White(255) = surface (z=0), Black(0) = deepest (z=-stockHeight)
           pos.setZ(vIdx, -(1 - heightVal / 255) * physicalStockHeight);
         }
       }
-      
       pos.needsUpdate = true;
       geo.computeVertexNormals();
     }
     
     const lastP = processedPoints.length > 0 ? processedPoints[processedPoints.length - 1] : analysis.points[0];
-    // Only update position if significantly different to avoid unnecessary re-renders during autoplay
-    const newPos: [number, number, number] = [lastP.x + offsetX, lastP.z + physicalStockHeight + 30, -(lastP.y + offsetY)];
+    const newPos: [number, number, number] = [
+      wcx + lastP.x,
+      lastP.z + physicalStockHeight + 30, 
+      wcz - lastP.y
+    ];
     setCurrentPos(prev => {
       const changed = Math.abs(prev[0] - newPos[0]) > 0.1 || Math.abs(prev[1] - newPos[1]) > 0.1 || Math.abs(prev[2] - newPos[2]) > 0.1;
       return changed ? newPos : prev;
     });
-  }, [analysis, currentLineIdx, stockWidth, stockDepth, physicalStockHeight, offsetX, offsetY, playbackMode, currentOperationId, isToolChangePaused]);
+  }, [analysis, currentLineIdx, stockWidth, stockDepth, physicalStockHeight, wcx, wcz, playbackMode, currentOperationId, isToolChangePaused]);
 
   useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
+    canvas.width = 1024; canvas.height = 1024;
     dispCanvasRef.current = canvas;
     return canvas;
   }, []);
@@ -491,7 +497,6 @@ function CarvedStock({
   const operationOverlay = useMemo(() => {
     const positions: number[] = [];
     const colors: number[] = [];
-
     const lineNum = currentLineIdx + 1;
     let pointLimit = 0;
     for (let i = 0; i < analysis.points.length; i++) {
@@ -499,26 +504,16 @@ function CarvedStock({
       else break;
     }
     const overlayY = physicalStockHeight + 0.03;
-
-    const opColor = (opId: number) => {
-      // Stable hue spacing so each operation/tool remains visually distinct.
-      const hue = (opId * 0.217) % 1;
-      return new THREE.Color().setHSL(hue, 0.85, 0.52);
-    };
+    const opColor = (opId: number) => new THREE.Color().setHSL((opId * 0.217) % 1, 0.85, 0.52);
 
     for (let i = 1; i < pointLimit; i++) {
       const p1 = analysis.points[i - 1];
       const p2 = analysis.points[i];
-
       if (p2.is_rapid || p2.z >= 0) continue;
-
       const c = opColor(p2.operation_id || 1);
-
-      positions.push(p1.x + offsetX, overlayY, -(p1.y + offsetY));
-      positions.push(p2.x + offsetX, overlayY, -(p2.y + offsetY));
-
-      colors.push(c.r, c.g, c.b);
-      colors.push(c.r, c.g, c.b);
+      positions.push(wcx + p1.x, overlayY, wcz - p1.y);
+      positions.push(wcx + p2.x, overlayY, wcz - p2.y);
+      colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
     }
 
     return {
@@ -526,7 +521,7 @@ function CarvedStock({
       colors: new Float32Array(colors),
       hasData: positions.length > 0,
     };
-  }, [analysis.points, currentLineIdx, offsetX, offsetY, physicalStockHeight]);
+  }, [analysis.points, currentLineIdx, wcx, wcz, physicalStockHeight]);
 
   const activeOperation = useMemo(() => {
     if (!analysis.operations.length || !analysis.points.length) return null;
@@ -540,42 +535,39 @@ function CarvedStock({
     return analysis.operations.find(op => op.id === activePoint.operation_id) ?? analysis.operations[0];
   }, [analysis.operations, analysis.points, currentLineIdx]);
 
-  const midX = stockWidth / 2;
-  const midZ = -stockDepth / 2;
+  const { x: midX, z: midZ } = useMemo(
+    () => getStockCenter(stockWidth, stockDepth),
+    [stockWidth, stockDepth]
+  );
 
   return (
     <group>
-      {/* Wood base block - Slightly shorter than physicalStockHeight to prevent z-fighting with the carved surface plane */}
+      {/* Base block */}
       <mesh position={[midX, (physicalStockHeight - 0.1) / 2, midZ]} receiveShadow>
         <boxGeometry args={[stockWidth, physicalStockHeight - 0.1, stockDepth]} />
-        <meshStandardMaterial attach="material-0" color="#5d4037" roughness={0.9} />
-        <meshStandardMaterial attach="material-1" color="#5d4037" roughness={0.9} />
-        {/* Top face must be transparent so displaced carve depths are not visually occluded by a flat cap */}
+        <meshStandardMaterial color={matProps.color} roughness={matProps.roughness} metalness={matProps.metalness} transparent opacity={stockOpacity} />
         <meshStandardMaterial attach="material-2" transparent opacity={0} depthWrite={false} />
-        <meshStandardMaterial attach="material-3" color="#5d4037" roughness={0.9} />
-        <meshStandardMaterial attach="material-4" color="#5d4037" roughness={0.9} />
-        <meshStandardMaterial attach="material-5" color="#5d4037" roughness={0.9} />
       </mesh>
 
-      {/* Carved Surface - Elevated slightly to be the true top surface */}
+      {/* Carved Surface */}
       <mesh position={[midX, physicalStockHeight, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry ref={geoRef} args={[stockWidth, stockDepth, 512, 512]} />
         <meshStandardMaterial
-          map={woodTexture}
-          roughness={0.4}
-          metalness={0.05}
+          {...matProps}
+          transparent={stockOpacity < 1}
+          opacity={stockOpacity}
           envMapIntensity={0.5}
         />
       </mesh>
 
-      {/* Per-operation cut overlay (color-per-bit) */}
+      {/* Cut overlay */}
       {operationOverlay.hasData && (
         <lineSegments>
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[operationOverlay.positions, 3]} />
             <bufferAttribute attach="attributes-color" args={[operationOverlay.colors, 3]} />
           </bufferGeometry>
-          <lineBasicMaterial vertexColors transparent opacity={0.95} />
+          <lineBasicMaterial vertexColors transparent opacity={0.6} />
         </lineSegments>
       )}
 
@@ -586,21 +578,46 @@ function CarvedStock({
         toolAngleDeg={activeOperation?.tool_angle_deg}
       />
 
-
-      {/* Job Footprint Bounding Box */}
+      {/* Job Footprint */}
       {(() => {
-        const bx0 = totalOX + analysis.bbox_min[0];
-        const bx1 = totalOX + analysis.bbox_max[0];
-        const bz0 = -(totalOY + analysis.bbox_min[1]);
-        const bz1 = -(totalOY + analysis.bbox_max[1]);
+        const bx0 = wcx + analysis.bbox_min[0];
+        const bx1 = wcx + analysis.bbox_max[0];
+        const bz0 = wcz - analysis.bbox_min[1];
+        const bz1 = wcz - analysis.bbox_max[1];
         const by = physicalStockHeight + 0.2;
         return (
           <Line
             points={[[bx0, by, bz0], [bx1, by, bz0], [bx1, by, bz1], [bx0, by, bz1], [bx0, by, bz0]]}
             color="#3b82f6"
-            lineWidth={1.5}
+            lineWidth={2}
             transparent
-            opacity={0.6}
+            opacity={0.8}
+          />
+        );
+      })()}
+
+      {/* Full Toolpath Simulation */}
+      {(() => {
+        const pathPoints = useMemo<[number, number, number][]>(() => 
+          analysis.points.map(p => [
+            wcx + p.x,
+            p.z + physicalStockHeight + 0.1,
+            wcz - p.y
+          ]), 
+          [analysis.points, wcx, wcz, physicalStockHeight]
+        );
+        
+        return (
+          <Line
+            points={pathPoints}
+            color="#ef4444"
+            lineWidth={1}
+            transparent
+            opacity={0.3}
+            dashed
+            dashScale={1}
+            dashSize={2}
+            gapSize={1}
           />
         );
       })()}
@@ -620,9 +637,14 @@ export function VisualizerScene() {
     return analysis.operations.find(op => op.id === currentOperationId);
   }, [analysis, currentOperationId]);
 
+  const { x: wcsX, z: wcsZ } = useMemo(
+    () => getWcsAnchor(settings.stock.zeroPosition, stockWidth, stockDepth),
+    [settings.stock.zeroPosition, stockWidth, stockDepth]
+  );
+
   const center = useMemo(() => {
-    // The camera target should be the center of the stock, not the G-code origin.
-    return new THREE.Vector3(stockWidth / 2, 0, -stockDepth / 2);
+    const stockCenter = getStockCenter(stockWidth, stockDepth);
+    return new THREE.Vector3(stockCenter.x, 0, stockCenter.z);
   }, [stockWidth, stockDepth]);
 
   if (!analysis) return null;
@@ -657,8 +679,8 @@ export function VisualizerScene() {
         <OrbitControls makeDefault enableDamping dampingFactor={0.08} target={center} />
         
         {/* Professional Brushed Metal Machine Bed */}
-        <group position={[settings.general.bedSizeX / 2, -0.05, -settings.general.bedSizeY / 2]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <group position={[0, -0.05, 0]}>
+          <mesh position={[settings.general.bedSizeX / 2, 0, -settings.general.bedSizeY / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[settings.general.bedSizeX, settings.general.bedSizeY]} />
             <meshStandardMaterial 
               color="#1e293b" 
@@ -676,12 +698,10 @@ export function VisualizerScene() {
         
         <CarvedStock 
           analysis={analysis} 
-          offsetX={settings.stock.offsetX}
-          offsetY={settings.stock.offsetY}
         />
 
-        {/* WCS Axes pinned to Front-Left Corner of Bed */}
-        <group position={[0, 0.1, 0]}>
+        {/* WCS Axes at G-code zero on the fixed front-left stock */}
+        <group position={[wcsX, 0.1, wcsZ]}>
           <WCSAxes stockWidth={stockWidth} stockDepth={stockDepth} />
         </group>
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { useSettingsStore } from './settingsStore';
 
 export interface GCodePoint {
   x: number;
@@ -122,6 +123,16 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
         currentLineIdx: 0,
         currentOperationId: result.operations.length > 0 ? result.operations[0].id : null
       });
+
+      // Auto-align to current stock origin using current settings
+      const state = get();
+      const settings = useSettingsStore.getState().settings;
+      state.setStockOrigin(
+        state.stockOrigin, 
+        settings.stock.width, 
+        settings.stock.height, 
+        useSettingsStore.getState().updateSettings
+      );
     } catch (err) {
       set({ error: String(err), isParsing: false });
     }
@@ -205,7 +216,7 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
           break;
       }
       
-      updateFn({ offsetX: targetOX, offsetY: targetOY });
+      updateFn({ workOffsetX: targetOX, workOffsetY: targetOY });
     }
   },
 
