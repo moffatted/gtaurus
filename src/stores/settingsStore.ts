@@ -41,6 +41,7 @@ export interface ConnectionSettings {
 export interface GeneralSettings {
   carvingUnits: "mm" | "inches";
   firmwareFallback: "Grbl" | "GrblHAL";
+  legacyGrblMode: boolean;
   safeHeight: number;
   bedSizeX: number;
   bedSizeY: number;
@@ -303,6 +304,7 @@ export const DEFAULT_SETTINGS: Settings = {
   general: {
     carvingUnits: "mm",
     firmwareFallback: "Grbl",
+    legacyGrblMode: false,
     safeHeight: 5,
     bedSizeX: 300,
     bedSizeY: 180,

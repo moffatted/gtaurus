@@ -64,7 +64,7 @@ function App() {
   const statsEnabled = useSettingsStore((state) => state.settings.stats.enabled);
   const toolLibraryEnabled = useSettingsStore((state) => state.settings.toolLibrary.enabled);
   const atcEnabled = useSettingsStore((state) => state.settings.atc.enabled);
-  const fluidncManagerEnabled = useSettingsStore((state) => state.settings.fluidncManager.enabled);
+  const fluidncManagerEnabled = useSettingsStore((state) => state.settings.fluidncManager.enabled && !state.settings.general.legacyGrblMode);
 
 
   useEffect(() => {

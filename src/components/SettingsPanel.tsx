@@ -151,6 +151,41 @@ function GeneralContent() {
   return (
     <div className="space-y-6">
 
+      {/* Legacy GRBL 1.1 Mode */}
+      <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl relative overflow-hidden group">
+        <div className="absolute top-[-20px] right-[-20px] text-orange-500/10 rotate-12 pointer-events-none transition-transform group-hover:scale-110">
+          <Cpu className="w-32 h-32" />
+        </div>
+        <div className="flex items-start justify-between relative z-10">
+          <div className="flex gap-3">
+            <div className="mt-0.5 p-1.5 bg-orange-500/20 text-orange-400 rounded-lg shrink-0">
+              <History className="w-5 h-5" />
+            </div>
+            <div>
+              <label className="text-sm font-bold text-orange-400">Enable Legacy GRBL 1.1 Mode</label>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-[280px] leading-relaxed">
+                Check this if you are using a standard GRBL 1.1 board. Hides FluidNC-specific features (Config Editor, specific network settings) for full compatibility.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setGeneralSettings({ legacyGrblMode: !gen.legacyGrblMode })}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              gen.legacyGrblMode ? 'bg-orange-500' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] border'
+            }`}
+            role="switch"
+            aria-checked={gen.legacyGrblMode}
+          >
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                gen.legacyGrblMode ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* Carving Units */}
       <div className="space-y-3">
         <label className={labelCls}>Carving Units</label>
@@ -190,6 +225,8 @@ function GeneralContent() {
       </div>
 
       <div className="border-t border-[var(--border-color)]" />
+
+
 
       {/* Safe Height */}
       <div>
@@ -2578,13 +2615,13 @@ function NavigationContent() {
       toggle: () => setAtcSettings({ enabled: !settings.atc.enabled }),
       icon: <Drill className="w-4 h-4" />
     },
-    { 
+    ...(!settings.general.legacyGrblMode ? [{ 
       id: 'manager', 
       label: 'FluidNC Manager', 
       enabled: settings.fluidncManager.enabled, 
       toggle: () => setFluidncManagerSettings({ enabled: !settings.fluidncManager.enabled }),
       icon: <SlidersHorizontal className="w-4 h-4" />
-    },
+    }] : []),
   ];
 
   return (
@@ -2631,8 +2668,8 @@ const SECTIONS = [
   { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'ui' },
   { id: 'stats',       title: 'Stats Display',  icon: <BarChart2 className="w-4 h-4" />, tab: 'ui' },
   { id: 'camera',      title: 'Camera',         icon: <Camera className="w-4 h-4" />, tab: 'ui' },
-  { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" />, tab: 'machine' },
   { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" />, tab: 'machine' },
+  { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" />, tab: 'machine' },
   { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" />, tab: 'machine' },
   { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" />, tab: 'machine' },
   { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" />, tab: 'machine' },

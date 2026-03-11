@@ -52,6 +52,15 @@ function ConnectionPanel() {
         }
     }, []);
 
+    const isLegacyGrbl = settings.general.legacyGrblMode;
+    useEffect(() => {
+        if (isLegacyGrbl && mode === 'telnet') {
+            setMode('serial');
+        }
+    }, [isLegacyGrbl, mode]);
+
+    const availableModes = (['telnet', 'serial', 'websocket'] as const).filter(m => !(m === 'telnet' && isLegacyGrbl));
+
     // WiFi fields
     const [wsHost, setWsHost] = useState(conn.wsHost);
     const [wsPort, setWsPort] = useState(String(conn.wsPort));
@@ -172,7 +181,7 @@ function ConnectionPanel() {
         <div className="space-y-4">
             {/* Mode tabs */}
             <div className="flex rounded-lg overflow-hidden border border-[var(--border-color)] text-xs font-medium">
-                {(['telnet', 'serial', 'websocket'] as const).map((m) => (
+                {availableModes.map((m) => (
                     <Tooltip key={m} content={`Use ${m === 'telnet' ? 'Network (Telnet)' : m === 'serial' ? 'USB Serial' : 'Agent Bridge (WebSocket)'} connection`} position="top" className="flex-1">
                         <button
                             onClick={() => setMode(m)}

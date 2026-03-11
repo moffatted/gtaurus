@@ -230,6 +230,8 @@ Because FluidNC is a direct descendant/port of Grbl v1.1, the core communication
 - **What Works Perfectly:** The 127-byte lookahead buffering, real-time polling/status reporting, jogging, probing, and the complete 3D Carve Visualizer feature set.
 - **What Does NOT Work:** The FluidNC Config Editor panel (standard GRBL still uses `$x=y` numerical settings, whereas FluidNC uses a YAML tree), FluidNC-specific Alarm Code interpretation, and Telnet network connectivity (unless you have a custom Wi-Fi bridge).
 
+*Note: You can turn on the "Enable Legacy GRBL 1.1 Mode" toggle in the Gtaurus Machine Settings panel to automatically hide unsupported FluidNC features.*
+
 ---
 
 ## 🔌 FluidNC References

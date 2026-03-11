@@ -41,6 +41,14 @@ export const HELP_TOPICS: HelpTopic[] = [
           Use the <strong>Connection Panel</strong> in the sidebar to select your mode and connect.
         </p>
 
+        <h3 className="text-lg font-semibold mt-4">Legacy GRBL Support</h3>
+        <p className="text-sm mb-2">If you are using an older standard GRBL 1.1 controller instead of FluidNC:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li>Go to <strong>Settings</strong> &gt; <strong>Machine & System Settings</strong>.</li>
+          <li>Turn on <strong>Enable Legacy GRBL 1.1 Mode</strong>.</li>
+          <li>This will hide FluidNC-specific features (like the Config Editor) that are incompatible with your board.</li>
+        </ul>
+
         <h3 className="text-lg font-semibold mt-4">Safety Checklist</h3>
         <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--text-secondary)]">
           <li>Ensure your machine is properly <strong>Homed</strong> ($H) before starting any job.</li>
