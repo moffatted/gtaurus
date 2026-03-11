@@ -143,7 +143,7 @@ npm run tauri:build # Production Build
 
 ### 2. Web Mode & Remote Access
 
-Allows control via any device on your network (phone, tablet, etc.). This architecture is split into two parts: the backend server (running on the machine connected to the CNC) and the frontend UI.
+Allows control via any device on your network (tablet, laptop, or desktop computer). *Note: The complex grid UI is currently optimized for larger screens and is not recommended for mobile phones.* This architecture is split into two parts: the backend server (running on the machine connected to the CNC) and the frontend UI.
 
 1. **Start the Server Bridge** (Handles USB/Serial communication):
 
