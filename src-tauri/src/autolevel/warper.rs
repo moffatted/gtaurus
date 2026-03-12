@@ -1,6 +1,7 @@
 /*
  * @file warper.rs
  * @purpose Applies a height map to a G-code job, dynamically adjusting Z-coordinates for surface variations using bilinear interpolation.
+ * @author Ed Moffatt
  */
 use crate::autolevel::gcode_state::GCodeState;
 use crate::autolevel::height_map::HeightMap;
