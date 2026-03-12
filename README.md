@@ -164,11 +164,13 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
     ./target/release/gtaurus_server
     ```
 
+2. **Start the Web Frontend**:
+
     ```bash
     npm run dev
     ```
 
-3.  **Run Both Concurrently** (Faster):
+3. **Run Both Concurrently** (Faster):
 
     If you want to run the server bridge and the web frontend in a single terminal window:
 
