@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "build": "tsc && vite build",
     "build:web": "tsc && vite build && node scripts/publish_web.js",
     "deploy:web": "node scripts/publish_web.js",
@@ -65,6 +66,7 @@
     "@wdio/spec-reporter": "^9.24.0",
     "@wdio/visual-service": "^9.1.4",
     "autoprefixer": "^10.4.24",
+    "concurrently": "^9.2.1",
     "expect-webdriverio": "^5.6.4",
     "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
