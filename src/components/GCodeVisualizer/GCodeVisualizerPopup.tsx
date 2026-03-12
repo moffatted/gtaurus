@@ -315,7 +315,7 @@ export function GCodeVisualizerPopup() {
           {analysis && !isParsing && (
             <div className="absolute top-6 left-6 z-10 pointer-events-auto">
                <div 
-                 className="bg-black/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl w-96 max-h-96 flex flex-col gap-1 overflow-hidden"
+                 className="bg-black/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl w-80 max-h-96 flex flex-col gap-1 overflow-hidden"
                  onWheel={(e) => e.stopPropagation()}
                  onScroll={(e) => e.stopPropagation()}
                >
