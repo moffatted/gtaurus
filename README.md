@@ -164,10 +164,16 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
     ./target/release/gtaurus_server
     ```
 
-2. **Start the Web Frontend**:
-
     ```bash
     npm run dev
+    ```
+
+3.  **Run Both Concurrently** (Faster):
+
+    If you want to run the server bridge and the web frontend in a single terminal window:
+
+    ```bash
+    npm run dev:all
     ```
 
 ## 🛠️ Build & Run Commands
@@ -179,6 +185,7 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
 | `npm run server` | Starts the bridge server via `cargo run` |
 | `npm run tauri:dev` | Launches the desktop app in dev mode |
 | `npm run dev` | Launches the web frontend in dev mode |
+| `npm run dev:all` | Launches both the bridge server and web frontend concurrently |
 
 | To recursively update submodules:
 
