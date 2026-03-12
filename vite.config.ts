@@ -79,12 +79,29 @@ export default defineConfig(async ({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              if (id.includes("three") || id.includes("@react-three")) {
+              // Group React core separately to break transitive circular dependencies
+              if (
+                id.includes("node_modules/react/") ||
+                id.includes("node_modules/react-dom/") ||
+                id.includes("node_modules/scheduler/")
+              ) {
+                return "vendor-react";
+              }
+
+              // Broaden 3D stack to include common sub-dependencies (troika, stdlib, etc.)
+              if (
+                id.includes("three") ||
+                id.includes("@react-three") ||
+                id.includes("troika") ||
+                id.includes("three-stdlib")
+              ) {
                 return "vendor-three";
               }
+
               if (id.includes("dockview")) {
                 return "vendor-dockview";
               }
+
               // Group everything else into a main vendor chunk
               return "vendor";
             }
