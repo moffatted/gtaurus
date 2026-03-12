@@ -79,7 +79,7 @@ export default defineConfig(async ({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              if (id.includes("three")) {
+              if (id.includes("three") || id.includes("@react-three")) {
                 return "vendor-three";
               }
               if (id.includes("dockview")) {
