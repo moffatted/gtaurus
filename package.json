@@ -24,7 +24,10 @@
     "build:lib": "cd deps/gtaurus_lib && cargo build",
     "build:server": "cd deps/gtaurus_server && cargo build",
     "server": "cd deps/gtaurus_server && cargo run",
-    "build:all": "npm run build:lib && npm run build:server && npm run build:web"
+    "build:all": "npm run build:lib && npm run build:server && npm run build:web",
+    "clean": "npm run clean:rust && npm run clean:web",
+    "clean:rust": "cd src-tauri && cargo clean && cd ../deps/gtaurus_lib && cargo clean && cd ../gtaurus_server && cargo clean",
+    "clean:web": "node -e \"const fs = require('fs'); ['dist', 'node_modules'].forEach(p => fs.rmSync(p, { recursive: true, force: true }))\""
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
