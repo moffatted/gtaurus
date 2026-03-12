@@ -27,9 +27,17 @@ Surfacing is a planar clearing operation with the following primary goals:
 
 ### Key Parameters
 
-- **Surfacing Area**: Typically defined by the stock bounding box.
+- **Surfacing Area**: Typically defined by the stock bounding box, but can be expanded for custom fixtures.
 - **Step-over**: 40–70% of the cutter diameter for optimal overlap.
-- **Depth per Pass**: 0.1–0.5 mm (application-dependent).
+- **Total Depth**: The total amount of material to be removed.
+- **Depth per Pass**: Maximum material removal in a single Z-layer (prevents tool deflection/stalling).
+- **Over-travel (Overshoot)**: Extending the path past the stock boundary (e.g., 50% bit diameter + 2mm) to ensure clean edges.
+- **Angle**: The direction of travel (0° for X, 90° for Y, or custom angles like 45° for grain alignment).
+- **Cut Direction**:
+  - **Bidirectional (Zig-Zag)**: Fastest, tool stays in the cut.
+  - **Unidirectional (Climb/Conventional)**: Tool retracts and rapids back for each pass; superior finish.
+- **Safe Retract Height**: The Z-height the tool lifts to during rapids between passes.
+- **Finish Pass**: An optional final pass at a very shallow depth (e.g., 0.05mm) for high-quality surface finish.
 - **Final Z Height**: The new established "Zero" level.
 
 ---
@@ -40,8 +48,9 @@ Surfacing is a planar clearing operation with the following primary goals:
 
 This is the most straightforward method to implement and visualize.
 
-- **Mechanism**: Generate parallel lines along the X or Y axis, offset by the step-over distance.
-- **Advantages**: Low computational overhead, easy to visualize in Three.js, and simple material removal logic.
+- **Mechanism**: Generate parallel lines at a specified **Angle**, offset by the step-over distance.
+- **Advantages**: Low computational overhead, easy to visualize in Three.js, and simple material removal logic. Supports **Bidirectional** travel to minimize air-time.
+- **Grain Awareness**: Matching the angle to wood grain direction reduces tear-out.
 
 ### 2. Spiral/Offset Surfacing
 
@@ -111,34 +120,38 @@ Using a height-map texture and vertex shaders for visualization.
 
 ## 💻 Implementation Examples
 
-### Rust: Surfacing Toolpath Generation
-
 ```rust
 #[tauri::command]
 pub fn generate_surfacing_toolpath(
     width: f32,
     height: f32,
-    depth: f32,
+    total_depth: f32,      // Total removal (e.g. 2.0mm)
+    depth_per_pass: f32,   // Max per layer (e.g. 0.5mm)
     stepover: f32,
-    direction: String,
-) -> Vec<(f32, f32, f32)> {
-    let mut path = Vec::new();
-    let mut offset = 0.0;
-    let along_x = direction == "x";
+    angle_deg: f32,        // 0 = X-wise, 90 = Y-wise
+    overtravel: f32,       // Extension past boundary
+    bidirectional: bool,   // Zig-zag vs Unidirectional
+) -> Vec<Vec<(f32, f32, f32)>> {
+    let mut all_layers = Vec::new();
+    let num_passes = (total_depth / depth_per_pass).ceil() as i32;
+    
+    // Calculate vector components for arbitrary angle
+    let angle_rad = angle_deg.to_radians();
+    let dir_x = angle_rad.cos();
+    let dir_y = angle_rad.sin();
 
-    while offset < (if along_x { height } else { width }) {
-        if along_x {
-            // Horizontal raster line
-            path.push((0.0, offset, depth));
-            path.push((width, offset, depth));
-        } else {
-            // Vertical raster line
-            path.push((offset, 0.0, depth));
-            path.push((offset, height, depth));
-        }
-        offset += stepover;
+    for i in 1..=num_passes {
+        let current_z = -(i as f32 * depth_per_pass).min(total_depth);
+        let mut layer_path = Vec::new();
+        
+        // Raster logic here (Simplified X/Y for example)
+        // In full impl, we'd use a bounding box rotated by -angle_deg
+        // and project back to world coordinates.
+        
+        all_layers.push(layer_path);
     }
-    path
+
+    all_layers // Returns a list of layers, each containing a series of points
 }
 ```
 
