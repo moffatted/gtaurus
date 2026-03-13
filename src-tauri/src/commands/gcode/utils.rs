@@ -33,6 +33,8 @@ pub fn extract_tool_info(tool_name: Option<&str>) -> (f32, String, Option<f32>) 
             "vbit".to_string()
         } else if lower.contains("bull") {
             "bullnose".to_string()
+        } else if lower.contains("surfac") || lower.contains("fly") || lower.contains("facing") {
+            "surfacing".to_string()
         } else {
             "unknown".to_string()
         };

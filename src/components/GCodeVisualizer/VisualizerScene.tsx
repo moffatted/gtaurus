@@ -44,7 +44,7 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAng
       case 'ballnose': return '#10B981';   // Green
       case 'flatendmill': 
       case 'endmill': return '#3B82F6';    // Blue
-      case 'surfacing': return '#F59E0B';  // Orange/Amber (Surfacing)
+      case 'surfacing': return '#1d4ed8';  // Deep blue (contrasts against light pine)
       case 'other':
       default: return '#94a3b8';           // Gray
     }
@@ -504,7 +504,28 @@ function CarvedStock({
       else break;
     }
     const overlayY = physicalStockHeight + 0.03;
-    const opColor = (opId: number) => new THREE.Color().setHSL((opId * 0.217) % 1, 0.85, 0.52);
+
+    const opTypeMap = new Map<number, string>();
+    analysis.operations.forEach(op => opTypeMap.set(op.id, op.tool_type));
+
+    const toolTypeColor = (toolType: string) => {
+      switch (toolType) {
+        case 'vbit':
+        case 'v-bit':      return new THREE.Color('#A855F7');
+        case 'chamfer':    return new THREE.Color('#F59E0B');
+        case 'ballnose':   return new THREE.Color('#10B981');
+        case 'flatendmill':
+        case 'endmill':    return new THREE.Color('#3B82F6');
+        case 'surfacing':  return new THREE.Color('#1d4ed8');
+        default:           return new THREE.Color('#94a3b8');
+      }
+    };
+
+    const opColor = (opId: number) => {
+      const toolType = opTypeMap.get(opId);
+      if (toolType) return toolTypeColor(toolType);
+      return new THREE.Color().setHSL((opId * 0.217) % 1, 0.85, 0.52);
+    };
 
     for (let i = 1; i < pointLimit; i++) {
       const p1 = analysis.points[i - 1];
@@ -521,7 +542,7 @@ function CarvedStock({
       colors: new Float32Array(colors),
       hasData: positions.length > 0,
     };
-  }, [analysis.points, currentLineIdx, wcx, wcz, physicalStockHeight]);
+  }, [analysis.points, analysis.operations, currentLineIdx, wcx, wcz, physicalStockHeight]);
 
   const activeOperation = useMemo(() => {
     if (!analysis.operations.length || !analysis.points.length) return null;

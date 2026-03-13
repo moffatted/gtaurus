@@ -51,6 +51,7 @@ pub fn run() {
             ai::list_gemini_models,
             commands::tooling::find_fusion_tools,
             commands::gcode::parse_gcode_file,
+            commands::surfacing::generate_surfacing_toolpath,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
