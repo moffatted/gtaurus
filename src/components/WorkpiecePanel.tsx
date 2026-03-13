@@ -2,6 +2,7 @@
  * @file WorkpiecePanel.tsx
  * @purpose UI panel for configuring workpiece dimensions, position offsets, and material appearance.
  */
+import { useState, useEffect } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useVisualizerStore } from '../stores/visualizerStore';
 import { Box, Layers, MousePointer2, Route, Target } from 'lucide-react';
@@ -9,6 +10,15 @@ import { Box, Layers, MousePointer2, Route, Target } from 'lucide-react';
 export function WorkpiecePanel() {
   const { settings, setStockSettings } = useSettingsStore();
   const { stock } = settings;
+
+  const [rawW, setRawW] = useState(String(stock.width ?? ''));
+  const [rawL, setRawL] = useState(String(stock.height ?? ''));
+  const [rawH, setRawH] = useState(String(stock.thickness ?? ''));
+
+  useEffect(() => { setRawW(String(stock.width ?? '')); }, [stock.width]);
+  useEffect(() => { setRawL(String(stock.height ?? '')); }, [stock.height]);
+  useEffect(() => { setRawH(String(stock.thickness ?? '')); }, [stock.thickness]);
+
   const { analysis, setStockOrigin } = useVisualizerStore();
 
   const originMap = {
@@ -68,11 +78,18 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Width (X)</label>
               <div className="relative">
                 <input
-                  type="number"
-                  value={stock.width ?? ''}
-                  onChange={(e) => setStockSettings({ width: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  type="text"
+                  inputMode="decimal"
+                  value={rawW}
+                  onChange={(e) => setRawW(e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className={inputCls + " !py-1"}
+                  onBlur={() => {
+                    const n = parseFloat(rawW);
+                    if (!isNaN(n) && n >= 0) setStockSettings({ width: n });
+                    else setRawW(String(stock.width ?? ''));
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className={inputCls + " !py-1 pr-8"}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>
@@ -81,11 +98,18 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Length (Y)</label>
               <div className="relative">
                 <input
-                  type="number"
-                  value={stock.height ?? ''}
-                  onChange={(e) => setStockSettings({ height: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  type="text"
+                  inputMode="decimal"
+                  value={rawL}
+                  onChange={(e) => setRawL(e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className={inputCls + " !py-1"}
+                  onBlur={() => {
+                    const n = parseFloat(rawL);
+                    if (!isNaN(n) && n >= 0) setStockSettings({ height: n });
+                    else setRawL(String(stock.height ?? ''));
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className={inputCls + " !py-1 pr-8"}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>
@@ -94,11 +118,18 @@ export function WorkpiecePanel() {
               <label className={labelCls}>Height (Z)</label>
               <div className="relative">
                 <input
-                  type="number"
-                  value={stock.thickness ?? ''}
-                  onChange={(e) => setStockSettings({ thickness: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  type="text"
+                  inputMode="decimal"
+                  value={rawH}
+                  onChange={(e) => setRawH(e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className={inputCls + " !py-1"}
+                  onBlur={() => {
+                    const n = parseFloat(rawH);
+                    if (!isNaN(n) && n >= 0) setStockSettings({ thickness: n });
+                    else setRawH(String(stock.thickness ?? ''));
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className={inputCls + " !py-1 pr-8"}
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-[var(--text-tertiary)] pointer-events-none">mm</span>
               </div>

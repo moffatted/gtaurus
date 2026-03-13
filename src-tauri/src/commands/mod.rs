@@ -11,3 +11,4 @@ pub mod probing;
 pub mod streaming;
 pub mod camera;
 pub mod tooling;
+pub mod surfacing;

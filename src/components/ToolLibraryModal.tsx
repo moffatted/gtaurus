@@ -12,14 +12,14 @@ export function ToolLibraryModal() {
 
   return (
     <FloatingWindow
-      title="Bit Library"
+      title="Tool Library"
       icon={<Wrench className="w-5 h-4 text-purple-400" />}
       isOpen={toolLibraryOpen}
       onClose={closeToolLibrary}
-      defaultPosition={{ x: 250, y: 150 }}
-      defaultSize={{ width: 500, height: 700 }}
-      minWidth={350}
-      minHeight={400}
+      defaultPosition={{ x: 150, y: 80 }}
+      defaultSize={{ width: 820, height: 620 }}
+      minWidth={600}
+      minHeight={420}
       zIndex={115}
     >
       <ToolLibraryPanel />

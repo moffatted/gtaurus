@@ -2,6 +2,19 @@
 
 **Gtaurus** is a high-performance, lightweight CNC Desktop Controller designed for MKS DLC32 v2.1 boards running FluidNC. It is built on the **T3-Tauri Stack** (Tauri v2, Rust, React, TypeScript, Tailwind CSS).
 
+## ✨ Features
+
+- **Carve Wizard** — Step-by-step guided setup for sending a G-code file to the machine.
+- **Surfacing Wizard** — Generates raster fly-cut / spoilboard surfacing G-code directly in the app. Configurable step-over, angle, depth-per-pass, bidirectional/unidirectional motion, finish pass, and over-travel. Work origin auto-syncs to your configured stock zero position. Opens the result directly in the 3D visualizer. See [docs/CNC_SURFACING_STRATEGY.md](docs/CNC_SURFACING_STRATEGY.md).
+- **3D Carve Visualizer** — WebGL-based real-time simulation with height-map displacement, operation playback, and tool-change pausing.
+- **AI Assistant** — Integrated AI chat for G-code help and machine troubleshooting.
+- **Tool Library** — Manage your bit collection with per-tool type, diameter, and notes.
+- **FluidNC Config Manager** — Edit and push FluidNC YAML configuration directly from the UI.
+- **Probing** — Guided Z-probe and corner-finding workflows.
+- **Camera Viewer** — Live feed from a Crowsnest-managed camera.
+- **AutoLevel** — Height-map probing and G-code mesh compensation.
+- **Legacy GRBL 1.1 Support** — Compatibility mode for non-FluidNC boards.
+
 ## 🚀 Technical Architecture
 
 Gtaurus uses a modular architecture to share core CNC logic across different deployment targets.
