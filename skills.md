@@ -63,6 +63,28 @@ It is tuned for a T3-style TypeScript stack running as a Tauri desktop app with 
 - Restrict filesystem and network access to only required scope.
 - Review dependency risk regularly for JS and Rust crates.
 
+### 9. Source Control and GitHub Workflow
+
+- Create short-lived feature branches from main with focused scope.
+- Keep commits atomic and descriptive; each commit should compile and test.
+- Rebase or merge main frequently to reduce integration drift.
+- Open pull requests early and update them incrementally.
+- Require CI status checks before merge and avoid bypassing protections.
+- Capture architecture-impacting decisions in pull request descriptions.
+- Use CODEOWNERS and review assignment rules for critical areas.
+- Prefer squash merge for small linear changes, merge commit for grouped work.
+
+### 10. Full-Stack Testing for T3 + Tauri + Rust
+
+- Test frontend behavior with component and integration tests for critical flows.
+- Test API contracts with schema validation and typed response assertions.
+- Test Tauri command handlers for success, validation failures, and permission errors.
+- Test Rust service logic with unit tests and transport-level integration tests.
+- Add end-to-end desktop tests for startup, connect, run, pause, resume, and stop.
+- Mock hardware and transport boundaries to keep CI deterministic.
+- Include regression tests for every bug that crossed frontend-backend boundaries.
+- Keep test data versioned and reusable across JS and Rust test suites.
+
 ## Coding Standards
 
 - Prefer small, focused commits.
