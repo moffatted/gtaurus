@@ -3,13 +3,14 @@
  * @purpose Tauri frontend driver wrapper that bridges the FluidNC driver events to the Tauri event system for the UI.
  */
 use gtaurus_common::{
-    DriverEventObserver, FluidNCDriver as LibDriver, RX_EVENT as COMMON_RX_EVENT,
+    DriverEventObserver, FluidNCDriver as LibDriver,
 };
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
-/// Tauri event name for all lines received from the controller
-pub const RX_EVENT: &str = COMMON_RX_EVENT;
+/// Tauri event name for all lines received from the controller.
+/// Must match the event name used by the standalone bridge server and all frontend listeners.
+pub const RX_EVENT: &str = "fluidnc://rx";
 
 pub struct FluidNCDriver {
     inner: LibDriver,

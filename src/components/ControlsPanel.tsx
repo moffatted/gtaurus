@@ -168,9 +168,11 @@ export function ControlsPanel() {
 
   // Status Polling Effect
   useEffect(() => {
+    // Fire immediately on mount/reconnect, then on the configured interval
+    transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
     const interval = setInterval(() => {
       transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
-    }, settings.connection.statusPollInterval || 250);
+    }, settings.connection.statusPollInterval || 2000);
     return () => clearInterval(interval);
   }, [settings.connection.statusPollInterval]);
 
