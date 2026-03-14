@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from './settingsStore';
+import { transport } from '../services/transportService';
 
 export interface GCodePoint {
   x: number;
@@ -95,7 +95,7 @@ export const useVisualizerStore = create<VisualizerState>((set, get) => ({
   openVisualizer: async (filePath: string) => {
     set({ isOpen: true, isParsing: true, error: null, analysis: null });
     try {
-      const result = await invoke<GCodeAnalysis>('parse_gcode_file', { path: filePath });
+      const result = await transport.invoke<GCodeAnalysis>('parse_gcode_file', { path: filePath });
       
       // Debug: show operation boundaries and sample points
       console.log('🔧 G-CODE ANALYSIS:');
