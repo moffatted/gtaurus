@@ -1,13 +1,16 @@
 # Auto-Leveling Widget Implementation Guide
 
 ## Overview
+
 Finding high-quality, auto-leveling logic with a permissive license (like MIT or Apache 2.0) is crucial for porting to Rust, as many established CNC projects use the copyleft GPL license.
 
 The core logic of auto-leveling typically involves two main steps:
+
 1. **Probing:** Creating a point cloud of heights.
 2. **Bilinear Interpolation:** Adjusting G-code Z values based on that point cloud.
 
 ## Top Porting Candidates
+
 | Project | License | Tech Stack | Portability Note |
 | :--- | :--- | :--- | :--- |
 | **OpenCNCPilot** | MIT | C# / .NET | **Best Match.** Highly modular logic for G-code warping and bilinear interpolation. Clean math. |
@@ -16,6 +19,7 @@ The core logic of auto-leveling typically involves two main steps:
 | **CNCjs Autolevel** | MIT | Node.js | Great for seeing how a widget interacts with a live serial stream (GRBL/Smoothie). |
 
 ## Core Logic to Port (The "Widget" Math)
+
 To build this in Rust, a standalone library acting as a G-code warper is ideal. Key mathematical operations:
 
 - **Grid Sampling:** Define an X/Y bounding box and subdivide it into a grid (e.g., every 10mm).
@@ -26,6 +30,7 @@ To build this in Rust, a standalone library acting as a G-code warper is ideal. 
 ## Rust Implementation Details
 
 ### 1. Project Dependencies (`Cargo.toml`)
+
 ```toml
 [package]
 name = "rust-cnc-autolevel"
@@ -41,6 +46,7 @@ indicatif = "0.17"   # Optional: CLI progress bar during probing
 ```
 
 ### 2. The Data Structure & Interpolation
+
 A standard 2D grid structure is used to hold probed Z points. For production `ndarray` is recommended, but a flat `Vec` works perfectly here.
 
 ```rust
@@ -81,6 +87,7 @@ impl HeightMap {
 ```
 
 ### 3. Segmentation Algorithm (The "Secret Sauce")
+
 Without segmentation, a 100mm move remains a straight line, ignoring measured dips/peaks. By calculating the Euclidean distance, long moves are divided by a maximum segment length (`max_len`).
 
 ```rust
@@ -122,7 +129,8 @@ pub fn segment_and_warp(start: Point3D, end: Point3D, map: &HeightMap, max_len: 
 ```
 
 ### 4. Code Pipeline & Logic Filter
-The processing pipeline filters G-code so that only movement commands map to warped segments. 
+
+The processing pipeline filters G-code so that only movement commands map to warped segments.
 
 > **Critical Note:**
 > G-code is "modal", meaning if a line only explicitly sets `X10`, the `Y` and `Z` must be retained from the prior state. When writing `update_state_from_args()` ensure coordinates update conditionally.
@@ -159,10 +167,12 @@ fn process_gcode_line(command: &GCode, state: &mut GCodeState, map: &HeightMap) 
 ```
 
 #### Handling "G-Code Bloat"
-Dividing movements arbitrarily balloons file sizes, causing "stuttering". 
+
+Dividing movements arbitrarily balloons file sizes, causing "stuttering".
 **Precision Management:** Use `format!("{:.3}", val)` when dumping G-code strings to restrict float length to 3 decimals, keeping CNC buffer requirements stable.
 
 ### 5. GRBL Probe Response
+
 The widget queries actual heights via `G38.2` cycles and waits for `[PRB:...]` patterns. A Regex parsing snippet ensures the probe returned a `:1` success status (a `:0` means probing failed).
 
 ```rust
@@ -183,6 +193,7 @@ pub fn parse_probe_report(line: &str) -> Option<(f64, f64, f64)> {
 ```
 
 ### 6. Verification / Unit Testing
+
 Validate mathematically expected segments over a simulated linear plane.
 
 ```rust

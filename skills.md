@@ -1,5 +1,12 @@
 # Skills Guide for This Workspace (T3 + Tauri)
 
+## Note
+
+This file is a human-facing engineering guide.
+
+Agent-loadable skills should be defined as `SKILL.md` files under
+`.agent/skills/<skill-name>/SKILL.md`.
+
 ## Purpose
 
 This file defines the engineering skills and standards expected for this project.

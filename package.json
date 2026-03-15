@@ -25,6 +25,8 @@
     "build:server": "cd deps/gtaurus_server && cargo build",
     "server": "cd deps/gtaurus_server && cargo run",
     "build:all": "npm run build:lib && npm run build:server && npm run build:web",
+    "lint:md": "npx -y markdownlint-cli2 \"**/*.md\"",
+    "lint:md:fix": "npx -y markdownlint-cli2 --fix \"**/*.md\"",
     "clean": "npm run clean:rust && npm run clean:web",
     "clean:rust": "cd src-tauri && cargo clean && cd ../deps/gtaurus_lib && cargo clean && cd ../gtaurus_server && cargo clean",
     "clean:web": "node -e \"const fs = require('fs'); ['dist', 'node_modules'].forEach(p => fs.rmSync(p, { recursive: true, force: true }))\""

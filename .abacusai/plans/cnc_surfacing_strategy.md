@@ -1,6 +1,7 @@
 # CNC Surfacing Strategy — Implementation Plan
 
 ## Scope (confirmed with user)
+
 - **Strategy**: Raster surfacing only (pilot)
 - **UI**: Dedicated `SurfacingWizard` modal (matching `CarveWizard` pattern)
 - **After generation**: Save G-code to local storage path + open in `GCodeVisualizer`
@@ -12,6 +13,7 @@
 All work for this feature is done on a dedicated branch, kept separate from `main` until the full surfacing pipeline is verified.
 
 **Create the branch:**
+
 ```bash
 git checkout main
 git pull origin main
@@ -29,6 +31,7 @@ git checkout -b feature/cnc-surfacing-wizard
 | 5 | UI | `feat(surfacing): mount SurfacingWizard and wire trigger button` |
 
 **Merge back to main when:**
+
 - All 5 commits are clean
 - `cargo build` passes with no errors
 - `npm run typecheck` (or `tsc --noEmit`) passes
@@ -86,6 +89,7 @@ User opens SurfacingWizard
 Implement `generate_surfacing_toolpath` as a `#[tauri::command]`:
 
 **Parameters:**
+
 ```rust
 pub fn generate_surfacing_toolpath(
     width: f32,           // Stock width (X), mm
@@ -107,6 +111,7 @@ pub fn generate_surfacing_toolpath(
 **Returns:** G-code string
 
 **Algorithm (raster):**
+
 1. Compute number of Z passes: `ceil(total_depth / depth_per_pass)`
 2. Emit G-code preamble: `G21` (mm), `G90` (absolute), `G94`, `M3 S{rpm}`, `G0 Z{safe_z}`
 3. For each Z layer `i` (1..=num_passes):
@@ -144,6 +149,7 @@ closeSurfacingWizard: () => void;
 Pattern mirrors `CarveWizard.tsx`: uses `<Wizard>` from `src/components/ui/Wizard.tsx`.
 
 **Local state:**
+
 ```ts
 // Tool
 selectedToolId: string | null
@@ -172,24 +178,28 @@ error: string | null
 **Steps:**
 
 **Step 1 — Tool Selection**
+
 - Title: "Select Surfacing Bit"
 - Filters `tools` from `useToolStore` to `type === 'surfacing'` (shows all if none exist)
 - Shows tool cards with diameter and name, selecting sets `selectedToolId`
 - `canProceed`: `selectedToolId !== null`
 
 **Step 2 — Surfacing Parameters**
+
 - Title: "Configure Pass"
 - Inputs: Width (X), Height (Y), Total Depth, Depth/Pass, Step-over %, Angle°, Direction toggle (Zig-zag / Unidirectional), Over-travel, Safe Z, Feedrate, Plunge Rate, Spindle RPM, Finish Pass toggle
 - Inline summary: calculates and displays `numPasses`, `numLines`, estimated distance
 - `canProceed`: all values > 0
 
 **Step 3 — 2D Preview**
+
 - Title: "Toolpath Preview"
 - An HTML `<canvas>` element that renders the raster pattern in-browser using JS (no backend call needed for preview)
 - Algorithm: same raster logic but in TypeScript — draws lines on canvas at the configured angle, stepover, and overtravel scaled to fit the canvas
 - Shows stock boundary (rectangle), toolpath lines (colored), and direction arrows
 
 **Step 4 — Generate & Save**
+
 - Title: "Generate G-code"
 - "Generate" button calls `invoke('generate_surfacing_toolpath', {...params})`
 - On success: calls `invoke('save_local_file', { path: settings.gcodeStoragePath, filename: 'surfacing_[timestamp].nc', content: gcode })`

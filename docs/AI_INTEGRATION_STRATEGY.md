@@ -1,12 +1,9 @@
-```markdown
 # AI INTEGRATION STRATEGY
 
 Adding an AI assistant to a custom G-code sender is a significant enhancement that transforms the software from a basic interface into a comprehensive workshop companion. Given the operational risks associated with CNC hardware—where erroneous commands can lead to equipment damage or material loss—the integration architecture must enforce a rigorous separation between AI-driven reasoning and machine execution.
-```
-
 Here is the general outline for implementing this, tailored for a modern desktop application architecture like a Tauri-Rust stack interfacing with a GRBL-style controller.
 
-# 1. The Architectural Outline
+## 1. The Architectural Outline
 
 To give the AI context and skills, you need to use Function Calling (also known as Tool Use). This allows Gemini to request data from your software or ask your software to perform actions.
 
@@ -30,7 +27,7 @@ Once Gemini has all the data, it generates a text response or a block of G-code.
 
 The LLM must never stream commands directly to the serial port. Any G-code generated must be presented in the UI for the user to review and manually execute.
 
-# 2. The System Prompt (The Persona)
+## 2. The System Prompt (The Persona)
 
 This prompt establishes the LLM as a seasoned expert. It defines the tone, the boundaries, and the operational philosophy.
 
@@ -64,7 +61,7 @@ You cannot move the machine yourself. You can only provide code and recommendati
 
 Always consider the current machine coordinates and modal states provided in the system context before suggesting movements.
 
-# 3. Agent Skills (Functions/Tools)
+## 3. Agent Skills (Functions/Tools)
 
 You will need to define these as JSON schemas in your API call. These are the "skills" the AI can use to interact with your application.
 
@@ -88,7 +85,7 @@ You will need to define these as JSON schemas in your API call. These are the "s
 - **Inputs:** Probe type (Z-touch plate, edge finder, corner finding).
 - **Outputs:** Generates the specific `G38.2` or `G38.3` sequence based on the machine's current unit state (`G20`/`G21`).
 
-# 4. Operational Rules and Guardrails
+## 4. Operational Rules and Guardrails
 
 These should be enforced both by the system prompt and hardcoded into your software's logic.
 

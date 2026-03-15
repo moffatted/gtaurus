@@ -4,37 +4,52 @@ trigger: always_on
 
 # Tech Stack
 
-This project uses the T3 Stack extended with Tauri for desktop support.
+This project is a Tauri desktop app with a TypeScript frontend and Rust backends.
 
 ## Core Frameworks
-- **Next.js 15**: Using the App Router (`app` directory).
+
+- **Vite 7**: Frontend build and dev server.
 - **React 19**: Frontend UI library.
-- **Tauri v2**: For building the desktop application (`src-tauri` directory).
+- **Tauri v2**: Desktop runtime and command bridge (`src-tauri` directory).
 
 ## Languages
+
 - **TypeScript 5.8**: Strict mode enabled.
-- **Node.js**: Runtime environment.
+- **Rust**: Native backend logic for Tauri and service crates.
+- **Node.js**: Tooling/runtime for frontend and scripts.
 
 ## Styling
+
 - **Tailwind CSS 4.0**: Utility-first CSS framework.
 - **PostCSS**: CSS transformation tool.
 
-## API & Data Fetching
-- **tRPC v11**: End-to-end typesafe APIs.
-- **TanStack Query v5 (React Query)**: For data fetching and state management (integrated via `trpc-react-query`).
-- **SuperJSON**: For data serialization.
+## State & Data
 
-## Database
-- **PostgreSQL**: Relational database.
-- **Drizzle ORM**: TypeScript ORM.
-- **postgres**: PostgreSQL client for Node.js.
+- **Zustand**: Client state management.
+- **TanStack Query v5**: Async data and cache management.
+
+## Rust Crates In Repo
+
+- **gtaurus_server** (`deps/gtaurus_server`): Standalone Rust bridge/service.
+- **gtaurus_lib** (`deps/gtaurus_lib`): Shared Rust library abstractions and transport logic.
 
 ## Validation
-- **Zod**: Schema validation for environment variables and API inputs.
-- **@t3-oss/env-nextjs**: Type-safe environment variable management.
+
+- **Zod**: TypeScript schema/input validation.
+- **Rust type system + `Result`**: Backend validation and error handling.
 
 ## Icons
+
 - **Lucide React**: Icon library.
 
-## Tauri V2
-"Always refer to Tauri V2 documentation at https://v2.tauri.app/ and avoid using v1 'tauri::Command' patterns."
+## Testing & Quality
+
+- **Vitest + Testing Library**: Frontend unit/integration tests.
+- **WebdriverIO**: Desktop E2E test flow.
+- **Cargo test/check**: Rust verification for `src-tauri`, `deps/gtaurus_lib`, and `deps/gtaurus_server`.
+
+## Engineering Direction
+
+- Apply T3 principles where practical: strict typing, validated boundaries, predictable data flow.
+- Prefer narrow, typed Tauri commands and explicit error mapping between Rust and TypeScript.
+- Use Tauri v2 APIs and avoid legacy v1 patterns.

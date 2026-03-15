@@ -4,6 +4,25 @@
 
 **CRITICAL**: Always verify changes work before committing to version control.
 
+## Copilot-First Implementation Loop
+
+Use this loop for every non-trivial task:
+
+1. **Understand and scope**
+   - Restate goal and constraints in one or two lines.
+   - Identify impacted layers: `src` (TS/React), `src-tauri` (Tauri Rust), `deps/*` (shared/server Rust).
+2. **Inspect before editing**
+   - Read nearby call sites and types before proposing new APIs.
+   - Reuse existing patterns from adjacent modules.
+3. **Make small, reviewable changes**
+   - Keep edits focused by concern (UI, command boundary, transport logic).
+   - Avoid broad refactors unless explicitly requested.
+4. **Validate immediately**
+   - Run typecheck/tests/build for changed layer right after editing.
+   - Fix regressions before moving to the next layer.
+5. **Summarize and hand off clearly**
+   - Report files changed, behavior impact, and what was verified.
+
 ### Testing Tauri Desktop Applications
 
 **For Tauri applications running as desktop apps:**
@@ -26,14 +45,23 @@
    - Check for console errors
 
 3. **For Backend/API Changes**:
-   - Test the affected endpoints/commands
-   - Verify error handling works as expected
-   - Check logs for any warnings or errors
+   - Test the affected commands/endpoints.
+   - Verify both success and failure paths.
+   - Check logs for warnings/errors and ensure messages are actionable.
 
 4. **For Build Configuration Changes**:
    - Run a clean build: `npm run build` or `npm run tauri build`
    - Verify no build errors or warnings
    - Test the built application if possible
+
+5. **For Rust Crate Changes**:
+   - Run `cargo check` and `cargo test` in the edited crate.
+   - Prefer adding a regression test when fixing a bug.
+
+6. **For Cross-Boundary Changes (TS <-> Rust)**:
+   - Verify command payload types and serialization behavior.
+   - Validate that Rust-side input validation still rejects malformed data.
+   - Confirm frontend presents a user-actionable error message.
 
 ### Testing Checklist
 
@@ -71,9 +99,20 @@ Types: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`
 
 ## Git Operations
 
-- **Wait for Instructions**: Never commit code unless specifically instructed by the user to "commit". Do not proactively commit changes after completing a task.
-- **Commit implies Push**: When the user requests to "commit" code, they also mean to "push" it to the remote repository. Always perform both actions (`git commit` followed by `git push`) unless otherwise specified.
-- **Multi-Machine Sync**: To support development across multiple machines, the agent MUST check for remote changes (`git fetch`) at the beginning of each session. If the local branch is behind `origin`, the agent must notify the user and recommend a `git pull` before starting any work.
+- **Wait for Instructions**: Never commit unless explicitly asked.
+- **Do Not Assume Push**: Ask before pushing if the user only asked to commit.
+- **Multi-Machine Sync**: Start work by checking remote state (`git fetch`, then inspect status).
+- **Branch Hygiene**: Prefer feature branches for non-trivial work; keep commits atomic.
+
+## T3 + Tauri + Rust Best Practices
+
+- Keep frontend and backend contracts typed and version-friendly.
+- Validate at both boundaries: TS schema validation and Rust command validation.
+- Keep Tauri command surface minimal; do not expose internal-only helpers.
+- Prefer `Result`-based Rust error flow with stable error codes/messages for the UI.
+- Keep hardware/transport details behind traits and adapters for testability.
+- Add regression tests for production fixes.
+- Update docs when command signatures or behavior change.
 
 ## Example Workflow
 
@@ -90,7 +129,7 @@ npm run tauri dev
 
 # 4. Manually test changes in the application
 # 5. Check for errors in terminal and browser console
-# 6. If everything works, commit
+# 6. If everything works and user requested commit, commit
 git add -A
 git commit -m "fix: resolve dark mode switching issue
 
@@ -98,8 +137,8 @@ git commit -m "fix: resolve dark mode switching issue
 - Added proper await handling
 - Tested both light and dark modes"
 
-# 7. Push to remote
-git push origin main
+# 7. Push only when explicitly requested
+git push origin <branch>
 ```
 
 ## Rollback Strategy
