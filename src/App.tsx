@@ -29,7 +29,9 @@ import { transport } from "./services/transportService";
 import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench, Camera, Layers } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
 import { SurfacingWizard } from "./components/wizards/SurfacingWizard";
+import { ResumeWizard } from "./components/wizards/ResumeWizard";
 import { useWizardStore } from "./stores/wizardStore";
+import { useJobResumeListener } from "./hooks/useJobResumeListener";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
 import { AIAssistantModal } from "./components/AIAssistantModal";
@@ -137,6 +139,7 @@ function App() {
   }, []);
 
   useStatsTracker();
+  useJobResumeListener();
 
   const appWindow = isTauriApp() ? getCurrentWindow() : null;
 
@@ -230,10 +233,6 @@ function App() {
                 </div>
               </Tooltip>
             </div>
-
-            <CarveWizard />
-            <SurfacingWizard />
-
 
             <div className="flex items-center gap-3">
               <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
@@ -340,6 +339,9 @@ function App() {
 
         {/* Global Modals */}
         <HelpModal />
+        <CarveWizard />
+        <SurfacingWizard />
+        <ResumeWizard />
         <AIAssistantModal />
         <FluidNCManagerModal />
         <MachineStatsModal />
