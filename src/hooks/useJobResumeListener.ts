@@ -6,8 +6,8 @@ import { useEffect, useCallback } from 'react';
 import { useJobResumeStore } from '../stores/jobResumeStore';
 import { useGcodeStore } from '../stores/gcodeStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
+import { useToolStore } from '../stores/toolStore';
 import { transport } from '../services/transportService';
-import * as crypto from 'crypto';
 
 export function useJobResumeListener() {
   const {
@@ -16,22 +16,46 @@ export function useJobResumeListener() {
   } = useJobResumeStore();
 
   const { machine } = useMachineStatusStore();
-  const { activeFilePath, activeFileName, gcode } = useGcodeStore();
+  const { activeFilePath, activeFileName } = useGcodeStore();
+  const { tools, activeToolId } = useToolStore();
 
-  // Compute file hash
-  const computeFileHash = useCallback(async (filePath: string): Promise<string> => {
+  // Get file hash from server
+  const getFileHash = useCallback(async (filePath: string): Promise<string> => {
     try {
-      // For now, use a simple hash based on file path and content
-      // In production, read file and compute SHA256
-      const hash = (filePath + (gcode || '')).split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-      return hash.toString(16);
-    } catch {
+      const result = await transport.invoke<string>('compute_file_hash', {
+        path: filePath,
+      });
+      return result;
+    } catch (e) {
+      console.error('Failed to compute file hash:', e);
       return 'unknown';
     }
-  }, [gcode]);
+  }, []);
+
+  // Save checkpoint to server
+  const saveCheckpointToServer = useCallback(
+    async (checkpoint: any) => {
+      try {
+        // Determine the save path (adjacent to the G-code file)
+        const checkpointPath = await transport.invoke<string>(
+          'get_resume_checkpoint_path',
+          { path: activeFilePath }
+        );
+
+        const result = await transport.invoke(
+          'save_checkpoint',
+          {
+            checkpoint,
+            savePath: checkpointPath,
+          }
+        );
+        console.log('[Resume] Checkpoint saved:', result);
+      } catch (e) {
+        console.error('[Resume] Failed to save checkpoint to server:', e);
+      }
+    },
+    [activeFilePath]
+  );
 
   // Listen for job status updates
   useEffect(() => {
@@ -48,9 +72,11 @@ export function useJobResumeListener() {
         unlistenFn = await transport.listen('job://status', async (event: any) => {
           const payload = event.payload;
 
-          // When job is paused, create a checkpoint
+          // When job is paused, create and save a checkpoint
           if (payload.status === 'paused') {
-            const fileHash = await computeFileHash(activeFilePath || '');
+            const fileHash = await getFileHash(activeFilePath || '');
+            const activeTool = tools.find(t => t.id === activeToolId);
+
             const checkpoint = createCheckpoint({
               fileHash,
               filePath: activeFilePath || '',
@@ -60,7 +86,7 @@ export function useJobResumeListener() {
               machineState: {
                 status: machine.status,
                 mpos: { x: machine.x.mpos, y: machine.y.mpos, z: machine.z.mpos },
-                wpos: { x: machine.x.wco, y: machine.y.wco, z: machine.z.wco },
+                wpos: { x: machine.x.mpos, y: machine.y.mpos, z: machine.z.mpos },
               },
               modalState: {
                 units: 'G21',
@@ -69,6 +95,7 @@ export function useJobResumeListener() {
                 motionMode: 'G0',
                 feedMode: 'G94',
               },
+              toolNumber: activeTool?.number,
               feedRate: machine.feed,
               spindle: {
                 isActive: machine.isSpindleActive || false,
@@ -79,15 +106,8 @@ export function useJobResumeListener() {
               timestamp: Date.now(),
             });
 
-            // Persist checkpoint to disk
-            try {
-              await transport.invoke('save_checkpoint', {
-                checkpoint,
-                savePath: activeFilePath?.replace(/\.[^.]+$/, '.resume.json'),
-              });
-            } catch (e) {
-              console.error('Failed to save checkpoint:', e);
-            }
+            // Save checkpoint to server
+            await saveCheckpointToServer(checkpoint);
 
             // Open the resume wizard
             openResumeWizard();
@@ -105,5 +125,5 @@ export function useJobResumeListener() {
         unlistenFn();
       }
     };
-  }, [activeFilePath, activeFileName, machine, createCheckpoint, openResumeWizard, computeFileHash]);
+  }, [activeFilePath, activeFileName, machine, tools, activeToolId, createCheckpoint, openResumeWizard, getFileHash, saveCheckpointToServer]);
 }

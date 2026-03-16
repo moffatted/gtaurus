@@ -524,7 +524,7 @@ function VisualConfirmationStep({
           continuation path is correct.
         </p>
         <label className="confirmation-checkbox">
-          <input type="checkbox" onChange={(e) => e.checked && onConfirm()} />
+          <input type="checkbox" onChange={(e) => e.target.checked && onConfirm()} />
           I confirm the resume point is correct
         </label>
       </div>
