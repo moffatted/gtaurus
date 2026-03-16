@@ -40,9 +40,13 @@ export function ResumeWizard() {
   } = useJobResumeStore();
 
   const { machine } = useMachineStatusStore();
-  const { activeFileName } = useGcodeStore();
+  const { activeFileName, gcode } = useGcodeStore();
   
   const [stepIndex, setStepIndex] = useState(0);
+  const [modalRestoreComplete, setModalRestoreComplete] = useState(false);
+  const [safeZApproachComplete, setSafeZApproachComplete] = useState(false);
+  const [hasCollisionDetected, setHasCollisionDetected] = useState(false);
+  const [highlightedLineRange, setHighlightedLineRange] = useState({ start: -1, end: -1 });
 
   const steps = [
     'checkpoint_summary',
@@ -50,6 +54,7 @@ export function ResumeWizard() {
     'file_validation',
     'home_decision',
     'tool_modal_restore',
+    'safe_z_approach',
     'preview_path',
     'visual_confirmation',
     'resume_execution',
@@ -106,6 +111,139 @@ export function ResumeWizard() {
     }
   };
 
+  // Restore modal state (G-code mode commands)
+  const handleRestoreModalState = async () => {
+    if (!checkpoint) return;
+    setIsLoading(true);
+    try {
+      const commands: string[] = [];
+      const modal = checkpoint.modalState;
+
+      // Restore units (G20=inches, G21=mm)
+      commands.push(modal.units === 'G20' ? 'G20' : 'G21');
+      
+      // Restore distance mode (G90=absolute, G91=relative)
+      commands.push(modal.distanceMode === 'G90' ? 'G90' : 'G91');
+      
+      // Restore plane (G17=XY, G18=ZX, G19=YZ)
+      commands.push(modal.plane || 'G17');
+      
+      // Restore motion mode (typically G0 or G1)
+      commands.push(modal.motionMode || 'G0');
+      
+      // Restore feed rate mode (G93=inv time, G94=per min, G95=per rev)
+      commands.push(modal.feedMode || 'G94');
+
+      // Send all commands
+      for (const cmd of commands) {
+        await transport.invoke('send_command', { command: cmd });
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      setModalRestoreComplete(true);
+      setMessage('Modal state restored.');
+      setTimeout(() => {
+        setResumeStep('safe_z_approach');
+        setStepIndex(steps.indexOf('safe_z_approach'));
+      }, 1000);
+    } catch (e) {
+      setMessage(`Modal restore failed: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Execute safe Z approach: Z clearance → XY traverse → Z plunge
+  const handleSafeZApproach = async () => {
+    if (!checkpoint) return;
+    setIsLoading(true);
+    try {
+      const checkpoint_z = checkpoint.machineState.wpos.z || 0;
+      const clearance_height = checkpoint_z + 10; // 10mm clearance
+      const resume_x = checkpoint.machineState.wpos.x || 0;
+      const resume_y = checkpoint.machineState.wpos.y || 0;
+
+      // Stage 1: Move to safe Z height (rapid)
+      setMessage(`Moving to safe Z height (${clearance_height.toFixed(1)} mm)...`);
+      await transport.invoke('send_command', { 
+        command: `G0 Z${clearance_height.toFixed(3)}` 
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Stage 2: Rapid XY to last position
+      setMessage(`Moving to resume position (X${resume_x.toFixed(1)}, Y${resume_y.toFixed(1)})...`);
+      await transport.invoke('send_command', { 
+        command: `G0 X${resume_x.toFixed(3)} Y${resume_y.toFixed(3)}` 
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Stage 3: Plunge Z back down to resume height
+      setMessage(`Plunging to resume height (${checkpoint_z.toFixed(1)} mm)...`);
+      await transport.invoke('send_command', { 
+        command: `G1 Z${checkpoint_z.toFixed(3)} F${checkpoint.feedRate.toFixed(0)}` 
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setSafeZApproachComplete(true);
+      setMessage('Safe Z approach complete.');
+      setTimeout(() => {
+        setResumeStep('preview_path');
+        setStepIndex(steps.indexOf('preview_path'));
+      }, 1000);
+    } catch (e) {
+      setMessage(`Safe Z approach failed: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Analyze toolpath for collision and highlight resume segment
+  const analyzeToolpath = () => {
+    if (!checkpoint || !gcode) return;
+
+    try {
+      const lines = gcode.split('\n');
+      const resumeLine = checkpoint.currentLine;
+      const previewLineCount = Math.min(resumeLine + 50, lines.length);
+
+      // Set highlight range for 3D visualization
+      setHighlightedLineRange({
+        start: resumeLine,
+        end: previewLineCount,
+      });
+
+      // Simple collision detection: check for Z coordinates lower than approach height
+      let hasCollision = false;
+      const safeZHeight = checkpoint.machineState.wpos.z + 10;
+
+      for (let i = resumeLine; i < previewLineCount; i++) {
+        const line = lines[i]?.trim() || '';
+        if (line.match(/^G1\s+[XY]/)) {
+          // Check if there's a Z coordinate in this line that's below safe height
+          if (line.match(/Z-?\d+\.?\d*/)) {
+            const zMatch = line.match(/Z(-?\d+\.?\d*)/);
+            if (zMatch) {
+              const zVal = parseFloat(zMatch[1]);
+              if (zVal < safeZHeight - 5) { // 5mm tolerance
+                hasCollision = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      setHasCollisionDetected(hasCollision);
+      if (hasCollision) {
+        setMessage('⚠️ Warning: Potential collision detected in toolpath. Review the path carefully.');
+      } else {
+        setMessage('✓ No collision detected in preview segment.');
+      }
+    } catch (e) {
+      console.error('Toolpath analysis error:', e);
+    }
+  };
+
   const handleResumeClick = async () => {
     if (!checkpoint) return;
     
@@ -153,8 +291,9 @@ export function ResumeWizard() {
       setResumeStep('tool_modal_restore');
       setStepIndex(steps.indexOf('tool_modal_restore'));
     } else if (resumeStep === 'tool_modal_restore') {
-      setResumeStep('preview_path');
-      setStepIndex(steps.indexOf('preview_path'));
+      handleRestoreModalState();
+    } else if (resumeStep === 'safe_z_approach') {
+      handleSafeZApproach();
     } else if (resumeStep === 'preview_path') {
       setResumeStep('visual_confirmation');
       setStepIndex(steps.indexOf('visual_confirmation'));
@@ -239,10 +378,30 @@ export function ResumeWizard() {
               />
             )}
             {resumeStep === 'tool_modal_restore' && (
-              <ToolModalRestoreStep checkpoint={checkpoint} />
+              <ToolModalRestoreStep 
+                checkpoint={checkpoint} 
+                isLoading={isLoading}
+                onRestore={handleRestoreModalState}
+                isComplete={modalRestoreComplete}
+              />
+            )}
+            {resumeStep === 'safe_z_approach' && (
+              <SafeZApproachStep 
+                checkpoint={checkpoint}
+                isLoading={isLoading}
+                onApproach={handleSafeZApproach}
+                isComplete={safeZApproachComplete}
+                message={message}
+              />
             )}
             {resumeStep === 'preview_path' && (
-              <PreviewPathStep checkpoint={checkpoint} />
+              <PreviewPathStep 
+                checkpoint={checkpoint}
+                highlightRange={highlightedLineRange}
+                hasCollision={hasCollisionDetected}
+                onAnalyze={analyzeToolpath}
+                message={message}
+              />
             )}
             {resumeStep === 'visual_confirmation' && (
               <VisualConfirmationStep
@@ -427,10 +586,20 @@ function HomeDecisionStep({
   );
 }
 
-function ToolModalRestoreStep({ checkpoint }: { checkpoint: any }) {
+function ToolModalRestoreStep({ 
+  checkpoint, 
+  isLoading,
+  onRestore,
+  isComplete
+}: { 
+  checkpoint: any;
+  isLoading: boolean;
+  onRestore: () => void;
+  isComplete: boolean;
+}) {
   return (
     <div className="step-content">
-      <h3>Tool & Modal State</h3>
+      <h3>Tool & Modal State Restoration</h3>
       <div className="tool-modal-grid">
         <div className="modal-box">
           <label>Tool Number</label>
@@ -439,65 +608,178 @@ function ToolModalRestoreStep({ checkpoint }: { checkpoint: any }) {
         <div className="modal-box">
           <label>Units</label>
           <div className="modal-value">
-            {checkpoint.modalState.units === 'G20' ? 'Inches' : 'Millimeters'}
+            {checkpoint.modalState.units === 'G20' ? 'Inches (G20)' : 'Millimeters (G21)'}
           </div>
         </div>
         <div className="modal-box">
           <label>Distance Mode</label>
           <div className="modal-value">
-            {checkpoint.modalState.distanceMode === 'G90' ? 'Absolute' : 'Relative'}
+            {checkpoint.modalState.distanceMode === 'G90' ? 'Absolute (G90)' : 'Relative (G91)'}
           </div>
         </div>
         <div className="modal-box">
           <label>Plane</label>
           <div className="modal-value">
-            {checkpoint.modalState.plane === 'G17' ? 'XY' : checkpoint.modalState.plane === 'G18' ? 'ZX' : 'YZ'}
+            {checkpoint.modalState.plane === 'G17' ? 'XY (G17)' : checkpoint.modalState.plane === 'G18' ? 'ZX (G18)' : 'YZ (G19)'}
           </div>
         </div>
         <div className="modal-box">
-          <label>Feed Rate</label>
-          <div className="modal-value">{checkpoint.feedRate.toFixed(1)} units/min</div>
+          <label>Feed Rate Mode</label>
+          <div className="modal-value">{checkpoint.modalState.feedMode || 'G94'}</div>
         </div>
         <div className="modal-box">
           <label>Spindle RPM</label>
-          <div className="modal-value">{checkpoint.spindle.rpm}</div>
+          <div className="modal-value">{checkpoint.spindle.rpm.toFixed(0)}</div>
         </div>
       </div>
       <p className="step-description">
-        These settings will be restored automatically before resuming.
+        Click "Restore Modal State" to send G-code commands that restore these settings.
       </p>
+      {!isComplete && (
+        <button 
+          onClick={onRestore}
+          disabled={isLoading}
+          className="modal-restore-btn"
+        >
+          {isLoading ? 'Restoring...' : 'Restore Modal State'}
+        </button>
+      )}
+      {isComplete && (
+        <div className="message-box message-success">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Modal state restored successfully</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function PreviewPathStep({ checkpoint }: { checkpoint: any }) {
+function SafeZApproachStep({ 
+  checkpoint,
+  isLoading,
+  onApproach,
+  isComplete,
+  message
+}: { 
+  checkpoint: any;
+  isLoading: boolean;
+  onApproach: () => void;
+  isComplete: boolean;
+  message: string | null;
+}) {
+  const clearanceHeight = checkpoint.machineState.wpos.z + 10;
+  
   return (
     <div className="step-content">
-      <h3>Recovery Path Preview</h3>
+      <h3>Safe Z Approach Sequence</h3>
+      <p className="step-description">
+        Execute a safe 3-stage approach to reach the resume position:
+      </p>
       <div className="preview-box">
         <div className="preview-step">
-          <div className="preview-step-label">1. Safe Z Clearance</div>
+          <div className="preview-step-label">🔷 Stage 1: Safe Z Clearance</div>
           <div className="preview-step-value">
-            Z → {(checkpoint.machineState.wpos.z + 10).toFixed(2)}
+            Rapid move to Z = {clearanceHeight.toFixed(2)} mm
           </div>
         </div>
         <div className="preview-step">
-          <div className="preview-step-label">2. XY Traverse</div>
+          <div className="preview-step-label">🔷 Stage 2: XY Traverse</div>
           <div className="preview-step-value">
-            X: {checkpoint.machineState.wpos.x.toFixed(2)}, Y:{' '}
-            {checkpoint.machineState.wpos.y.toFixed(2)}
+            Rapid to X = {checkpoint.machineState.wpos.x.toFixed(2)} mm, Y = {checkpoint.machineState.wpos.y.toFixed(2)} mm
           </div>
         </div>
         <div className="preview-step">
-          <div className="preview-step-label">3. Z Approach</div>
+          <div className="preview-step-label">🔷 Stage 3: Z Plunge</div>
           <div className="preview-step-value">
-            Z → {checkpoint.machineState.wpos.z.toFixed(2)}
+            Feed move to Z = {checkpoint.machineState.wpos.z.toFixed(2)} mm at F{checkpoint.feedRate.toFixed(0)}
           </div>
         </div>
       </div>
+      {message && (
+        <div className={`message-box ${message.includes('⚠') ? 'message-warning' : message.includes('Warning') ? 'message-warning' : 'message-info'}`}>
+          <Info className="w-4 h-4" />
+          <span>{message}</span>
+        </div>
+      )}
+      {!isComplete && (
+        <button 
+          onClick={onApproach}
+          disabled={isLoading}
+          className="modal-restore-btn"
+        >
+          {isLoading ? 'Executing...' : 'Execute Safe Z Approach'}
+        </button>
+      )}
+      {isComplete && (
+        <div className="message-box message-success">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Safe Z approach complete</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewPathStep({ 
+  checkpoint,
+  highlightRange,
+  hasCollision,
+  onAnalyze,
+  message
+}: { 
+  checkpoint: any;
+  highlightRange: { start: number; end: number };
+  hasCollision: boolean;
+  onAnalyze: () => void;
+  message: string | null;
+}) {
+  return (
+    <div className="step-content">
+      <h3>Toolpath Analysis & Collision Detection</h3>
       <p className="step-description">
-        The tool will follow this path before resuming from line {checkpoint.currentLine + 1}.
+        Analyze the resumed toolpath and check for potential collisions with the stock:
       </p>
+      <div className="preview-box">
+        <div className="preview-step">
+          <div className="preview-step-label">Resume from Line</div>
+          <div className="preview-step-value">
+            {checkpoint.currentLine + 1} of {checkpoint.totalLines}
+          </div>
+        </div>
+        <div className="preview-step">
+          <div className="preview-step-label">Preview Segment</div>
+          <div className="preview-step-value">
+            {highlightRange.start > -1 ? `Lines ${highlightRange.start + 1} → ${highlightRange.end + 1}` : 'Not analyzed yet'}
+          </div>
+        </div>
+        <div className="preview-step">
+          <div className="preview-step-label">Collision Status</div>
+          <div className={`preview-step-value ${hasCollision ? 'collision-warning' : 'collision-safe'}`}>
+            {hasCollision ? '⚠️ High Collision Risk' : '✓ No Collision Detected'}
+          </div>
+        </div>
+      </div>
+      {message && (
+        <div className={`message-box ${message.includes('⚠') || message.includes('Warning') ? 'message-warning' : 'message-success'}`}>
+          <AlertCircle className="w-4 h-4" />
+          <span>{message}</span>
+        </div>
+      )}
+      {highlightRange.start === -1 && (
+        <button 
+          onClick={onAnalyze}
+          className="modal-restore-btn"
+        >
+          Analyze Toolpath
+        </button>
+      )}
+      {highlightRange.start > -1 && (
+        <div className="toolpath-highlight-info">
+          <p className="highlight-text">
+            📍 3D view segment highlighted in <span style={{color: '#FFA500'}}>amber</span> from line {highlightRange.start + 1}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

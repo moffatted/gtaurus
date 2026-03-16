@@ -75,6 +75,7 @@ export interface ResumeState {
     | 'home_decision'
     | 'probe_decision'
     | 'tool_modal_restore'
+    | 'safe_z_approach'
     | 'preview_path'
     | 'visual_confirmation'
     | 'resume_execution'

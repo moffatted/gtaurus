@@ -506,3 +506,116 @@
 .step-content::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* Modal Restore Button */
+.modal-restore-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-restore-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+}
+
+.modal-restore-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Collision Detection Messages */
+.collision-warning {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.collision-safe {
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* Toolpath Highlight Info */
+.toolpath-highlight-info {
+  background: var(--bg-secondary);
+  border: 2px solid #ffa500;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+}
+
+.highlight-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.highlight-text span {
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Message Box Success Variant */
+.message-box.message-success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid #10b981;
+  color: #059669;
+}
+
+.message-box.message-success .lucide-react {
+  color: #10b981;
+}
+
+/* Message Box Warning Variant */
+.message-box.message-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  color: #d97706;
+}
+
+.message-box.message-warning .lucide-react {
+  color: #f59e0b;
+}
+
+/* Preview step styling for safe Z approach */
+.preview-step {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.preview-step:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.preview-step-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 150px;
+}
+
+.preview-step-value {
+  text-align: right;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+}
