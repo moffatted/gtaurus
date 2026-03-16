@@ -151,7 +151,7 @@ Before running the application, decide how Gtaurus will connect to your CNC mach
 - **Setup**: Raspberry Pi plugged into CNC via USB in workshop; iPad or office PC controls UI remotely
 - **Best for**: Separating heavy UI rendering from the CNC machine connection
 - **Why?**: If iPad sleeps or disconnects, Pi continues running G-code safely in background
-- **Default Ports**: 
+- **Default Ports**:
   - WebSocket (real-time commands): **9001**
   - HTTP (web UI): **1420**
 - **Customizing Ports**: Edit `server_config.json` (auto-generated next to binary) to change `"port"` (WebSocket) or `"http_port"` (Web UI) values
@@ -267,11 +267,11 @@ For detailed information about Job Resume, access the **Help Center** in the app
 | `npm run dev` | Launches the web frontend in dev mode |
 | `npm run dev:all` | Launches both the bridge server and web frontend concurrently |
 
-| To recursively update submodules:
+To recursively update submodules:
 
-  ```bash
-  git submodule update --init --recursive
-  ```
+```bash
+git submodule update --init --recursive
+```
 
 ## 📂 Project Structure
 
