@@ -7,6 +7,7 @@
 - **Carve Wizard** — Step-by-step guided setup for sending a G-code file to the machine.
 - **Surfacing Wizard** — Generates raster fly-cut / spoilboard surfacing G-code directly in the app. Configurable step-over, angle, depth-per-pass, bidirectional/unidirectional motion, finish pass, and over-travel. Work origin auto-syncs to your configured stock zero position. Opens the result directly in the 3D visualizer. See [docs/CNC_SURFACING_STRATEGY.md](docs/CNC_SURFACING_STRATEGY.md).
 - **3D Carve Visualizer** — WebGL-based real-time simulation with height-map displacement, operation playback, and tool-change pausing.
+- **Job Resume & Recovery** — Intelligent wizard-driven recovery system for interrupted jobs. Automatically detects interruptions, guides users through safe state reconstruction, performs automatic collision detection, and safely repositions the tool before resuming carving. Features 8-step guided wizard with visual toolpath highlighting. See [docs/JOB_RESUME_STRATEGY.md](docs/JOB_RESUME_STRATEGY.md).
 - **AI Assistant** — Integrated AI chat for G-code help and machine troubleshooting.
 - **Tool Library** — Manage your bit collection with per-tool type, diameter, and notes.
 - **FluidNC Config Manager** — Edit and push FluidNC YAML configuration directly from the UI.
@@ -191,7 +192,59 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
     npm run dev:all
     ```
 
-## 🛠️ Build & Run Commands
+## � Job Resume & Recovery
+
+Gtaurus includes an intelligent **Job Resume** system that automatically detects when a carving job has been interrupted and guides you through a safe, step-by-step recovery process. This is especially valuable for expensive jobs or long-running operations where starting over would be costly.
+
+### When Job Resume is Triggered
+
+The Job Resume wizard automatically activates when:
+- A job is **paused and then interrupted**
+- **Power loss** occurs (if checkpoint file exists)
+- A **machine alarm** is triggered mid-carve
+- A **manual stop** is initiated during an active job
+
+### How to Use Job Resume
+
+When an interruption is detected, Gtaurus will open the **Resume Wizard** with the following 8-step guided process:
+
+1. **Checkpoint Summary** — Review job details (file, line number, tool, position)
+2. **Machine Status Check** — Verify machine is in a recoverable state (Idle/Hold)
+3. **File Validation** — Confirm the G-code file hasn't been modified
+4. **Home Decision** — Determine if re-homing is necessary ($H)
+5. **Modal State Restoration** — Restore G-code modes (units, distance mode, plane) with one click
+6. **Safe Z Approach** — Automatically reposition tool in 3 stages:
+   - Stage 1: Rapid to safe Z clearance (checkpoint Z + 10mm)
+   - Stage 2: Rapid XY to checkpoint position
+   - Stage 3: Feed move plunge to resume height
+7. **Toolpath Analysis** — Analyze next 50 lines for collision risk and highlight resume segment
+8. **Visual Confirmation** — Final user approval with 3D toolpath visualization
+
+### Safety Features
+
+- **Automatic Collision Detection** — Alerts if resuming could collide with remaining stock
+- **Safe Z Clearance** — Always moves to safe height before XY repositioning
+- **Visual Feedback** — 3D toolpath highlighted in amber at resume point
+- **Modal Restoration** — All G-code modes explicitly restored (G20/G21, G90/G91, etc.)
+- **File Integrity** — Verifies G-code hasn't been modified
+
+### Recovery Best Practices
+
+**✓ Do:**
+- Allow the wizard to complete all steps
+- Carefully review the 3D highlight before confirming
+- Re-home if machine was moved while off or alarmed
+- Ensure correct tool is still loaded
+
+**✗ Don't:**
+- Manually edit G-code between checkpoint and resume
+- Skip step verification dialogs
+- Resume if collision detection shows "High Collision Risk"
+- Use a different tool than what was loaded when job interrupted
+
+For detailed information about Job Resume, access the **Help Center** in the app (? button) and select the **"Job Resume & Recovery"** topic.
+
+## �🛠️ Build & Run Commands
 
 | Command | Description |
 | --- | --- |
