@@ -54,12 +54,13 @@ Gtaurus uses a modular architecture to share core CNC logic across different dep
 
 ### ⚡ System Requirements
 
-Because Gtaurus splits its architecture between a bridging server and a heavy visual client, hardware requirements differ based on where components run:
+| Component | Hardware | Performance Notes |
+|-----------|----------|-------------------|
+| **Backend Server** (`gtaurus_server`) | Raspberry Pi 3 / Pi Zero 2 W / older PC | Lightweight headless Rust binary; extremely efficient |
+| **Frontend UI** (Browser / Tauri) | Standard PC / Mac with GPU | WebGL-accelerated, handles million-point 3D rendering effortlessly |
+| **Frontend UI** (Raspberry Pi) | **Pi 4B (4GB+ RAM)** or **Pi 5** only | Required for smooth 3D simulation playback when running UI directly on Pi |
 
-- **Backend Host (`gtaurus_server`)**: Extremely lightweight headless Rust binary. It can comfortably run on older hardware or low-power Single Board Computers (like a Raspberry Pi 3 or Pi Zero 2 W) strapped directly to the CNC machine.
-- **Frontend Client (Browser / Tauri App)**: The UI utilizes WebGL-based hardware acceleration (Three.js) for real-time, million-point 3D rendering of the Carve Preview and stock displacement.
-  - *Standard PC / Mac*: Any moderately modern machine with integrated graphics or a dedicated GPU will handle this effortlessly.
-  - *Raspberry Pi Client*: If you are running the frontend UI directly on a Raspberry Pi (e.g. attached to a touchscreen), you must use a **Raspberry Pi 4B (4GB+ RAM)** or **Raspberry Pi 5** for a smooth framerate during complex 3D simulation playback.
+**Architecture Note**: Gtaurus splits between a lightweight backend server and a heavy visual client, allowing flexible deployment across different hardware capabilities.
 
 ### 🖥️ OS-Specific Dependencies
 
@@ -130,22 +131,30 @@ Gtaurus supports **two deployment modes**: Desktop (Tauri) and Web (via Server B
 
 ### 🔌 Connection Scenarios (How & Why)
 
-Before running the application, decide how Gtaurus will connect to your CNC machine. We support three primary connection methods to match how your workshop is set up:
+Before running the application, decide how Gtaurus will connect to your CNC machine. We support three primary connection methods:
 
-1. **USB (Serial) Connection**: Best for rock-solid reliability.
-   - **Scenario**: Your laptop/desktop (or a Raspberry Pi) is sitting right next to your CNC machine and plugged in directly using a USB cable.
-   - **Why use it?**: This is the traditional, bulletproof way to stream G-code. It requires zero network setup and drops the risk of a Wi-Fi disconnect ruining a 3-hour carve.
+#### 1. USB (Serial) Connection — **Rock-Solid Reliability**
 
-2. **Telnet (Wi-Fi) Connection**: Best for clean, wire-free workshops.
-   - **Scenario**: Your CNC controller (like an ESP32-based MKS DLC32) is joined to your shop's Wi-Fi network. You want to sit at a desk across the room with your laptop.
-   - **Why use it?**: You hate tripping over cables. Modern FluidNC boards can receive streaming G-code over Wi-Fi via Telnet. You simply type your CNC's IP address (e.g., `192.168.1.55`) into the Gtaurus connection panel and gain full control instantly without stringing out a long USB cord.
-   - **Default Port**: FluidNC uses Telnet port **23** by default.
+- **Setup**: Laptop/desktop (or Raspberry Pi) sits next to CNC machine, connected via USB cable
+- **Best for**: Traditional, bulletproof G-code streaming with zero network setup
+- **Why?**: Eliminates risk of Wi-Fi disconnect ruining a multi-hour carve
 
-3. **Bridge Server Connection**: Best for remote access using tablets or older laptops.
-   - **Scenario**: You have a tiny, heavily-protected Raspberry Pi plugged into the CNC via USB in the dusty shop. You want to use a nice iPad or your powerful office PC to actually run the UI and complex 3D visualizations.
-   - **Why use it?**: The iPad connects to the Raspberry Pi over the network. The Pi runs the lightweight `gtaurus_server` bridge, which securely handles the physical USB connection to the CNC. If your iPad goes to sleep or disconnects from Wi-Fi, the Pi keeps running the G-code safely in the background.
-   - **Default Ports**: The `gtaurus_server` bridge accepts real-time WebSocket connections on port **9001** and simultaneously hosts a basic HTTP server for the web app UI on port **1420**.
-   - **Changing Ports**: If these default ports conflict with other services running on your network/host, you can easily change them by editing the `server_config.json` file that is automatically generated next to the compiled `gtaurus_server` binary upon its first run. Simply edit the `"port"` (WebSocket) or `"http_port"` (Web UI) fields and restart the server.
+#### 2. Telnet (Wi-Fi) Connection — **Cable-Free Workshops**
+
+- **Setup**: CNC controller (ESP32-based MKS DLC32, etc.) joined to shop Wi-Fi; you control from desk across room
+- **Best for**: Modern FluidNC boards with remote control capability
+- **Why?**: No tripping hazards, instant IP-based control (e.g., `192.168.1.55:23`)
+- **Default Port**: FluidNC Telnet uses port **23**
+
+#### 3. Bridge Server Connection — **Remote Access & Tablet Support**
+
+- **Setup**: Raspberry Pi plugged into CNC via USB in workshop; iPad or office PC controls UI remotely
+- **Best for**: Separating heavy UI rendering from the CNC machine connection
+- **Why?**: If iPad sleeps or disconnects, Pi continues running G-code safely in background
+- **Default Ports**: 
+  - WebSocket (real-time commands): **9001**
+  - HTTP (web UI): **1420**
+- **Customizing Ports**: Edit `server_config.json` (auto-generated next to binary) to change `"port"` (WebSocket) or `"http_port"` (Web UI) values
 
 ### 1. Desktop Mode (Tauri) - Recommended
 
@@ -279,15 +288,17 @@ gtaurus/
 
 ## 🧪 Testing
 
-Gtaurus has a multi-layered testing strategy covering frontend, shared logic, and backend.
+Gtaurus has a multi-layered testing strategy covering frontend, shared logic, and backend:
 
-- **Frontend**: `npm run test` (Vitest + React Testing Library)
-  - **Coverage**: `npm run test:coverage` (Target: 80% stores/components)
-- **Shared Driver Logic** (`gtaurus_lib`): `npm run test:rust` (Cargo tests)
-  - **Coverage**: ~73% (Measured via `cargo tarpaulin` in `deps/gtaurus_lib`)
-- **Standalone Server** (`gtaurus_server`): Cargo tests in `deps/gtaurus_server`
-  - **Coverage**: ~58%
-- **End-to-End**: `npm run test:e2e` (WebdriverIO + Tauri integration)
+### Test Layers & Coverage
+
+- [x] **Frontend**: `npm run test` (Vitest + React Testing Library)
+  - [x] Coverage target: 80% (stores/components) — `npm run test:coverage`
+- [x] **Shared Driver Logic** (`gtaurus_lib`): `npm run test:rust` (Cargo tests)
+  - [x] Coverage: ~73% (measured via `cargo tarpaulin`)
+- [ ] **Standalone Server** (`gtaurus_server`): Cargo tests in `deps/gtaurus_server`
+  - [ ] Coverage: ~58% (target: 80%+)
+- [x] **End-to-End**: `npm run test:e2e` (WebdriverIO + Tauri integration)
 
 ---
 
@@ -303,12 +314,24 @@ Gtaurus has a multi-layered testing strategy covering frontend, shared logic, an
 
 ## 🔙 Retroactive GRBL 1.1 Compatibility
 
-Because FluidNC is a direct descendant/port of Grbl v1.1, the core communication protocol between the two is identical. That means Gtaurus is highly reverse-compatible with any standard Grbl v1.1 board (e.g. older Arduino Uno CNC shields) via USB connection:
+Because FluidNC is a direct descendant/port of Grbl v1.1, the core communication protocol between the two is identical. Gtaurus is highly reverse-compatible with any standard Grbl v1.1 board (e.g. older Arduino Uno CNC shields) via USB connection.
 
-- **What Works Perfectly:** The 127-byte lookahead buffering, real-time polling/status reporting, jogging, probing, and the complete 3D Carve Visualizer feature set.
-- **What Does NOT Work:** The FluidNC Config Editor panel (standard GRBL still uses `$x=y` numerical settings, whereas FluidNC uses a YAML tree), FluidNC-specific Alarm Code interpretation, and Telnet network connectivity (unless you have a custom Wi-Fi bridge).
+### Feature Compatibility
 
-*Note: You can turn on the "Enable Legacy GRBL 1.1 Mode" toggle in the Gtaurus Machine Settings panel to automatically hide unsupported FluidNC features.*
+**✓ Works Perfectly:**
+
+- 127-byte lookahead buffering
+- Real-time polling/status reporting
+- Jogging and probing workflows
+- Complete 3D Carve Visualizer feature set
+
+**✗ Not Supported:**
+
+- ~~FluidNC Config Editor panel~~ (GRBL uses `$x=y` settings; FluidNC uses YAML)
+- ~~FluidNC-specific Alarm Code interpretation~~ (different alarm systems)
+- ~~Telnet network connectivity~~ (unless custom Wi-Fi bridge added)
+
+**Tip**: Enable **"Legacy GRBL 1.1 Mode"** in Machine Settings to automatically hide unsupported FluidNC features.
 
 ---
 
