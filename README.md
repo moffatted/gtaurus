@@ -199,6 +199,7 @@ Gtaurus includes an intelligent **Job Resume** system that automatically detects
 ### When Job Resume is Triggered
 
 The Job Resume wizard automatically activates when:
+
 - A job is **paused and then interrupted**
 - **Power loss** occurs (if checkpoint file exists)
 - A **machine alarm** is triggered mid-carve
@@ -231,12 +232,14 @@ When an interruption is detected, Gtaurus will open the **Resume Wizard** with t
 ### Recovery Best Practices
 
 **✓ Do:**
+
 - Allow the wizard to complete all steps
 - Carefully review the 3D highlight before confirming
 - Re-home if machine was moved while off or alarmed
 - Ensure correct tool is still loaded
 
 **✗ Don't:**
+
 - Manually edit G-code between checkpoint and resume
 - Skip step verification dialogs
 - Resume if collision detection shows "High Collision Risk"
