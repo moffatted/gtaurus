@@ -88,6 +88,8 @@ export interface ProbeSettings {
   xEdgeClearance: number;
   yEdgeClearance: number;
   centeringFudge: number;
+  plateGeometry: 'ring-hole' | 'solid-block';
+  postProbeReturnMode: 'hold-z' | 'auto-return-xy0';
   // Last selected probe mode
   lastProbeMethod: 'z-only' | '3-axis';
   // Safety
@@ -349,6 +351,8 @@ export const DEFAULT_SETTINGS: Settings = {
     xEdgeClearance: 5,
     yEdgeClearance: 5,
     centeringFudge: 2,
+    plateGeometry: 'solid-block',
+    postProbeReturnMode: 'hold-z',
     lastProbeMethod: 'z-only',
 
     protectedPositioning: true,
@@ -556,6 +560,8 @@ function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
     xEdgeClearance: toNumber(savedProbe.xEdgeClearance, DEFAULT_SETTINGS.probe.xEdgeClearance),
     yEdgeClearance: toNumber(savedProbe.yEdgeClearance, DEFAULT_SETTINGS.probe.yEdgeClearance),
     centeringFudge: toNumber(savedProbe.centeringFudge, DEFAULT_SETTINGS.probe.centeringFudge),
+    plateGeometry: savedProbe.plateGeometry === 'ring-hole' ? 'ring-hole' : 'solid-block',
+    postProbeReturnMode: savedProbe.postProbeReturnMode === 'auto-return-xy0' ? 'auto-return-xy0' : 'hold-z',
     lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
   };
 }

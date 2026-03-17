@@ -350,6 +350,30 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
                 </div>
               </div>
+
+              <div className="flex flex-col">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Plate Type</label>
+                <select
+                  value={prb.plateGeometry ?? 'solid-block'}
+                  onChange={(e) => setProbeSettings({ plateGeometry: e.target.value as 'ring-hole' | 'solid-block' })}
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                >
+                  <option value="solid-block">Solid Block</option>
+                  <option value="ring-hole">Ring / Hollow Center</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">After Probe</label>
+                <select
+                  value={prb.postProbeReturnMode ?? 'hold-z'}
+                  onChange={(e) => setProbeSettings({ postProbeReturnMode: e.target.value as 'hold-z' | 'auto-return-xy0' })}
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                >
+                  <option value="hold-z">Hold at Safe Z</option>
+                  <option value="auto-return-xy0">Auto Return to X0 Y0</option>
+                </select>
+              </div>
             </>
           )}
         </div>
