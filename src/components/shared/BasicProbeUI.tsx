@@ -22,7 +22,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const { settings, setProbeSettings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
   const prb = settings.probe;
-  const safeHeight = settings.general.safeHeight || 10;
+  const safeHeight = settings.general.safeHeight ?? 5;
   
   const [method, setMethod] = useState<ProbeMethod>('z-only');
   const [corner, setCorner] = useState<ProbeCorner>('front-left');
