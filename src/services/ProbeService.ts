@@ -83,6 +83,9 @@ export const ProbeService = {
     // If xyDropDistance is greater than the plate thickness (zOffset), it will crash into the workpiece.
     // Ensure we keep at least 0.5mm clearance above the workpiece bottom to be safe.
     const safeDropDistance = Math.min(xyDropDistance, Math.max(0.1, zOffset - 0.5));
+    // Final XY return happens while the plate may still be in place.
+    // Guarantee we are above the plate top plus a clearance margin before moving to X0 Y0.
+    const finalReturnZ = Math.max(safeHeight, zOffset + clearanceZ);
 
     const traverseFeed = fastFeedrate * 2; // Controlled brisk speed for repositioning
 
@@ -123,7 +126,7 @@ export const ProbeService = {
       
       // --- STEP 4: FINAL RETRACT & RETURN ---
       'G90', // Back to absolute positioning system
-      `G0 Z${safeHeight}`, // Pull spindle all the way up to user's absolute safe travel height (anchored to Z=0)
+      `G0 Z${finalReturnZ}`, // Ensure clearance above plate before returning to corner XY
       'G0 X0 Y0', // Rapid travel precisely to the newly established stock piece corner!
     ];
 
