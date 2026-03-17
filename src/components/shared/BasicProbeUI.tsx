@@ -54,7 +54,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
     }
   }, [awaitingCircuit, continuityStep, probeCircuitClosed]);
 
-  const handleProbeClick = () => {
+  const startContinuityCheck = () => {
     if (!canProbe || isProbing) return;
     setProgress(null);
     setAwaitingCircuit(true);
@@ -62,9 +62,14 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
     transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
   };
 
+  const resetContinuityCheck = () => {
+    setAwaitingCircuit(false);
+    setContinuityStep('await-close');
+  };
+
   const handleProbe = async () => {
     if (!continuityVerified) return;
-    setAwaitingCircuit(false);
+    resetContinuityCheck();
     runProbeSequence();
   };
 
@@ -287,75 +292,61 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       </div>
 
-      {/* Circuit verification overlay — shown when user clicks Start Probe but circuit is open */}
-      {awaitingCircuit && (
-        <div className="rounded-xl border-2 border-[var(--accent-primary)]/40 bg-[var(--bg-secondary)] p-3 space-y-3 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
-            <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Circuit Continuity Check</span>
-          </div>
-          <p className="text-[10px] text-[var(--text-secondary)] leading-snug">
-            {continuityStep === 'await-open'
-              ? 'The probe circuit is already closed. Lift the bit off the plate until the circuit opens, then touch it again to verify a real state change.'
-              : 'Touch the bit to the touch plate now to verify the probe circuit is connected before the sequence starts.'}
-          </p>
-          {/* Live circuit status inside dialog */}
-          <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all ${
-            continuityVerified
-              ? 'bg-green-500/15 border-green-500/40 text-green-400'
-              : probeCircuitClosed
-                ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
+      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
+          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Required Continuity Check</span>
+        </div>
+        <p className="text-[10px] text-[var(--text-secondary)] leading-snug">
+          {awaitingCircuit
+            ? continuityStep === 'await-open'
+              ? 'The probe circuit is already closed. Lift the bit off the plate until it opens, then touch it again to verify a real open-to-closed transition.'
+              : 'Touch the bit to the touch plate now. Probe motion stays locked out until continuity is verified.'
+            : 'Before probing, click Verify Continuity and touch the bit to the plate. Probe motion is disabled until this passes.'}
+        </p>
+        <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all ${
+          continuityVerified
+            ? 'bg-green-500/15 border-green-500/40 text-green-400'
+            : probeCircuitClosed
+              ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
               : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
-          }`}>
-            {continuityVerified
-              ? <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
-              : probeCircuitClosed
-                ? <Zap className="w-3.5 h-3.5 shrink-0" />
+        }`}>
+          {continuityVerified
+            ? <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+            : probeCircuitClosed
+              ? <Zap className="w-3.5 h-3.5 shrink-0" />
               : <ZapOff className="w-3.5 h-3.5 shrink-0" />}
-            <span>
-              {continuityVerified
-                ? 'Continuity VERIFIED ✓ — Ready to probe'
-                : continuityStep === 'await-open'
+          <span>
+            {continuityVerified
+              ? 'Continuity VERIFIED ✓ — Probe motion enabled'
+              : awaitingCircuit
+                ? continuityStep === 'await-open'
                   ? 'Circuit CLOSED — Lift off plate until OPEN'
                   : probeCircuitClosed
                     ? 'Circuit CLOSED — Verification captured'
-                    : 'Circuit OPEN — Waiting for contact...'}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setAwaitingCircuit(false);
-                setContinuityStep('await-close');
-              }}
-              className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              disabled={!continuityVerified}
-              onClick={handleProbe}
-              className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
-            >
-              {continuityVerified ? 'Proceed ✓' : 'Waiting...'}
-            </button>
-          </div>
+                    : 'Circuit OPEN — Waiting for contact...'
+                : probeCircuitClosed
+                  ? 'Circuit currently CLOSED — Start verification to confirm transition'
+                  : 'Circuit OPEN — Verification not started'}
+          </span>
         </div>
-      )}
-
-      {/* Inline circuit badge — shown when NOT in the awaiting-circuit dialog */}
-      {!awaitingCircuit && (
-        <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-colors ${
-          probeCircuitClosed
-            ? 'bg-green-500/10 border-green-500/30 text-green-500'
-            : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
-        }`}>
-          {probeCircuitClosed
-            ? <Zap className="w-3 h-3 shrink-0" />
-            : <ZapOff className="w-3 h-3 shrink-0" />}
-          <span>Probe Circuit: {probeCircuitClosed ? 'CLOSED ✓' : 'OPEN — Touch bit to plate to verify'}</span>
+        <div className="flex gap-2">
+          <button
+            disabled={!canProbe || isProbing}
+            onClick={awaitingCircuit ? resetContinuityCheck : startContinuityCheck}
+            className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {awaitingCircuit ? 'Reset Check' : 'Verify Continuity'}
+          </button>
+          <button
+            disabled={!continuityVerified || !canProbe || isProbing}
+            onClick={handleProbe}
+            className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
+          >
+            {continuityVerified ? 'Start Probe' : 'Start Probe Locked'}
+          </button>
         </div>
-      )}
+      </div>
 
       {isAlarm && (
         <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30 space-y-1.5">
@@ -380,21 +371,13 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       )}
 
-      {/* Action Button */}
-      {!awaitingCircuit && (
-        <button
-          disabled={!canProbe || isProbing}
-          onClick={handleProbeClick}
-          className={`w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-            isProbing 
-              ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' 
-              : 'bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_4px_12px_rgba(var(--accent-rgb),0.2)]'
-          }`}
-        >
-          <Crosshair className={`w-4 h-4 ${isProbing ? 'animate-spin' : ''}`} />
-          <span className="text-xs uppercase font-black">{isProbing ? 'PROBING...' : 'START PROBE'}</span>
-        </button>
-      )}
+      <button
+        disabled
+        className="w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 opacity-40 cursor-not-allowed bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
+      >
+        <Crosshair className="w-4 h-4" />
+        <span className="text-xs uppercase font-black">Use Required Continuity Check Above</span>
+      </button>
 
       <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity px-1">
         <span className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-tighter">Bit: {prb.stylusDiameter}mm</span>
