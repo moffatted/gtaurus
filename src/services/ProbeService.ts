@@ -60,9 +60,7 @@ export const ProbeService = {
       xyDropDistance = 3,
       xEdgeClearance = 5,
       yEdgeClearance = 5,
-      centeringFudge = 2,
-      plateGeometry = 'solid-block',
-      postProbeReturnMode = 'hold-z'
+      centeringFudge = 2
     } = settings;
 
     const radius = stylusDiameter / 2;
@@ -88,7 +86,6 @@ export const ProbeService = {
     // Final XY return happens while the plate may still be in place.
     // Guarantee we are above the plate top plus a clearance margin before moving to X0 Y0.
     const finalReturnZ = Math.max(safeHeight, zOffset + clearanceZ);
-    const shouldAutoReturnXY = plateGeometry === 'ring-hole' && postProbeReturnMode === 'auto-return-xy0';
 
     const traverseFeed = fastFeedrate * 2; // Controlled brisk speed for repositioning
 
@@ -130,7 +127,6 @@ export const ProbeService = {
       // --- STEP 4: FINAL RETRACT & RETURN ---
       'G90', // Back to absolute positioning system
       `G0 Z${finalReturnZ}`, // Ensure clearance above plate before returning to corner XY
-      ...(shouldAutoReturnXY ? ['G0 X0 Y0'] : []), // Optional auto-return only for ring-hole workflows
     ];
 
     return {

@@ -31,6 +31,8 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [awaitingCircuit, setAwaitingCircuit] = useState(false);
   const [continuityStep, setContinuityStep] = useState<ContinuityStep>('await-close');
   const [liveProbeCircuitClosed, setLiveProbeCircuitClosed] = useState<boolean | null>(null);
+  const [pendingReturnToZero, setPendingReturnToZero] = useState(false);
+  const [isReturningToZero, setIsReturningToZero] = useState(false);
 
   const isAlarm = machine.status.startsWith('Alarm');
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
@@ -65,14 +67,49 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   }, []);
 
   useEffect(() => {
-    if (!awaitingCircuit) return;
+    if (!awaitingCircuit && !pendingReturnToZero) return;
 
     // Drive explicit polling while continuity test is active, even if ControlsPanel isn't mounted.
     const poll = () => transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
     poll();
     const interval = setInterval(poll, 200);
     return () => clearInterval(interval);
-  }, [awaitingCircuit]);
+  }, [awaitingCircuit, pendingReturnToZero]);
+
+  useEffect(() => {
+    if (!pendingReturnToZero || isReturningToZero || probeCircuitClosed) return;
+
+    let cancelled = false;
+
+    const returnToZero = async () => {
+      setIsReturningToZero(true);
+      setProgress('Probe removed. Returning to X0 Y0...');
+      try {
+        await transport.invoke('send_gcode', { cmd: 'G90' });
+        await transport.invoke('send_gcode', { cmd: 'G0 X0 Y0' });
+        if (!cancelled) {
+          setPendingReturnToZero(false);
+          setProgress('Probe Complete! At X0 Y0');
+          setTimeout(() => setProgress(null), 4000);
+        }
+      } catch (err) {
+        console.error('[BasicProbeUI] Auto-return to X0 Y0 failed:', err);
+        if (!cancelled) {
+          setProgress('Probe complete. Could not auto-return; jog to X0 Y0 manually.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsReturningToZero(false);
+        }
+      }
+    };
+
+    returnToZero();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingReturnToZero, isReturningToZero, probeCircuitClosed]);
 
   useEffect(() => {
     if (!awaitingCircuit) return;
@@ -133,9 +170,18 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         console.log(`[BasicProbeUI] Sending: ${cmd}`);
         await transport.invoke('send_gcode', { cmd });
       }
-      setProgress('Probe Complete!');
+      if (method === '3-axis' && prb.postProbeReturnMode === 'auto-return-xy0') {
+        setPendingReturnToZero(true);
+        if (probeCircuitClosed) {
+          setProgress('Probe complete. Remove touch plate/probe to auto-return X0 Y0.');
+        } else {
+          setProgress('Probe complete. Returning to X0 Y0...');
+        }
+      } else {
+        setProgress('Probe Complete!');
+        setTimeout(() => setProgress(null), 3000);
+      }
       onComplete?.();
-      setTimeout(() => setProgress(null), 3000);
     } catch (err) {
       console.error("[BasicProbeUI] Probe failed:", err);
       setProgress('Error: See Logs');
@@ -371,7 +417,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                 >
                   <option value="hold-z">Hold at Safe Z</option>
-                  <option value="auto-return-xy0">Auto Return to X0 Y0</option>
+                  <option value="auto-return-xy0">Auto Return to X0 Y0 (when probe open)</option>
                 </select>
               </div>
             </>
