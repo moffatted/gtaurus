@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "concurrently -k -n server,tauri \"npm run server\" \"npm run tauri:dev\"",
+    "dev:web": "concurrently -k -n server,web \"npm run server\" \"npm run dev\"",
     "build": "tsc && vite build",
     "build:web": "tsc && vite build && node scripts/publish_web.js",
     "deploy:web": "node scripts/publish_web.js",
@@ -64,6 +66,7 @@
     "@wdio/mocha-framework": "^9.24.0",
     "@wdio/spec-reporter": "^9.24.0",
     "@wdio/visual-service": "^9.1.4",
+    "concurrently": "^9.2.1",
     "autoprefixer": "^10.4.24",
     "expect-webdriverio": "^5.6.4",
     "jsdom": "^28.1.0",
