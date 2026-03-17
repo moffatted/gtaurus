@@ -36,7 +36,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
   const canProbe = machine.status === 'Idle' && !isAlarm;
   const probeCircuitClosed = liveProbeCircuitClosed ?? (machine.pins?.includes('P') ?? false);
-  const continuityVerified = continuityStep === 'verified' && probeCircuitClosed;
+  const continuityVerified = continuityStep === 'verified';
 
   useEffect(() => {
     let mounted = true;
@@ -87,9 +87,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       return;
     }
 
-    if (continuityStep === 'verified' && !probeCircuitClosed) {
-      setContinuityStep('await-close');
-    }
+    // Once verified, stay verified until user explicitly resets (or awaitingCircuit turns false)
   }, [awaitingCircuit, continuityStep, probeCircuitClosed]);
 
   const startContinuityCheck = () => {
@@ -360,9 +358,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               : awaitingCircuit
                 ? continuityStep === 'await-open'
                   ? 'Circuit CLOSED — Lift off plate until OPEN'
-                  : probeCircuitClosed
-                    ? 'Circuit CLOSED — Verification captured'
-                    : 'Circuit OPEN — Waiting for contact...'
+                  : 'Circuit OPEN — Waiting for contact...'
                 : probeCircuitClosed
                   ? 'Circuit currently CLOSED — Start verification to confirm transition'
                   : 'Circuit OPEN — Verification not started'}
