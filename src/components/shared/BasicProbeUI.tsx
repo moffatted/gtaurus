@@ -33,6 +33,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [liveProbeCircuitClosed, setLiveProbeCircuitClosed] = useState<boolean | null>(null);
   const [pendingReturnToZero, setPendingReturnToZero] = useState(false);
   const [isReturningToZero, setIsReturningToZero] = useState(false);
+  const [removalConfirmed, setRemovalConfirmed] = useState(false);
 
   const isAlarm = machine.status.startsWith('Alarm');
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
@@ -77,7 +78,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   }, [awaitingCircuit, pendingReturnToZero]);
 
   useEffect(() => {
-    if (!pendingReturnToZero || isReturningToZero || probeCircuitClosed) return;
+    if (!pendingReturnToZero || !removalConfirmed || isReturningToZero || probeCircuitClosed) return;
 
     let cancelled = false;
 
@@ -110,7 +111,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
     return () => {
       cancelled = true;
     };
-  }, [pendingReturnToZero, isReturningToZero, probeCircuitClosed]);
+  }, [pendingReturnToZero, removalConfirmed, isReturningToZero, probeCircuitClosed]);
 
   useEffect(() => {
     if (!awaitingCircuit) return;
@@ -173,11 +174,8 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       }
       if (method === '3-axis' && prb.postProbeReturnMode === 'auto-return-xy0') {
         setPendingReturnToZero(true);
-        if (probeCircuitClosed) {
-          setProgress('Probe complete. Remove touch plate/probe to auto-return X0 Y0 Z0.');
-        } else {
-          setProgress('Probe complete. Returning to X0 Y0 Z0...');
-        }
+        setRemovalConfirmed(false);
+        setProgress('Probe complete. Remove touch plate/clip, then confirm to return X0 Y0 Z0.');
       } else {
         setProgress('Probe Complete!');
         setTimeout(() => setProgress(null), 3000);
@@ -193,6 +191,15 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
 
   const handleUnlock = () => {
     transport.invoke('send_gcode', { cmd: '$X' });
+  };
+
+  const handleConfirmRemoved = () => {
+    if (probeCircuitClosed) {
+      setProgress('Probe still detected. Remove touch plate/clip until circuit is open.');
+      return;
+    }
+    setRemovalConfirmed(true);
+    setProgress('Removal confirmed. Returning to X0 Y0 Z0...');
   };
 
   const CornerDot = ({ pos, active }: { pos: ProbeCorner; active: boolean }) => {
@@ -512,6 +519,20 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           <div className="text-[9px] font-mono text-[var(--accent-primary)] uppercase font-bold truncate">
             {progress}
           </div>
+        </div>
+      )}
+
+      {pendingReturnToZero && !isReturningToZero && (
+        <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/30 space-y-2">
+          <div className="text-[10px] font-bold text-yellow-300">
+            Remove touch plate and probe clip, then confirm return to X0 Y0 Z0.
+          </div>
+          <button
+            onClick={handleConfirmRemoved}
+            className="w-full py-1.5 rounded-lg text-[10px] font-bold bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
+          >
+            I Removed Touch Plate & Clip
+          </button>
         </div>
       )}
 
