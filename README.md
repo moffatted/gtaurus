@@ -138,7 +138,8 @@ Before running the application, decide how Gtaurus will connect to your CNC mach
 Runs as a native application with full hardware access.
 
 ```bash
-npm run tauri:dev   # Development
+npm run dev:all     # Development (starts bridge server + Tauri app)
+npm run tauri:dev   # Development (Tauri only)
 npm run tauri:build # Production Build
 ```
 
@@ -146,13 +147,20 @@ npm run tauri:build # Production Build
 
 Allows control via any device on your network (tablet, laptop, or desktop computer). *Note: The complex grid UI is currently optimized for larger screens and is not recommended for mobile phones.* This architecture is split into two parts: the backend server (running on the machine connected to the CNC) and the frontend UI.
 
-1. **Start the Server Bridge** (Handles USB/Serial communication):
+1. **Start the Server + Web Frontend together** (recommended for development):
 
-    If you are developing or running on a full OS with Node installed:
+  ```bash
+  npm run dev:web
+  ```
 
-    ```bash
-    npm run server
-    ```
+  This starts both `gtaurus_server` and the Vite web frontend in one command.
+
+2. **Alternative: Start components separately**:
+
+  ```bash
+  npm run server
+  npm run dev
+  ```
 
     **Headless Host Deployment (e.g., Raspberry Pi)**:
     When deploying purely for remote access on a headless host, you only need the compiled Rust backend binary; Node.js is not required.
@@ -164,18 +172,14 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
     ./target/release/gtaurus_server
     ```
 
-2. **Start the Web Frontend**:
-
-    ```bash
-    npm run dev
-    ```
-
 ## 🛠️ Build & Run Commands
 
 | Command | Description |
 | --- | --- |
 | `npm install` | Installs JS deps and builds Rust library/server |
 | `npm run build:all` | Builds Lib, Server, and Web frontend |
+| `npm run dev:all` | Starts bridge server + Tauri app together |
+| `npm run dev:web` | Starts bridge server + web frontend together |
 | `npm run server` | Starts the bridge server via `cargo run` |
 | `npm run tauri:dev` | Launches the desktop app in dev mode |
 | `npm run dev` | Launches the web frontend in dev mode |
