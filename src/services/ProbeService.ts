@@ -63,10 +63,14 @@ export const ProbeService = {
     } = settings;
 
     const radius = stylusDiameter / 2;
+    const holeRadius = holeDiameter / 2;
     // How far into the plate from the corner to ensure hitting solid material.
     // Clears the relief hole plus 5mm buffer.
-    const moveOver = holeDiameter > 0 ? (holeDiameter / 2) + 5 : 12;
+    const moveOver = holeDiameter > 0 ? holeRadius + 5 : 12;
     const clearanceZ = 5;
+    // Distance from hole centerline to start position safely outside each outer edge.
+    const outsideStartX = holeRadius + xWallThickness + radius + xEdgeClearance;
+    const outsideStartY = holeRadius + yWallThickness + radius + yEdgeClearance;
     
     // Direction multipliers based on corner finding
     // FL: +X, +Y to find inside the hole
@@ -96,7 +100,7 @@ export const ProbeService = {
       
       // --- STEP 2: X EDGE PROBE ---
       `G1 X${-xDir * moveOver} Y${-yDir * moveOver} F${traverseFeed}`, // 6. Return back over the hole as a central waypoint
-      `G1 X${-xDir * (xWallThickness + radius + xEdgeClearance)} Y${yDir * moveOver} F${traverseFeed}`, // 7. Move out past X edge, but securely onto Y solid edge
+      `G1 X${-xDir * outsideStartX} Y${yDir * moveOver} F${traverseFeed}`, // 7. Move out past X edge, but securely onto Y solid edge
       `G1 Z-${clearanceZ + safeDropDistance} F${fastFeedrate}`, // 8. Lower Z completely past the top surface of the plate (safe max depth constraint applied)
       `G38.2 X${xDir * maxTravel} F${fastFeedrate}`, // 9. Probe X in towards the plate
       `G1 X${-xDir * retractDistance} F${traverseFeed}`,
@@ -107,7 +111,7 @@ export const ProbeService = {
       
       // --- STEP 3: Y EDGE PROBE ---
       // 10. Move directly from outside X edge over to outside Y edge
-      `G1 X${xDir * (moveOver + xWallThickness + radius + xEdgeClearance)} Y${-yDir * (moveOver + yWallThickness + radius + yEdgeClearance)} F${traverseFeed}`,
+      `G1 X${xDir * (moveOver + outsideStartX)} Y${-yDir * (moveOver + outsideStartY)} F${traverseFeed}`,
       `G1 Z-${clearanceZ + safeDropDistance} F${fastFeedrate}`, // 11. Lower Z entirely below the top surface of plate (safe max depth constraint applied)
       `G38.2 Y${yDir * maxTravel} F${fastFeedrate}`, // 12. Probe Y in towards the plate
       `G1 Y${-yDir * retractDistance} F${traverseFeed}`,
