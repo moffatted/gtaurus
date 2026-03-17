@@ -465,7 +465,7 @@ function ProbeContent() {
               <input
                 type="number"
                 value={prb.xWallThickness ?? ''}
-                onChange={(e) => setProbeSettings({ xWallThickness: e.target.value as any })}
+                onChange={(e) => setProbeSettings({ xWallThickness: Number(e.target.value) })}
                 className={inputCls}
                 step={0.1}
               />
@@ -475,7 +475,7 @@ function ProbeContent() {
               <input
                 type="number"
                 value={prb.yWallThickness ?? ''}
-                onChange={(e) => setProbeSettings({ yWallThickness: e.target.value as any })}
+                onChange={(e) => setProbeSettings({ yWallThickness: Number(e.target.value) })}
                 className={inputCls}
                 step={0.1}
               />
@@ -485,7 +485,7 @@ function ProbeContent() {
               <input
                 type="number"
                 value={prb.holeDiameter ?? ''}
-                onChange={(e) => setProbeSettings({ holeDiameter: e.target.value as any })}
+                onChange={(e) => setProbeSettings({ holeDiameter: Number(e.target.value) })}
                 className={inputCls}
                 step={0.1}
               />
@@ -495,7 +495,7 @@ function ProbeContent() {
               <input
                 type="number"
                 value={prb.xyDropDistance ?? ''}
-                onChange={(e) => setProbeSettings({ xyDropDistance: e.target.value as any })}
+                onChange={(e) => setProbeSettings({ xyDropDistance: Number(e.target.value) })}
                 className={inputCls}
                 step={0.1}
               />

@@ -3,9 +3,9 @@
  * @purpose Shared UI component for executing Z-axis and corner probing routines.
  */
 import { useState } from 'react';
-import { Crosshair, HelpCircle, AlertCircle } from 'lucide-react';
-import { useSettingsStore } from '../../stores/settingsStore';
+import { Crosshair, HelpCircle, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { transport } from '../../services/transportService';
 import { ProbeService, ProbeCorner } from '../../services/ProbeService';
 import { Tooltip } from '../ui/Tooltip';
@@ -26,8 +26,10 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
 
-  const canProbe = machine.status === 'Idle';
-  const isAlarm = machine.status === 'Alarm';
+  const isAlarm = machine.status.startsWith('Alarm');
+  const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
+  const canProbe = machine.status === 'Idle' && !isAlarm;
+  const probeCircuitClosed = machine.pins?.includes('P') ?? false;
 
   const handleProbe = async () => {
     if (!canProbe || isProbing) return;
@@ -41,6 +43,14 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         : ProbeService.generateCornerProbe(prb, corner, safeHeight);
 
       for (const cmd of result.gcode) {
+        // Bail out immediately if machine entered alarm mid-cycle
+        const liveStatus = useMachineStatusStore.getState().machine.status;
+        if (liveStatus.startsWith('Alarm')) {
+          console.warn(`[BasicProbeUI] Aborting probe — machine entered ${liveStatus} mid-sequence`);
+          setProgress(`Aborted: ${liveStatus}`);
+          setTimeout(() => setProgress(null), 5000);
+          return;
+        }
         setProgress(`${cmd}`);
         console.log(`[BasicProbeUI] Sending: ${cmd}`);
         await transport.invoke('send_gcode', { cmd });
@@ -189,7 +199,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   <input 
                     type="number"
                     value={prb.xWallThickness ?? ''}
-                    onChange={(e) => setProbeSettings({ xWallThickness: e.target.value as any })}
+                    onChange={(e) => setProbeSettings({ xWallThickness: Number(e.target.value) })}
                     className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                   />
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
@@ -202,7 +212,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   <input 
                     type="number"
                     value={prb.yWallThickness ?? ''}
-                    onChange={(e) => setProbeSettings({ yWallThickness: e.target.value as any })}
+                    onChange={(e) => setProbeSettings({ yWallThickness: Number(e.target.value) })}
                     className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                   />
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
@@ -215,7 +225,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   <input 
                     type="number"
                     value={prb.holeDiameter ?? ''}
-                    onChange={(e) => setProbeSettings({ holeDiameter: e.target.value as any })}
+                    onChange={(e) => setProbeSettings({ holeDiameter: Number(e.target.value) })}
                     className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                   />
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
@@ -239,13 +249,28 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       </div>
 
       {/* Status / Error - Integrated */}
+      {/* Probe circuit continuity indicator */}
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-colors ${
+        probeCircuitClosed
+          ? 'bg-green-500/10 border-green-500/30 text-green-500'
+          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+      }`}>
+        {probeCircuitClosed
+          ? <Zap className="w-3 h-3 shrink-0" />
+          : <ZapOff className="w-3 h-3 shrink-0" />}
+        <span>Probe Circuit: {probeCircuitClosed ? 'CLOSED ✓' : 'OPEN — Touch bit to plate to verify'}</span>
+      </div>
+
       {isAlarm && (
-        <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30">
+        <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>{alarmCode ?? 'Alarm'} — Machine locked</span>
+          </div>
           <button 
             onClick={handleUnlock}
             className="w-full py-1.5 bg-red-500 hover:bg-red-400 text-white text-[10px] font-bold rounded flex items-center justify-center gap-2 transition-colors"
           >
-            <AlertCircle className="w-3.5 h-3.5" />
             UNLOCK MACHINE ($X)
           </button>
         </div>

@@ -529,6 +529,23 @@ function normalizeSavedStock(savedStock: any): Partial<StockSettings> {
   };
 }
 
+function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
+  if (!savedProbe) return {};
+
+  const toNumber = (value: any, fallback: number): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  return {
+    ...savedProbe,
+    xWallThickness: toNumber(savedProbe.xWallThickness, DEFAULT_SETTINGS.probe.xWallThickness),
+    yWallThickness: toNumber(savedProbe.yWallThickness, DEFAULT_SETTINGS.probe.yWallThickness),
+    holeDiameter: toNumber(savedProbe.holeDiameter, DEFAULT_SETTINGS.probe.holeDiameter),
+    xyDropDistance: toNumber(savedProbe.xyDropDistance, DEFAULT_SETTINGS.probe.xyDropDistance),
+  };
+}
+
 async function saveToStorage(settings: Settings): Promise<void> {
   try {
     if (isTauriApp()) {
@@ -681,7 +698,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...saved, 
           connection: { ...DEFAULT_SETTINGS.connection, ...saved?.connection },
           general: { ...DEFAULT_SETTINGS.general, ...saved?.general },
-          probe: { ...DEFAULT_SETTINGS.probe, ...saved?.probe },
+          probe: { ...DEFAULT_SETTINGS.probe, ...normalizeSavedProbe(saved?.probe) },
           spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
           ai: aiSettings,
@@ -838,7 +855,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set((state) => {
       const next = {
         ...state.settings,
-        probe: { ...state.settings.probe, ...patch },
+        probe: { ...state.settings.probe, ...normalizeSavedProbe(patch) },
       };
       void saveToStorage(next);
       return { settings: next };

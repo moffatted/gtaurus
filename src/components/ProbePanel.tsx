@@ -100,8 +100,8 @@ export function ProbePanel() {
                   <span className="text-[10px] text-[var(--accent-primary)]/80 font-mono">Ex: 2.63mm</span>
                 </li>
                 <li className="pl-1">
-                  <span className="text-[var(--text-primary)]">X/Y Offset</span> = Wall Thickness + Hole Radius<br/>
-                  <span className="text-[10px] text-[var(--accent-primary)]/80 font-mono">Ex: 2.63 + 7.43 = 10.06mm</span>
+                  Enter <span className="text-[var(--text-primary)]">X/Y Wall Thickness</span> only.<br/>
+                  <span className="text-[10px] text-[var(--accent-primary)]/80 font-mono">Software computes edge offset as Wall Thickness + (Bit Radius).</span>
                 </li>
               </ol>
             </div>

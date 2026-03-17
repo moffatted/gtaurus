@@ -20,6 +20,8 @@ interface MachineStatus {
     firmware: string;
     buildInfo: string;
     board: string;
+    /** Active pin flags from the Pn: field, e.g. "P" = probe pin triggered */
+    pins: string;
 }
 
 interface MachineStatusState {
@@ -41,6 +43,7 @@ export const useMachineStatusStore = create<MachineStatusState>((set) => ({
         firmware: 'Unknown',
         buildInfo: 'Unknown',
         board: 'Unknown',
+        pins: '',
     },
     updateMachine: (partial) => set((state) => ({
         machine: { ...state.machine, ...partial }
@@ -62,6 +65,7 @@ export const useMachineStatusStore = create<MachineStatusState>((set) => ({
             firmware: 'Unknown',
             buildInfo: 'Unknown',
             board: 'Unknown',
+            pins: '',
         }
     }),
 }));

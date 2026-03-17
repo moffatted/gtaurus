@@ -144,6 +144,8 @@ export function ControlsPanel() {
         const nextUpdate: any = {};
         if (report.feedrate !== undefined) nextUpdate.feed = report.feedrate;
         if (report.spindle !== undefined && !checkPending()) nextUpdate.spindle = report.spindle;
+        if (report.pins !== undefined) nextUpdate.pins = report.pins;
+        else nextUpdate.pins = ''; // clear stale pin flags when Pn: absent
         
         // Smarter spindle active check logic
         if (!checkPending()) {
