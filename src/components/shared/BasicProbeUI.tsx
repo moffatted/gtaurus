@@ -25,13 +25,30 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [corner, setCorner] = useState<ProbeCorner>('front-left');
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
+  const [awaitingCircuit, setAwaitingCircuit] = useState(false);
 
   const isAlarm = machine.status.startsWith('Alarm');
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
   const canProbe = machine.status === 'Idle' && !isAlarm;
   const probeCircuitClosed = machine.pins?.includes('P') ?? false;
 
+  const handleProbeClick = () => {
+    if (!canProbe || isProbing) return;
+    if (probeCircuitClosed) {
+      // Circuit already verified — proceed straight to sequence
+      runProbeSequence();
+    } else {
+      // Show the circuit verification step first
+      setAwaitingCircuit(true);
+    }
+  };
+
   const handleProbe = async () => {
+    setAwaitingCircuit(false);
+    runProbeSequence();
+  };
+
+  const runProbeSequence = async () => {
     if (!canProbe || isProbing) return;
     
     setIsProbing(true);
@@ -68,7 +85,9 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
 
   const handleUnlock = () => {
     transport.invoke('send_gcode', { cmd: '$X' });
-  };  const CornerDot = ({ pos, active }: { pos: ProbeCorner; active: boolean }) => {
+  };
+
+  const CornerDot = ({ pos, active }: { pos: ProbeCorner; active: boolean }) => {
     const label = pos.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + " Corner";
     
     return (
@@ -248,18 +267,58 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       </div>
 
-      {/* Status / Error - Integrated */}
-      {/* Probe circuit continuity indicator */}
-      <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-colors ${
-        probeCircuitClosed
-          ? 'bg-green-500/10 border-green-500/30 text-green-500'
-          : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
-      }`}>
-        {probeCircuitClosed
-          ? <Zap className="w-3 h-3 shrink-0" />
-          : <ZapOff className="w-3 h-3 shrink-0" />}
-        <span>Probe Circuit: {probeCircuitClosed ? 'CLOSED ✓' : 'OPEN — Touch bit to plate to verify'}</span>
-      </div>
+      {/* Circuit verification overlay — shown when user clicks Start Probe but circuit is open */}
+      {awaitingCircuit && (
+        <div className="rounded-xl border-2 border-[var(--accent-primary)]/40 bg-[var(--bg-secondary)] p-3 space-y-3 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
+            <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Circuit Continuity Check</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-secondary)] leading-snug">
+            Touch the bit to the touch plate now to verify the probe circuit is connected before the sequence starts.
+          </p>
+          {/* Live circuit status inside dialog */}
+          <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all ${
+            probeCircuitClosed
+              ? 'bg-green-500/15 border-green-500/40 text-green-400'
+              : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+          }`}>
+            {probeCircuitClosed
+              ? <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+              : <ZapOff className="w-3.5 h-3.5 shrink-0" />}
+            <span>{probeCircuitClosed ? 'Circuit CLOSED ✓ — Ready to probe' : 'Circuit OPEN — Waiting for contact...'}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAwaitingCircuit(false)}
+              className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!probeCircuitClosed}
+              onClick={handleProbe}
+              className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
+            >
+              {probeCircuitClosed ? 'Proceed ✓' : 'Waiting...'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline circuit badge — shown when NOT in the awaiting-circuit dialog */}
+      {!awaitingCircuit && (
+        <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-colors ${
+          probeCircuitClosed
+            ? 'bg-green-500/10 border-green-500/30 text-green-500'
+            : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+        }`}>
+          {probeCircuitClosed
+            ? <Zap className="w-3 h-3 shrink-0" />
+            : <ZapOff className="w-3 h-3 shrink-0" />}
+          <span>Probe Circuit: {probeCircuitClosed ? 'CLOSED ✓' : 'OPEN — Touch bit to plate to verify'}</span>
+        </div>
+      )}
 
       {isAlarm && (
         <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30 space-y-1.5">
@@ -284,19 +343,21 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       )}
 
-      {/* Action Button - Compacted */}
-      <button
-        disabled={!canProbe || isProbing}
-        onClick={handleProbe}
-        className={`w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-          isProbing 
-            ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' 
-            : 'bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_4px_12px_rgba(var(--accent-rgb),0.2)]'
-        }`}
-      >
-        <Crosshair className={`w-4 h-4 ${isProbing ? 'animate-spin' : ''}`} />
-        <span className="text-xs uppercase font-black">{isProbing ? 'PROBING...' : 'START PROBE'}</span>
-      </button>
+      {/* Action Button */}
+      {!awaitingCircuit && (
+        <button
+          disabled={!canProbe || isProbing}
+          onClick={handleProbeClick}
+          className={`w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed ${
+            isProbing 
+              ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' 
+              : 'bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_4px_12px_rgba(var(--accent-rgb),0.2)]'
+          }`}
+        >
+          <Crosshair className={`w-4 h-4 ${isProbing ? 'animate-spin' : ''}`} />
+          <span className="text-xs uppercase font-black">{isProbing ? 'PROBING...' : 'START PROBE'}</span>
+        </button>
+      )}
 
       <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity px-1">
         <span className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-tighter">Bit: {prb.stylusDiameter}mm</span>
