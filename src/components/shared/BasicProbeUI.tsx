@@ -2,7 +2,7 @@
  * @file BasicProbeUI.tsx
  * @purpose Shared UI component for executing Z-axis and corner probing routines.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Crosshair, HelpCircle, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -11,6 +11,8 @@ import { ProbeService, ProbeCorner } from '../../services/ProbeService';
 import { Tooltip } from '../ui/Tooltip';
 
 type ProbeMethod = 'z-only' | '3-axis';
+type ContinuityStep = 'await-open' | 'await-close' | 'verified';
+
 interface BasicProbeUIProps {
   onComplete?: () => void;
 }
@@ -26,24 +28,42 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [awaitingCircuit, setAwaitingCircuit] = useState(false);
+  const [continuityStep, setContinuityStep] = useState<ContinuityStep>('await-close');
 
   const isAlarm = machine.status.startsWith('Alarm');
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
   const canProbe = machine.status === 'Idle' && !isAlarm;
   const probeCircuitClosed = machine.pins?.includes('P') ?? false;
+  const continuityVerified = continuityStep === 'verified' && probeCircuitClosed;
+
+  useEffect(() => {
+    if (!awaitingCircuit) return;
+
+    if (continuityStep === 'await-open' && !probeCircuitClosed) {
+      setContinuityStep('await-close');
+      return;
+    }
+
+    if (continuityStep === 'await-close' && probeCircuitClosed) {
+      setContinuityStep('verified');
+      return;
+    }
+
+    if (continuityStep === 'verified' && !probeCircuitClosed) {
+      setContinuityStep('await-close');
+    }
+  }, [awaitingCircuit, continuityStep, probeCircuitClosed]);
 
   const handleProbeClick = () => {
     if (!canProbe || isProbing) return;
-    if (probeCircuitClosed) {
-      // Circuit already verified — proceed straight to sequence
-      runProbeSequence();
-    } else {
-      // Show the circuit verification step first
-      setAwaitingCircuit(true);
-    }
+    setProgress(null);
+    setAwaitingCircuit(true);
+    setContinuityStep(probeCircuitClosed ? 'await-open' : 'await-close');
+    transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
   };
 
   const handleProbe = async () => {
+    if (!continuityVerified) return;
     setAwaitingCircuit(false);
     runProbeSequence();
   };
@@ -275,32 +295,49 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
             <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Circuit Continuity Check</span>
           </div>
           <p className="text-[10px] text-[var(--text-secondary)] leading-snug">
-            Touch the bit to the touch plate now to verify the probe circuit is connected before the sequence starts.
+            {continuityStep === 'await-open'
+              ? 'The probe circuit is already closed. Lift the bit off the plate until the circuit opens, then touch it again to verify a real state change.'
+              : 'Touch the bit to the touch plate now to verify the probe circuit is connected before the sequence starts.'}
           </p>
           {/* Live circuit status inside dialog */}
           <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all ${
-            probeCircuitClosed
+            continuityVerified
               ? 'bg-green-500/15 border-green-500/40 text-green-400'
+              : probeCircuitClosed
+                ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
               : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
           }`}>
-            {probeCircuitClosed
+            {continuityVerified
               ? <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+              : probeCircuitClosed
+                ? <Zap className="w-3.5 h-3.5 shrink-0" />
               : <ZapOff className="w-3.5 h-3.5 shrink-0" />}
-            <span>{probeCircuitClosed ? 'Circuit CLOSED ✓ — Ready to probe' : 'Circuit OPEN — Waiting for contact...'}</span>
+            <span>
+              {continuityVerified
+                ? 'Continuity VERIFIED ✓ — Ready to probe'
+                : continuityStep === 'await-open'
+                  ? 'Circuit CLOSED — Lift off plate until OPEN'
+                  : probeCircuitClosed
+                    ? 'Circuit CLOSED — Verification captured'
+                    : 'Circuit OPEN — Waiting for contact...'}
+            </span>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setAwaitingCircuit(false)}
+              onClick={() => {
+                setAwaitingCircuit(false);
+                setContinuityStep('await-close');
+              }}
               className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
             >
               Cancel
             </button>
             <button
-              disabled={!probeCircuitClosed}
+              disabled={!continuityVerified}
               onClick={handleProbe}
               className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
             >
-              {probeCircuitClosed ? 'Proceed ✓' : 'Waiting...'}
+              {continuityVerified ? 'Proceed ✓' : 'Waiting...'}
             </button>
           </div>
         </div>
