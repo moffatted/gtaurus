@@ -57,15 +57,21 @@ export const ProbeService = {
       xWallThickness = 2.63,
       yWallThickness = 2.63,
       holeDiameter = 0,
-      xyDropDistance = 3
+      xyDropDistance = 3,
+      xEdgeClearance = 5,
+      yEdgeClearance = 5,
+      centeringFudge = 2
     } = settings;
 
     const radius = stylusDiameter / 2;
+    const holeRadius = holeDiameter / 2;
     // How far into the plate from the corner to ensure hitting solid material.
     // Clears the relief hole plus 5mm buffer.
-    const moveOver = holeDiameter > 0 ? (holeDiameter / 2) + 5 : 12;
-    const clearanceXY = 5;
+    const moveOver = holeDiameter > 0 ? holeRadius + 5 + centeringFudge : 12 + centeringFudge;
     const clearanceZ = 5;
+    // Distance from hole centerline to start position safely outside each outer edge.
+    const outsideStartX = holeRadius + xWallThickness + radius + xEdgeClearance + centeringFudge;
+    const outsideStartY = holeRadius + yWallThickness + radius + yEdgeClearance + centeringFudge;
     
     // Direction multipliers based on corner finding
     // FL: +X, +Y to find inside the hole
@@ -77,6 +83,9 @@ export const ProbeService = {
     // If xyDropDistance is greater than the plate thickness (zOffset), it will crash into the workpiece.
     // Ensure we keep at least 0.5mm clearance above the workpiece bottom to be safe.
     const safeDropDistance = Math.min(xyDropDistance, Math.max(0.1, zOffset - 0.5));
+    // Final XY return happens while the plate may still be in place.
+    // Guarantee we are above the plate top plus a clearance margin before moving to X0 Y0.
+    const finalReturnZ = Math.max(safeHeight, zOffset + clearanceZ);
 
     const traverseFeed = fastFeedrate * 2; // Controlled brisk speed for repositioning
 
@@ -95,30 +104,29 @@ export const ProbeService = {
       
       // --- STEP 2: X EDGE PROBE ---
       `G1 X${-xDir * moveOver} Y${-yDir * moveOver} F${traverseFeed}`, // 6. Return back over the hole as a central waypoint
-      `G1 X${-xDir * (xWallThickness + radius + clearanceXY)} Y${yDir * moveOver} F${traverseFeed}`, // 7. Move out past X edge, but securely onto Y solid edge
+      `G1 X${-xDir * outsideStartX} Y${yDir * moveOver} F${traverseFeed}`, // 7. Move out past X edge, but securely onto Y solid edge
       `G1 Z-${clearanceZ + safeDropDistance} F${fastFeedrate}`, // 8. Lower Z completely past the top surface of the plate (safe max depth constraint applied)
       `G38.2 X${xDir * maxTravel} F${fastFeedrate}`, // 9. Probe X in towards the plate
       `G1 X${-xDir * retractDistance} F${traverseFeed}`,
       `G38.2 X${xDir * retractDistance * 1.5} F${slowFeedrate}`,
-      `G10 L20 P1 X${-xDir * (xWallThickness + radius)}`, // Set X established origin offset
-      `G1 X${-xDir * clearanceXY} F${traverseFeed}`, // Move back slightly from the edge
+      `G10 L20 P1 X${-xDir * (holeRadius + xWallThickness + radius)}`, // Set X zero at hole center reference
+      `G1 X${-xDir * xEdgeClearance} F${traverseFeed}`, // Move back slightly from the edge
       `G1 Z${clearanceZ + safeDropDistance} F${traverseFeed}`, // Raise Z back up to safe clearance altitude
       
       // --- STEP 3: Y EDGE PROBE ---
       // 10. Move directly from outside X edge over to outside Y edge
-      `G1 X${xDir * (moveOver + xWallThickness + radius + clearanceXY)} Y${-yDir * (moveOver + yWallThickness + radius + clearanceXY)} F${traverseFeed}`,
+      `G1 X${xDir * (moveOver + outsideStartX)} Y${-yDir * (moveOver + outsideStartY)} F${traverseFeed}`,
       `G1 Z-${clearanceZ + safeDropDistance} F${fastFeedrate}`, // 11. Lower Z entirely below the top surface of plate (safe max depth constraint applied)
       `G38.2 Y${yDir * maxTravel} F${fastFeedrate}`, // 12. Probe Y in towards the plate
       `G1 Y${-yDir * retractDistance} F${traverseFeed}`,
       `G38.2 Y${yDir * retractDistance * 1.5} F${slowFeedrate}`,
-      `G10 L20 P1 Y${-yDir * (yWallThickness + radius)}`, // Set Y established origin offset
-      `G1 Y${-yDir * clearanceXY} F${traverseFeed}`, // Move back slightly from the edge
+      `G10 L20 P1 Y${-yDir * (holeRadius + yWallThickness + radius)}`, // Set Y zero at hole center reference
+      `G1 Y${-yDir * yEdgeClearance} F${traverseFeed}`, // Move back slightly from the edge
       `G1 Z${clearanceZ + safeDropDistance} F${traverseFeed}`, // Raise Z back up to safe clearance altitude
       
       // --- STEP 4: FINAL RETRACT & RETURN ---
       'G90', // Back to absolute positioning system
-      `G0 Z${safeHeight}`, // Pull spindle all the way up to user's absolute safe travel height (anchored to Z=0)
-      'G0 X0 Y0', // Rapid travel precisely to the newly established stock piece corner!
+      `G0 Z${finalReturnZ}`, // Ensure clearance above plate before returning to corner XY
     ];
 
     return {
