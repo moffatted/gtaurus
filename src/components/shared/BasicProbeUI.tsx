@@ -83,19 +83,20 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
 
     const returnToZero = async () => {
       setIsReturningToZero(true);
-      setProgress('Probe removed. Returning to X0 Y0...');
+      setProgress('Probe removed. Returning to X0 Y0 Z0...');
       try {
         await transport.invoke('send_gcode', { cmd: 'G90' });
         await transport.invoke('send_gcode', { cmd: 'G0 X0 Y0' });
+        await transport.invoke('send_gcode', { cmd: 'G0 Z0' });
         if (!cancelled) {
           setPendingReturnToZero(false);
-          setProgress('Probe Complete! At X0 Y0');
+          setProgress('Probe Complete! At X0 Y0 Z0');
           setTimeout(() => setProgress(null), 4000);
         }
       } catch (err) {
         console.error('[BasicProbeUI] Auto-return to X0 Y0 failed:', err);
         if (!cancelled) {
-          setProgress('Probe complete. Could not auto-return; jog to X0 Y0 manually.');
+          setProgress('Probe complete. Could not auto-return; jog to X0 Y0 Z0 manually.');
         }
       } finally {
         if (!cancelled) {
@@ -173,9 +174,9 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       if (method === '3-axis' && prb.postProbeReturnMode === 'auto-return-xy0') {
         setPendingReturnToZero(true);
         if (probeCircuitClosed) {
-          setProgress('Probe complete. Remove touch plate/probe to auto-return X0 Y0.');
+          setProgress('Probe complete. Remove touch plate/probe to auto-return X0 Y0 Z0.');
         } else {
-          setProgress('Probe complete. Returning to X0 Y0...');
+          setProgress('Probe complete. Returning to X0 Y0 Z0...');
         }
       } else {
         setProgress('Probe Complete!');
