@@ -233,30 +233,64 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
     );
   };
 
+  const OptionLabel = ({ label, tip }: { label: string; tip: string }) => (
+    <div className="flex items-center gap-1">
+      <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">{label}</label>
+      <Tooltip content={tip} delay={0} position="top">
+        <button
+          type="button"
+          className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+          aria-label={`${label} help`}
+        >
+          <HelpCircle className="w-3 h-3" />
+        </button>
+      </Tooltip>
+    </div>
+  );
+
+  const ProbeLabel = ({ label, tip }: { label: string; tip: string }) => (
+    <div className="flex items-center gap-1">
+      <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">{label}</label>
+      <Tooltip content={tip} delay={0} position="top">
+        <button
+          type="button"
+          className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+          aria-label={`${label} help`}
+        >
+          <HelpCircle className="w-3 h-3" />
+        </button>
+      </Tooltip>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {/* Method Toggle - Compacted */}
       <div className="flex p-1 bg-[var(--bg-tertiary)] rounded-lg">
-        <button
-          onClick={() => { setMethod('z-only'); setProbeSettings({ lastProbeMethod: 'z-only' }); }}
-          className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
-            method === 'z-only' 
-              ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
-              : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-          }`}
-        >
-          Touch Plate
-        </button>
-        <button
-          onClick={() => { setMethod('3-axis'); setProbeSettings({ lastProbeMethod: '3-axis' }); }}
-          className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
-            method === '3-axis' 
-              ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
-              : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-          }`}
-        >
-          3-Axis Corner
-        </button>
+        <Tooltip content="Simple Z touch-off workflow. Use this for plate-only Z zeroing." delay={0} position="top" className="flex-1">
+          <button
+            onClick={() => { setMethod('z-only'); setProbeSettings({ lastProbeMethod: 'z-only' }); }}
+            className={`w-full py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+              method === 'z-only' 
+                ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            Touch Plate
+          </button>
+        </Tooltip>
+        <Tooltip content="Full corner probing routine for Z, X, and Y workpiece zero." delay={0} position="top" className="flex-1">
+          <button
+            onClick={() => { setMethod('3-axis'); setProbeSettings({ lastProbeMethod: '3-axis' }); }}
+            className={`w-full py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+              method === '3-axis' 
+                ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            3-Axis Corner
+          </button>
+        </Tooltip>
       </div>
 
       <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/30 p-2 rounded-xl border border-[var(--border-color)]">
@@ -280,7 +314,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         {/* Input Controls - Slimmed */}
         <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1.5">
           <div className="flex flex-col">
-            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Max Travel</label>
+            <OptionLabel label="Max Travel" tip="Maximum probe search distance for each probing move before alarming out." />
             <div className="relative">
               <input 
                 type="number"
@@ -293,7 +327,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </div>
         
           <div className="flex flex-col">
-            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Plate Thick</label>
+            <OptionLabel label="Plate Thick" tip="Touch plate thickness in mm. This is applied as the final Z offset when probe contact is found." />
             <div className="relative">
               <input 
                 type="number"
@@ -306,7 +340,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Fast Feed</label>
+            <OptionLabel label="Fast Feed" tip="Initial probe speed used for coarse approach moves." />
             <input 
               type="number"
               value={prb.fastFeedrate}
@@ -316,7 +350,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </div>
           
           <div className="flex flex-col">
-            <label className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-tight mb-0.5">Slow Feed</label>
+            <OptionLabel label="Slow Feed" tip="Secondary probe speed used for fine, accurate contact." />
             <input 
               type="number"
               value={prb.slowFeedrate}
@@ -328,7 +362,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           {method === '3-axis' && (
             <>
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">X Wall Thick</label>
+                <ProbeLabel label="X Wall Thick" tip="Measured distance from the inside hole edge to the outside X edge of the touch plate." />
                 <div className="relative">
                   <input 
                     type="number"
@@ -341,7 +375,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
               
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Y Wall Thick</label>
+                <ProbeLabel label="Y Wall Thick" tip="Measured distance from the inside hole edge to the outside Y edge of the touch plate." />
                 <div className="relative">
                   <input 
                     type="number"
@@ -354,7 +388,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
               
               <div className="flex flex-col col-span-2">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Hole Diameter</label>
+                <ProbeLabel label="Hole Diameter" tip="Inner hole diameter of the plate. Used to compute center and edge move geometry." />
                 <div className="relative">
                   <input 
                     type="number"
@@ -367,7 +401,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">X Edge Clear</label>
+                <ProbeLabel label="X Edge Clear" tip="Extra X margin beyond the outside plate edge before Z lowers for X probing." />
                 <div className="relative">
                   <input 
                     type="number"
@@ -380,7 +414,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Y Edge Clear</label>
+                <ProbeLabel label="Y Edge Clear" tip="Extra Y margin beyond the outside plate edge before Z lowers for Y probing." />
                 <div className="relative">
                   <input 
                     type="number"
@@ -393,7 +427,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col col-span-2">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Centering Fudge</label>
+                <ProbeLabel label="Centering Fudge" tip="Added safety margin for off-center spindle starts. Increases move-over and outside-start distances." />
                 <div className="relative">
                   <input
                     type="number"
@@ -406,7 +440,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Plate Type</label>
+                <ProbeLabel label="Plate Type" tip="Select ring/hollow or solid plate geometry to control safe post-probe behavior." />
                 <select
                   value={prb.plateGeometry ?? 'solid-block'}
                   onChange={(e) => setProbeSettings({ plateGeometry: e.target.value as 'ring-hole' | 'solid-block' })}
@@ -418,7 +452,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">After Probe</label>
+                <ProbeLabel label="After Probe" tip="Choose whether to hold at safe Z, or wait for plate removal and then auto-return to zero." />
                 <select
                   value={prb.postProbeReturnMode ?? 'hold-z'}
                   onChange={(e) => setProbeSettings({ postProbeReturnMode: e.target.value as 'hold-z' | 'auto-return-xy0' })}
