@@ -77,13 +77,13 @@ export default defineConfig(async ({ mode }) => {
       chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            // Conserving all node_modules into a single vendor chunk
-            // This prevents "Circular chunk" warnings caused by complex transitive dependencies
-            // between 3D libraries (Three.js, React-Three-Fiber) and shared utilities.
-            if (id.includes("node_modules")) {
-              return "vendor";
-            }
+          manualChunks: {
+            // Split vendors strategically for optimal loading
+            "vendor-three": ["three"],
+            "vendor-r3f": ["@react-three/fiber", "@react-three/drei"],
+            "vendor-query": ["@tanstack/react-query"],
+            "vendor-tauri": ["@tauri-apps/api", "@tauri-apps/plugin-dialog", "@tauri-apps/plugin-opener", "@tauri-apps/plugin-store"],
+            "vendor-dockview": ["dockview"],
           },
         },
       },
