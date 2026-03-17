@@ -557,16 +557,21 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       )}
 
       {pendingReturnToZero && !isReturningToZero && (
-        <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/30 space-y-2">
-          <div className="text-[10px] font-bold text-yellow-300">
-            Remove touch plate and probe clip, then confirm return to X0 Y0 Z0.
+        <div className="fixed inset-0 z-[10000] bg-black/55 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl border border-yellow-500/40 bg-[var(--bg-secondary)] shadow-2xl p-4 space-y-3">
+            <div className="text-sm font-black tracking-wide text-yellow-300 uppercase">
+              Confirm Plate Removal
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-snug">
+              Remove the touch plate and probe clip, then confirm. The machine will move to X0 Y0 Z0 after confirmation and open probe circuit detection.
+            </p>
+            <button
+              onClick={handleConfirmRemoved}
+              className="w-full py-2 rounded-lg text-[11px] font-bold bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
+            >
+              I Removed Touch Plate & Clip
+            </button>
           </div>
-          <button
-            onClick={handleConfirmRemoved}
-            className="w-full py-1.5 rounded-lg text-[10px] font-bold bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
-          >
-            I Removed Touch Plate & Clip
-          </button>
         </div>
       )}
 
