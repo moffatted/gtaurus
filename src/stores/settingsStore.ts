@@ -85,6 +85,8 @@ export interface ProbeSettings {
   yWallThickness: number;
   holeDiameter: number;
   xyDropDistance: number;
+  // Last selected probe mode
+  lastProbeMethod: 'z-only' | '3-axis';
   // Safety
   protectedPositioning: boolean;
   overtravelLimit: number;
@@ -341,6 +343,8 @@ export const DEFAULT_SETTINGS: Settings = {
     yWallThickness: 2.63,
     holeDiameter: 14.86,
     xyDropDistance: 3,
+    lastProbeMethod: 'z-only',
+
     protectedPositioning: true,
     overtravelLimit: 5,
     hardStop: true,
@@ -543,6 +547,7 @@ function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
     yWallThickness: toNumber(savedProbe.yWallThickness, DEFAULT_SETTINGS.probe.yWallThickness),
     holeDiameter: toNumber(savedProbe.holeDiameter, DEFAULT_SETTINGS.probe.holeDiameter),
     xyDropDistance: toNumber(savedProbe.xyDropDistance, DEFAULT_SETTINGS.probe.xyDropDistance),
+    lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
   };
 }
 

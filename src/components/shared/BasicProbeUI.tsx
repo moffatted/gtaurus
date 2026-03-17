@@ -24,7 +24,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const prb = settings.probe;
   const safeHeight = settings.general.safeHeight ?? 5;
   
-  const [method, setMethod] = useState<ProbeMethod>('z-only');
+  const [method, setMethod] = useState<ProbeMethod>(prb.lastProbeMethod ?? 'z-only');
   const [corner, setCorner] = useState<ProbeCorner>('front-left');
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -184,7 +184,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
       {/* Method Toggle - Compacted */}
       <div className="flex p-1 bg-[var(--bg-tertiary)] rounded-lg">
         <button
-          onClick={() => setMethod('z-only')}
+          onClick={() => { setMethod('z-only'); setProbeSettings({ lastProbeMethod: 'z-only' }); }}
           className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
             method === 'z-only' 
               ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
@@ -194,7 +194,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           Touch Plate
         </button>
         <button
-          onClick={() => setMethod('3-axis')}
+          onClick={() => { setMethod('3-axis'); setProbeSettings({ lastProbeMethod: '3-axis' }); }}
           className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
             method === '3-axis' 
               ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
