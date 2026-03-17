@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint/main/schema/.markdownlint-cli2.schema.json",
+  "globs": [
+    "**/*.md",
+    "!node_modules/**",
+    "!target/**",
+    "!.abacusai/**"
+  ],
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD036": false,
+    "MD060": false,
+    "MD041": true
+  }
+}

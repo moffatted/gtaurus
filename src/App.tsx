@@ -26,9 +26,12 @@ import { AlarmIndicator } from "./components/AlarmIndicator";
 import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
 import { transport } from "./services/transportService";
-import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench, Camera } from "lucide-react";
+import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench, Camera, Layers } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
+import { SurfacingWizard } from "./components/wizards/SurfacingWizard";
+import { ResumeWizard } from "./components/wizards/ResumeWizard";
 import { useWizardStore } from "./stores/wizardStore";
+import { useJobResumeListener } from "./hooks/useJobResumeListener";
 import { Tooltip } from "./components/ui/Tooltip";
 import { useMachineStatusStore } from "./stores/machineStatusStore";
 import { AIAssistantModal } from "./components/AIAssistantModal";
@@ -54,9 +57,9 @@ function App() {
   }, []);
 
   const { machine } = useMachineStatusStore();
-  
-  // Use the openCarveWizard from the store.
+
   const openCarveWizard = useWizardStore((state) => state.openCarveWizard);
+  const openSurfacingWizard = useWizardStore((state) => state.openSurfacingWizard);
 
   // UI Visibility Toggles
   const cameraEnabled = useSettingsStore((state) => state.settings.camera.enabled);
@@ -136,6 +139,7 @@ function App() {
   }, []);
 
   useStatsTracker();
+  useJobResumeListener();
 
   const appWindow = isTauriApp() ? getCurrentWindow() : null;
 
@@ -193,10 +197,10 @@ function App() {
                   <div className="relative flex items-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] overflow-hidden group-active:scale-95 transition-transform">
                      <div className="w-12 h-10 shrink-0 border-r border-[var(--border-color)] bg-blue-900 overflow-hidden relative">
                        <div className="absolute inset-0 bg-blue-500/30 mix-blend-overlay z-10" />
-                       <img 
-                         src="/carve_hero.png" 
-                         alt="" 
-                         className="absolute inset-0 w-full h-full object-cover object-center scale-[1.7] group-hover:scale-[1.5] opacity-80 transition-transform duration-700 blur-[0.5px]" 
+                       <img
+                         src="/carve_hero.png"
+                         alt=""
+                         className="absolute inset-0 w-full h-full object-cover object-center scale-[1.7] group-hover:scale-[1.5] opacity-80 transition-transform duration-700 blur-[0.5px]"
                        />
                      </div>
                      <button
@@ -209,10 +213,26 @@ function App() {
                   </div>
                 </div>
               </Tooltip>
+
+              <Tooltip content="Surface Workpiece (Fly-cut / Spoilboard)" position="bottom">
+                <div className="relative group flex items-center cursor-pointer shadow-lg shadow-amber-500/10 rounded-xl" onClick={openSurfacingWizard}>
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200" />
+                  <div className="relative flex items-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] overflow-hidden group-active:scale-95 transition-transform">
+                    <div className="w-12 h-10 shrink-0 border-r border-[var(--border-color)] bg-amber-900 overflow-hidden relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-amber-500/20 mix-blend-overlay z-10" />
+                      <Layers className="w-6 h-6 text-amber-300 relative z-20" />
+                    </div>
+                    <button
+                      className="flex items-center gap-2 px-4 h-10 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold transition-colors btn-3d"
+                      tabIndex={-1}
+                    >
+                      <Layers className="w-4 h-4" />
+                      Surface
+                    </button>
+                  </div>
+                </div>
+              </Tooltip>
             </div>
-
-            <CarveWizard />
-
 
             <div className="flex items-center gap-3">
               <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
@@ -319,6 +339,9 @@ function App() {
 
         {/* Global Modals */}
         <HelpModal />
+        <CarveWizard />
+        <SurfacingWizard />
+        <ResumeWizard />
         <AIAssistantModal />
         <FluidNCManagerModal />
         <MachineStatsModal />

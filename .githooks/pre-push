@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+set -eu
+
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+
+if [ "${ALLOW_MAIN_BRANCH:-}" = "1" ]; then
+  exit 0
+fi
+
+case "$branch" in
+  main|master)
+    echo ""
+    echo "[branch-guard] Push blocked from '$branch'."
+    echo "Push from a dedicated branch and open a PR instead."
+    echo ""
+    echo "If this is intentional, bypass once with:"
+    echo "  ALLOW_MAIN_BRANCH=1 git push"
+    echo "or use:"
+    echo "  git push --no-verify"
+    echo ""
+    exit 1
+    ;;
+esac
+
+exit 0

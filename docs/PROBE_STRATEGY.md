@@ -45,31 +45,29 @@ Configures what the machine does with the result:
 - **Tolerance Checks**: Define limits for a "failed" part measurement.
 - **Tool Breakage Tolerance**: Max allowable difference in length for tool-setter probes.
 
-
 ## 6. Probe Types
 
-**Touch-Trigger Probes**
+### Touch-Trigger Probes
 
 - **Mechanical**: Simple switch-based probes that physically contact the surface.
 - **Magnetic**: Probes that use magnets to trigger the switch.
 - **Optical**: Probes that use light to detect contact.
 - **Strain-Gauge**: Probes that measure the force of contact.
 
-**Non-Contact Probes**
+### Non-Contact Probes
 
 - **Laser**: Probes that use a laser to measure the distance to the surface.
 - **Inductive**: Probes that use an electromagnetic field to detect the presence of a conductive surface.
 - **Capacitive**: Probes that use an electric field to detect the presence of a surface.
 - **Ultrasonic**: Probes that use sound waves to measure the distance to the surface.
 
-**Wireless Probes**
+### Wireless Probes
 
 - **Radio Frequency**: Probes that use radio waves to communicate with the controller.
 - **Infrared**: Probes that use infrared light to communicate with the controller.
 - **Inductive**: Probes that use electromagnetic induction to communicate with the controller.
 - **Optical**: Probes that use light to communicate with the controller.
 
-```markdown
 ## 7. Categorization and Terminology
 
 In CNC machining, probes and plates are essential for finding "zeros" (offsets) and measuring workpieces or tools. They are generally categorized by what they measure (Workpiece vs. Tool) and how they detect contact (Contact vs. Non-contact).
@@ -79,12 +77,12 @@ In CNC machining, probes and plates are essential for finding "zeros" (offsets) 
 These are held in the machine spindle and used to find the location of the part or measure its dimensions.
 
 - **Touch-Trigger Probes**: The most common type. They send a single signal (trigger) the moment they touch a surface.
-    - **Official Names**: Kinematic Probe, 3D Touch Probe, Job Contact Probe.
-    - **Variations**:
-        - **Kinematic Probes**: Use a mechanical switch (often "six-point" contact) to break a circuit.
-        - **Strain Gauge Probes**: Use sensors to detect the force of contact; these are much more accurate and used for high-precision inspection.
+  - **Official Names**: Kinematic Probe, 3D Touch Probe, Job Contact Probe.
+  - **Variations**:
+    - **Kinematic Probes**: Use a mechanical switch (often "six-point" contact) to break a circuit.
+    - **Strain Gauge Probes**: Use sensors to detect the force of contact; these are much more accurate and used for high-precision inspection.
 - **Scanning Probes**: Unlike touch-trigger probes, these stay in contact with the part and "trace" the surface to gather thousands of data points.
-    - **Official Names**: Analog Scanning Probe, Continuous Scanning Probe.
+  - **Official Names**: Analog Scanning Probe, Continuous Scanning Probe.
 - **3D Sensors (Mechanical/Analog)**: These are often manual tools (like the famous Haimer 3D-Sensor) with a physical dial. They allow the operator to manually "zero" the machine by watching a needle align.
 
 ### 7.2 Tool Setters (Table-Mounted)
@@ -92,24 +90,25 @@ These are held in the machine spindle and used to find the location of the part 
 These stay on the machine table and are used to measure the length and diameter of the cutting tools.
 
 - **Contact Tool Setters**: The tool physically touches a pad on the setter.
-    - **Official Names**: Tool Height Setter, Auto Tool Zero, Tool Presetter (on-machine).
+  - **Official Names**: Tool Height Setter, Auto Tool Zero, Tool Presetter (on-machine).
 - **Non-Contact (Laser) Tool Setters**: A laser beam passes over the table. The machine detects when the cutting tool "breaks" the beam.
-    - **Official Names**: Laser Tool Setter, NC (Non-Contact) Tool Probe. These are ideal for measuring very small or fragile tools that might break a physical probe.
+  - **Official Names**: Laser Tool Setter, NC (Non-Contact) Tool Probe. These are ideal for measuring very small or fragile tools that might break a physical probe.
 
 ### 7.3 Touch Plates (Zeroing Plates)
 
 Often used in hobbyist or router-based CNCs, these are simple metal plates used to set the Z-axis (height) or corner (X and Y) offsets.
 
 - **Z-Zero Plate**: A simple flat plate. You place it on the workpiece, and the machine lowers the tool until it makes an electrical connection with the plate.
-    - **Official Names**: Auto Z-Touch Plate, Tool Setting Block.
+  - **Official Names**: Auto Z-Touch Plate, Tool Setting Block.
 - **3-Axis / Corner Finders**: An L-shaped or "puck" style plate with a lip. It allows the machine to find the Z-height AND the corner of the material (X and Y) in one routine.
-    - **Official Names**: 3-Axis Zero Plate, Corner Finding Touch Plate.
+  - **Official Names**: 3-Axis Zero Plate, Corner Finding Touch Plate.
 
 ### 7.4 Summary: Official Names vs. Common Terms
 
 | Category | Common Term | Official/Technical Names |
 | :--- | :--- | :--- |
 | **Workpiece** | Edge Finder / Probe | Touch-Trigger Probe, Kinematic Probe, 3D Sensor |
-| **Tooling**
-
-In CNC machining, probes and plates are essential for finding "zeros" (offsets) and measuring workpieces or tools. They are generally categorized by what they measure (Workpiece vs. Tool) and how they detect contact (Contact vs. Non-contact).1. Workpiece Probes (Spindle-Mounted)These are held in the machine spindle and used to find the location of the part or measure its dimensions.Touch-Trigger Probes: The most common type. They send a single signal (trigger) the moment they touch a surface.Official Names: Kinematic Probe, 3D Touch Probe, Job Contact Probe.Variations:Kinematic Probes: Use a mechanical switch (often "six-point" contact) to break a circuit.Strain Gauge Probes: Use sensors to detect the force of contact; these are much more accurate and used for high-precision inspection.Scanning Probes: Unlike touch-trigger probes, these stay in contact with the part and "trace" the surface to gather thousands of data points.Official Names: Analog Scanning Probe, Continuous Scanning Probe.3D Sensors (Mechanical/Analog): These are often manual tools (like the famous Haimer 3D-Sensor) with a physical dial. They allow the operator to manually "zero" the machine by watching a needle align.2. Tool Setters (Table-Mounted)These stay on the machine table and are used to measure the length and diameter of the cutting tools.Contact Tool Setters: The tool physically touches a pad on the setter.Official Names: Tool Height Setter, Auto Tool Zero, Tool Presetter (on-machine).Non-Contact (Laser) Tool Setters: A laser beam passes over the table. The machine detects when the cutting tool "breaks" the beam.Official Names: Laser Tool Setter, NC (Non-Contact) Tool Probe. These are ideal for measuring very small or fragile tools that might break a physical probe.3. Touch Plates (Zeroing Plates)Often used in hobbyist or router-based CNCs, these are simple metal plates used to set the Z-axis (height) or corner (X and Y) offsets.Z-Zero Plate: A simple flat plate. You place it on the workpiece, and the machine lowers the tool until it makes an electrical connection with the plate.Official Names: Auto Z-Touch Plate, Tool Setting Block.3-Axis / Corner Finders: An L-shaped or "puck" style plate with a lip. It allows the machine to find the Z-height AND the corner of the material (X and Y) in one routine.Official Names: 3-Axis Zero Plate, Corner Finding Touch Plate.Summary Table: Official Names vs. Common TermsCategoryCommon TermOfficial/Technical NamesWorkpieceEdge Finder / ProbeTouch-Trigger Probe, Kinematic Probe, 3D SensorToolingTool Zero / Height SetterTool Setter, Tool Presetter, Laser Tool ProbePlatesZ-Plate / PuckZeroing Plate, 3-Axis Zero Plate, Auto Z-PlateTechnology"Clicky" ProbeKinematic (Mechanical) TriggerTechnology"Eye" ProbeOptical / Vision Probe
+| **Tooling** | Tool Zero / Height Setter | Tool Setter, Tool Presetter, Laser Tool Probe |
+| **Plates** | Z-Plate / Puck | Zeroing Plate, 3-Axis Zero Plate, Auto Z-Plate |
+| **Technology** | "Clicky" Probe | Kinematic (Mechanical) Trigger |
+| **Technology** | "Eye" Probe | Optical / Vision Probe |

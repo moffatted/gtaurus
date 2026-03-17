@@ -30,3 +30,17 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(() => {}), // Returns a mock unlisten function
   emit: vi.fn().mockResolvedValue(null)
 }));
+
+// Mock localStorage so stores that persist to it don't throw in the test environment
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value; },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { store = {}; },
+    get length() { return Object.keys(store).length; },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+  };
+})();
+vi.stubGlobal('localStorage', localStorageMock);

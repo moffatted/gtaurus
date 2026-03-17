@@ -1,6 +1,7 @@
 /*
  * @file gcode_state.rs
  * @purpose Tracks the state of G-code coordinates and positioning during autoleveling operations.
+ * @author Ed Moffatt
  */
 use gcode::GCode;
 

@@ -293,7 +293,7 @@ After operation metadata is available:
 
 $$H_{remaining} = H_{current} - H_{final}$$
 
-4. Highlight cells where $H_{remaining}$ exceeds tolerance.
+1. Highlight cells where $H_{remaining}$ exceeds tolerance.
 
 This gives a clear "what this tool cannot reach" visualization.
 

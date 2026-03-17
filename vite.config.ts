@@ -77,17 +77,13 @@ export default defineConfig(async ({ mode }) => {
       chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            if (id.includes("node_modules")) {
-              if (id.includes("three")) {
-                return "vendor-three";
-              }
-              if (id.includes("dockview")) {
-                return "vendor-dockview";
-              }
-              // Group everything else into a main vendor chunk
-              return "vendor";
-            }
+          manualChunks: {
+            // Split vendors strategically for optimal loading
+            "vendor-three": ["three"],
+            "vendor-r3f": ["@react-three/fiber", "@react-three/drei"],
+            "vendor-query": ["@tanstack/react-query"],
+            "vendor-tauri": ["@tauri-apps/api", "@tauri-apps/plugin-dialog", "@tauri-apps/plugin-opener", "@tauri-apps/plugin-store"],
+            "vendor-dockview": ["dockview"],
           },
         },
       },

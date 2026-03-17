@@ -1,6 +1,7 @@
 /*
  * @file driver_tests.rs
  * @purpose Unit tests for the Tauri driver wrapper, ensuring correct event emission and state management.
+ * @author Ed Moffatt
  */
 #[cfg(test)]
 mod tests {

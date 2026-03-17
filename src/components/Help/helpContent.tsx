@@ -351,6 +351,106 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
+    id: 'job-resume',
+    title: 'Job Resume & Recovery',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Job Resume: Recovering from Interruptions</h2>
+        <p className="text-sm">Gtaurus provides a complete job recovery system that automatically detects when a job has been interrupted and guides you through a safe, step-by-step resume process.</p>
+
+        <h3 className="text-lg font-semibold mt-6">When Job Resume is Triggered</h3>
+        <p className="text-sm">The Job Resume wizard automatically activates when:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li>A job is paused and then interrupted</li>
+          <li>Power loss occurs (if checkpoint file exists)</li>
+          <li>Machine alarm is triggered mid-carve</li>
+          <li>Manual stop is initiated during an active job</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-6">The Recovery Wizard: Step-by-Step</h3>
+        <p className="text-sm">The wizard guides you through 8 sequential steps to safely restore your machine state and resume carving:</p>
+
+        <div className="space-y-3 mt-4">
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">1️⃣ Checkpoint Summary</div>
+            <p className="text-xs text-[var(--text-secondary)]">Review the interrupted job details: file name, interrupted line, tool number, and position coordinates.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">2️⃣ Machine Status Check</div>
+            <p className="text-xs text-[var(--text-secondary)]">Confirms your machine is in a recoverable state (Idle or Hold). If alarmed, you'll need to clear the alarm first.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">3️⃣ File Validation</div>
+            <p className="text-xs text-[var(--text-secondary)]">Verifies the loaded G-code file matches the original. If the file was modified, you'll need to reload the original checkpoint file.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">4️⃣ Home Decision</div>
+            <p className="text-xs text-[var(--text-secondary)]">Decides whether re-homing is necessary. If the machine was moved while off or alarmed, you must re-home ($H) to establish coordinate accuracy.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">5️⃣ Modal State Restoration</div>
+            <p className="text-xs text-[var(--text-secondary)]">Automatically restores critical G-code modal commands: units (G20/G21), distance mode (G90/G91), plane selection (G17/G18/G19), and feed rate mode. Click <strong>Restore Modal State</strong> to execute these commands.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">6️⃣ Safe Z Approach</div>
+            <p className="text-xs text-[var(--text-secondary)]">Performs a 3-stage repositioning to safely return the tool to the resume point:<br/>
+            • Stage 1: Rapid move to safe Z clearance (checkpoint Z + 10mm)<br/>
+            • Stage 2: Rapid XY traverse to checkpoint position<br/>
+            • Stage 3: Feed move plunge to resume Z height</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">7️⃣ Toolpath Analysis</div>
+            <p className="text-xs text-[var(--text-secondary)]">Analyzes the next 50 lines of G-code to detect potential collisions. The 3D view highlights the resume segment in amber so you can visually verify the continuation path is safe.</p>
+          </div>
+
+          <div className="p-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">
+            <div className="font-semibold text-sm mb-1">8️⃣ Visual Confirmation</div>
+            <p className="text-xs text-[var(--text-secondary)]">Final user approval. Verify the 3D highlight and tool position are correct, then check the confirmation box to begin resume.</p>
+          </div>
+        </div>
+
+        <h3 className="text-lg font-semibold mt-6">Key Safety Features</h3>
+        <ul className="list-disc pl-5 space-y-2 text-sm">
+          <li><strong>Collision Detection:</strong> Automatically alerts you if the toolpath after the resume point may collide with remaining stock.</li>
+          <li><strong>Safe Z Clearance:</strong> The machine always moves to a safe height before repositioning XY to avoid crashes.</li>
+          <li><strong>Visual Feedback:</strong> The 3D toolpath is highlighted at the resume segment, showing exactly where the carve will continue.</li>
+          <li><strong>Modal Restoration:</strong> All G-code modes (units, distance, plane) are explicitly restored to match the original job state.</li>
+          <li><strong>File Integrity:</strong> The wizard verifies the G-code file hasn't been modified to ensure accurate resume.</li>
+        </ul>
+
+        <h3 className="text-lg font-semibold mt-6">Tips for Successful Recovery</h3>
+        <div className="space-y-2 text-sm">
+          <p><strong>✓ Do:</strong></p>
+          <ul className="list-disc pl-5 text-[var(--text-secondary)]">
+            <li>Allow the wizard to complete all steps without skipping.</li>
+            <li>Carefully review the 3D highlight before confirming resume.</li>
+            <li>Re-home if the machine was moved while off or alarmed.</li>
+            <li>Ensure the correct tool is still loaded in the spindle.</li>
+          </ul>
+
+          <p className="mt-3"><strong>✗ Don't:</strong></p>
+          <ul className="list-disc pl-5 text-[var(--text-secondary)]">
+            <li>Manually edit the G-code file between checkpoint and resume.</li>
+            <li>Skip step verification dialogs—each one ensures your safety.</li>
+            <li>Resume if the collision detection reports "High Collision Risk".</li>
+            <li>Use a different tool than what was loaded when the job was interrupted.</li>
+          </ul>
+        </div>
+
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-200 italic mt-4">
+          <strong>⚠️ Important:</strong> Job Resume is a powerful recovery tool, but always exercise caution. If you're unsure about any aspect of the recovery, it's safer to restart from the beginning than risk a collision or damaged workpiece.
+        </div>
+      </div>
+    ),
+  },
+  {
     id: 'about',
     title: 'About',
     category: 'general',

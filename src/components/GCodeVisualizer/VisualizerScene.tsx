@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, Suspense } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { Canvas, useLoader, useFrame } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube, PerspectiveCamera, Environment, Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useVisualizerStore, type GCodeAnalysis } from '../../stores/visualizerStore';
@@ -10,6 +10,9 @@ interface ToolBitProps {
   toolType?: string;
   toolDiameter?: number;
   toolAngleDeg?: number | null;
+  isSpindleEnergized?: boolean;
+  isCutting?: boolean;
+  spindleSpeedHint?: number;
 }
 
 type ZeroPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
@@ -34,7 +37,27 @@ function getStockCenter(stockWidth: number, stockDepth: number) {
   return { x: stockWidth / 2, z: -stockDepth / 2 };
 }
 
-function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAngleDeg }: ToolBitProps) {
+function ToolBit({
+  position,
+  toolType = 'flatendmill',
+  toolDiameter = 6,
+  toolAngleDeg,
+  isSpindleEnergized = false,
+  isCutting = false,
+  spindleSpeedHint = 0,
+}: ToolBitProps) {
+  const rotatingAssemblyRef = useRef<THREE.Group>(null);
+  const blurDiskRef = useRef<THREE.Mesh>(null);
+  const chipsRef = useRef<THREE.Group>(null);
+
+  const chips = useMemo(() => {
+    return Array.from({ length: 14 }).map((_, i) => ({
+      angle: (i / 14) * Math.PI * 2,
+      radius: 6 + Math.random() * 7,
+      speed: 0.8 + Math.random() * 2.5,
+      phase: Math.random() * Math.PI * 2,
+    }));
+  }, []);
   // Color mapping by tool type for the flute (cutting part)
   const getToolColor = () => {
     switch (toolType) {
@@ -44,7 +67,7 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAng
       case 'ballnose': return '#10B981';   // Green
       case 'flatendmill': 
       case 'endmill': return '#3B82F6';    // Blue
-      case 'surfacing': return '#F59E0B';  // Orange/Amber (Surfacing)
+      case 'surfacing': return '#1d4ed8';  // Deep blue (contrasts against light pine)
       case 'other':
       default: return '#94a3b8';           // Gray
     }
@@ -63,6 +86,43 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAng
   if (toolType === 'surfacing') {
     shankRadius = Math.min(shankRadius, 6.35); // Cap shank at 1/2" for surfacing bits
   }
+
+  useFrame(({ clock }, delta) => {
+    if (rotatingAssemblyRef.current) {
+      if (isSpindleEnergized) {
+        const speedFactor = THREE.MathUtils.clamp((spindleSpeedHint || 0) / 1800, 0.7, 2.5);
+        const radPerSec = Math.PI * 2 * (12 * speedFactor);
+        rotatingAssemblyRef.current.rotation.y += radPerSec * delta;
+      }
+    }
+
+    if (blurDiskRef.current) {
+      blurDiskRef.current.visible = isSpindleEnergized;
+      const blurMat = blurDiskRef.current.material as THREE.MeshStandardMaterial;
+      const blurOpacity = isSpindleEnergized ? THREE.MathUtils.clamp(0.15 + (spindleSpeedHint / 8000), 0.15, 0.5) : 0;
+      blurMat.opacity = blurOpacity;
+      const blurScale = isSpindleEnergized ? THREE.MathUtils.clamp(1.05 + (spindleSpeedHint / 9000), 1.05, 1.45) : 1;
+      blurDiskRef.current.scale.set(blurScale, 1, blurScale);
+    }
+
+    if (chipsRef.current) {
+      chipsRef.current.visible = isCutting;
+      if (isCutting) {
+        const t = clock.getElapsedTime();
+        chipsRef.current.children.forEach((child, idx) => {
+          const chip = chips[idx];
+          const flutter = (Math.sin(t * 28 * chip.speed + chip.phase) + 1) / 2;
+          child.position.x = Math.cos(chip.angle + t * 2.5) * chip.radius;
+          child.position.z = Math.sin(chip.angle + t * 2.5) * chip.radius;
+          child.position.y = -bitLength + 1.8 + Math.sin(t * 16 * chip.speed + chip.phase) * 2.4;
+          child.scale.setScalar(0.55 + flutter * 0.9);
+          const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+          mat.opacity = 0.35 + flutter * 0.55;
+          mat.emissiveIntensity = 1.2 + flutter * 3.8;
+        });
+      }
+    }
+  });
 
   const renderBitGeometry = () => {
     const fluteColor = getToolColor();
@@ -192,9 +252,49 @@ function ToolBit({ position, toolType = 'flatendmill', toolDiameter = 6, toolAng
         <cylinderGeometry args={[8, 10, 8, 32]} />
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
-      
-      {/* Tool Bit - Rendered based on type */}
-      {renderBitGeometry()}
+
+      {/* Rotating collet/tool assembly */}
+      <group ref={rotatingAssemblyRef}>
+        <mesh position={[0, 0, 0]} castShadow>
+          <cylinderGeometry args={[6.5, 7.5, 6, 8]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.25} metalness={0.9} />
+        </mesh>
+
+        <group position={[0, 0.2, 0]}>
+          <mesh>
+            <boxGeometry args={[14, 1.2, 0.7]} />
+            <meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={0.7} />
+          </mesh>
+          <mesh rotation={[0, Math.PI / 2, 0]}>
+            <boxGeometry args={[14, 1.2, 0.7]} />
+            <meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={0.7} />
+          </mesh>
+        </group>
+
+        {/* Tool Bit - Rendered based on type */}
+        {renderBitGeometry()}
+
+        <mesh ref={blurDiskRef} position={[0, 0, 0]} visible={false}>
+          <cylinderGeometry args={[10.5, 10.5, 1.8, 32]} />
+          <meshStandardMaterial color="#ffffff" transparent opacity={0.2} />
+        </mesh>
+      </group>
+
+      {/* Chip plume around cutter tip while cutting */}
+      <group ref={chipsRef} visible={false}>
+        {chips.map((_, i) => (
+          <mesh key={i} position={[0, -bitLength, 0]}>
+            <sphereGeometry args={[0.9, 8, 8]} />
+            <meshStandardMaterial
+              color="#f59e0b"
+              emissive="#f59e0b"
+              emissiveIntensity={2}
+              transparent
+              opacity={0.75}
+            />
+          </mesh>
+        ))}
+      </group>
 
       {/* Point Light at tip to highlight the current carve area */}
       <pointLight position={[0, -bitLength, 5]} intensity={50} distance={50} color="#ffffff" decay={2} />
@@ -504,7 +604,28 @@ function CarvedStock({
       else break;
     }
     const overlayY = physicalStockHeight + 0.03;
-    const opColor = (opId: number) => new THREE.Color().setHSL((opId * 0.217) % 1, 0.85, 0.52);
+
+    const opTypeMap = new Map<number, string>();
+    analysis.operations.forEach(op => opTypeMap.set(op.id, op.tool_type));
+
+    const toolTypeColor = (toolType: string) => {
+      switch (toolType) {
+        case 'vbit':
+        case 'v-bit':      return new THREE.Color('#A855F7');
+        case 'chamfer':    return new THREE.Color('#F59E0B');
+        case 'ballnose':   return new THREE.Color('#10B981');
+        case 'flatendmill':
+        case 'endmill':    return new THREE.Color('#3B82F6');
+        case 'surfacing':  return new THREE.Color('#1d4ed8');
+        default:           return new THREE.Color('#94a3b8');
+      }
+    };
+
+    const opColor = (opId: number) => {
+      const toolType = opTypeMap.get(opId);
+      if (toolType) return toolTypeColor(toolType);
+      return new THREE.Color().setHSL((opId * 0.217) % 1, 0.85, 0.52);
+    };
 
     for (let i = 1; i < pointLimit; i++) {
       const p1 = analysis.points[i - 1];
@@ -521,7 +642,7 @@ function CarvedStock({
       colors: new Float32Array(colors),
       hasData: positions.length > 0,
     };
-  }, [analysis.points, currentLineIdx, wcx, wcz, physicalStockHeight]);
+  }, [analysis.points, analysis.operations, currentLineIdx, wcx, wcz, physicalStockHeight]);
 
   const activeOperation = useMemo(() => {
     if (!analysis.operations.length || !analysis.points.length) return null;
@@ -534,6 +655,18 @@ function CarvedStock({
     const activePoint = analysis.points[lastPointIdx];
     return analysis.operations.find(op => op.id === activePoint.operation_id) ?? analysis.operations[0];
   }, [analysis.operations, analysis.points, currentLineIdx]);
+
+  const activePoint = useMemo(() => {
+    if (!analysis.points.length) return null;
+    const lineNum = currentLineIdx + 1;
+    for (let i = analysis.points.length - 1; i >= 0; i--) {
+      if (analysis.points[i].line_number <= lineNum) return analysis.points[i];
+    }
+    return analysis.points[0] ?? null;
+  }, [analysis.points, currentLineIdx]);
+
+  const isSpindleEnergized = !!activePoint && !isToolChangePaused;
+  const isCutting = !!activePoint && !activePoint.is_rapid && activePoint.z < 0 && !isToolChangePaused;
 
   const { x: midX, z: midZ } = useMemo(
     () => getStockCenter(stockWidth, stockDepth),
@@ -576,6 +709,9 @@ function CarvedStock({
         toolType={activeOperation?.tool_type}
         toolDiameter={activeOperation?.tool_diameter}
         toolAngleDeg={activeOperation?.tool_angle_deg}
+        isSpindleEnergized={isSpindleEnergized}
+        isCutting={isCutting}
+        spindleSpeedHint={activePoint?.feedrate ?? 0}
       />
 
       {/* Job Footprint */}
