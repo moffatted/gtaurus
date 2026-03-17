@@ -92,6 +92,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         if (!cancelled) {
           setPendingReturnToZero(false);
           setProgress('Probe Complete! At X0 Y0 Z0');
+          onComplete?.();
           setTimeout(() => setProgress(null), 4000);
         }
       } catch (err) {
@@ -178,9 +179,9 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         setProgress('Probe complete. Remove touch plate/clip, then confirm to return X0 Y0 Z0.');
       } else {
         setProgress('Probe Complete!');
+        onComplete?.();
         setTimeout(() => setProgress(null), 3000);
       }
-      onComplete?.();
     } catch (err) {
       console.error("[BasicProbeUI] Probe failed:", err);
       setProgress('Error: See Logs');
