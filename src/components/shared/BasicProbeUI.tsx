@@ -8,6 +8,7 @@ import { useMachineStatusStore } from '../../stores/machineStatusStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { transport } from '../../services/transportService';
 import { ProbeService, ProbeCorner } from '../../services/ProbeService';
+import { parseStatusReport } from '../../utils/parser';
 import { Tooltip } from '../ui/Tooltip';
 
 type ProbeMethod = 'z-only' | '3-axis';
@@ -29,12 +30,49 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const [progress, setProgress] = useState<string | null>(null);
   const [awaitingCircuit, setAwaitingCircuit] = useState(false);
   const [continuityStep, setContinuityStep] = useState<ContinuityStep>('await-close');
+  const [liveProbeCircuitClosed, setLiveProbeCircuitClosed] = useState<boolean | null>(null);
 
   const isAlarm = machine.status.startsWith('Alarm');
   const alarmCode = isAlarm ? machine.status : null; // e.g. 'Alarm:9'
   const canProbe = machine.status === 'Idle' && !isAlarm;
-  const probeCircuitClosed = machine.pins?.includes('P') ?? false;
+  const probeCircuitClosed = liveProbeCircuitClosed ?? (machine.pins?.includes('P') ?? false);
   const continuityVerified = continuityStep === 'verified' && probeCircuitClosed;
+
+  useEffect(() => {
+    let mounted = true;
+    let cleanup: (() => void) | null = null;
+
+    transport.listen<string>('fluidnc://rx', (event: any) => {
+      if (!mounted) return;
+      const line = event?.payload;
+      if (typeof line !== 'string') return;
+      if (!line.startsWith('<') || !line.endsWith('>')) return;
+
+      const report = parseStatusReport(line);
+      if (report.pins !== undefined) {
+        setLiveProbeCircuitClosed(report.pins.includes('P'));
+      } else {
+        setLiveProbeCircuitClosed(false);
+      }
+    }).then((unlisten) => {
+      cleanup = unlisten;
+    });
+
+    return () => {
+      mounted = false;
+      if (cleanup) cleanup();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!awaitingCircuit) return;
+
+    // Drive explicit polling while continuity test is active, even if ControlsPanel isn't mounted.
+    const poll = () => transport.invoke('send_realtime', { byte: 0x3F }).catch(() => {});
+    poll();
+    const interval = setInterval(poll, 200);
+    return () => clearInterval(interval);
+  }, [awaitingCircuit]);
 
   useEffect(() => {
     if (!awaitingCircuit) return;
