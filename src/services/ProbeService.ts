@@ -109,7 +109,7 @@ export const ProbeService = {
       `G38.2 X${xDir * maxTravel} F${fastFeedrate}`, // 9. Probe X in towards the plate
       `G1 X${-xDir * retractDistance} F${traverseFeed}`,
       `G38.2 X${xDir * retractDistance * 1.5} F${slowFeedrate}`,
-      `G10 L20 P1 X${-xDir * radius}`, // Set X zero from outer edge contact using stylus radius only
+      `G10 L20 P1 X${-xDir * (holeRadius + xWallThickness + radius)}`, // Set X zero at hole center reference
       `G1 X${-xDir * xEdgeClearance} F${traverseFeed}`, // Move back slightly from the edge
       `G1 Z${clearanceZ + safeDropDistance} F${traverseFeed}`, // Raise Z back up to safe clearance altitude
       
@@ -120,7 +120,7 @@ export const ProbeService = {
       `G38.2 Y${yDir * maxTravel} F${fastFeedrate}`, // 12. Probe Y in towards the plate
       `G1 Y${-yDir * retractDistance} F${traverseFeed}`,
       `G38.2 Y${yDir * retractDistance * 1.5} F${slowFeedrate}`,
-      `G10 L20 P1 Y${-yDir * radius}`, // Set Y zero from outer edge contact using stylus radius only
+      `G10 L20 P1 Y${-yDir * (holeRadius + yWallThickness + radius)}`, // Set Y zero at hole center reference
       `G1 Y${-yDir * yEdgeClearance} F${traverseFeed}`, // Move back slightly from the edge
       `G1 Z${clearanceZ + safeDropDistance} F${traverseFeed}`, // Raise Z back up to safe clearance altitude
       
