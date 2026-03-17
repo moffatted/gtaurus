@@ -59,18 +59,19 @@ export const ProbeService = {
       holeDiameter = 0,
       xyDropDistance = 3,
       xEdgeClearance = 5,
-      yEdgeClearance = 5
+      yEdgeClearance = 5,
+      centeringFudge = 2
     } = settings;
 
     const radius = stylusDiameter / 2;
     const holeRadius = holeDiameter / 2;
     // How far into the plate from the corner to ensure hitting solid material.
     // Clears the relief hole plus 5mm buffer.
-    const moveOver = holeDiameter > 0 ? holeRadius + 5 : 12;
+    const moveOver = holeDiameter > 0 ? holeRadius + 5 + centeringFudge : 12 + centeringFudge;
     const clearanceZ = 5;
     // Distance from hole centerline to start position safely outside each outer edge.
-    const outsideStartX = holeRadius + xWallThickness + radius + xEdgeClearance;
-    const outsideStartY = holeRadius + yWallThickness + radius + yEdgeClearance;
+    const outsideStartX = holeRadius + xWallThickness + radius + xEdgeClearance + centeringFudge;
+    const outsideStartY = holeRadius + yWallThickness + radius + yEdgeClearance + centeringFudge;
     
     // Direction multipliers based on corner finding
     // FL: +X, +Y to find inside the hole

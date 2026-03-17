@@ -337,6 +337,19 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                   <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
                 </div>
               </div>
+
+              <div className="flex flex-col col-span-2">
+                <label className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-tight mb-0.5">Centering Fudge</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={prb.centeringFudge ?? ''}
+                    onChange={(e) => setProbeSettings({ centeringFudge: Number(e.target.value) })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
             </>
           )}
         </div>

@@ -87,6 +87,7 @@ export interface ProbeSettings {
   xyDropDistance: number;
   xEdgeClearance: number;
   yEdgeClearance: number;
+  centeringFudge: number;
   // Last selected probe mode
   lastProbeMethod: 'z-only' | '3-axis';
   // Safety
@@ -347,6 +348,7 @@ export const DEFAULT_SETTINGS: Settings = {
     xyDropDistance: 3,
     xEdgeClearance: 5,
     yEdgeClearance: 5,
+    centeringFudge: 2,
     lastProbeMethod: 'z-only',
 
     protectedPositioning: true,
@@ -553,6 +555,7 @@ function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
     xyDropDistance: toNumber(savedProbe.xyDropDistance, DEFAULT_SETTINGS.probe.xyDropDistance),
     xEdgeClearance: toNumber(savedProbe.xEdgeClearance, DEFAULT_SETTINGS.probe.xEdgeClearance),
     yEdgeClearance: toNumber(savedProbe.yEdgeClearance, DEFAULT_SETTINGS.probe.yEdgeClearance),
+    centeringFudge: toNumber(savedProbe.centeringFudge, DEFAULT_SETTINGS.probe.centeringFudge),
     lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
   };
 }
