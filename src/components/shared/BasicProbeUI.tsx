@@ -452,14 +452,14 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
               </div>
 
               <div className="flex flex-col">
-                <ProbeLabel label="After Probe" tip="Choose whether to hold at safe Z, or wait for plate removal and then auto-return to zero." />
+                <ProbeLabel label="After Probe" tip="Choose whether to stop at clearance Z after probing, or wait for plate removal and then return to the true work zero position at X0 Y0 Z0." />
                 <select
                   value={prb.postProbeReturnMode ?? 'hold-z'}
                   onChange={(e) => setProbeSettings({ postProbeReturnMode: e.target.value as 'hold-z' | 'auto-return-xy0' })}
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
                 >
-                  <option value="hold-z">Hold at Safe Z</option>
-                  <option value="auto-return-xy0">Auto Return to X0 Y0 (when probe open)</option>
+                  <option value="hold-z">Stop at Clearance Z</option>
+                  <option value="auto-return-xy0">Return to Work Zero After Plate Removal</option>
                 </select>
               </div>
             </>
