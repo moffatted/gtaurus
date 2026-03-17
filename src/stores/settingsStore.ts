@@ -85,6 +85,8 @@ export interface ProbeSettings {
   yWallThickness: number;
   holeDiameter: number;
   xyDropDistance: number;
+  xEdgeClearance: number;
+  yEdgeClearance: number;
   // Last selected probe mode
   lastProbeMethod: 'z-only' | '3-axis';
   // Safety
@@ -343,6 +345,8 @@ export const DEFAULT_SETTINGS: Settings = {
     yWallThickness: 2.63,
     holeDiameter: 14.86,
     xyDropDistance: 3,
+    xEdgeClearance: 5,
+    yEdgeClearance: 5,
     lastProbeMethod: 'z-only',
 
     protectedPositioning: true,
@@ -547,6 +551,8 @@ function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
     yWallThickness: toNumber(savedProbe.yWallThickness, DEFAULT_SETTINGS.probe.yWallThickness),
     holeDiameter: toNumber(savedProbe.holeDiameter, DEFAULT_SETTINGS.probe.holeDiameter),
     xyDropDistance: toNumber(savedProbe.xyDropDistance, DEFAULT_SETTINGS.probe.xyDropDistance),
+    xEdgeClearance: toNumber(savedProbe.xEdgeClearance, DEFAULT_SETTINGS.probe.xEdgeClearance),
+    yEdgeClearance: toNumber(savedProbe.yEdgeClearance, DEFAULT_SETTINGS.probe.yEdgeClearance),
     lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
   };
 }
