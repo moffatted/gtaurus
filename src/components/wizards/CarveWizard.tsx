@@ -717,21 +717,15 @@ export function CarveWizard() {
                    Ensure the alligator clip is attached to the collet and the puck is positioned correctly. 
                 </p>
                 <div className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]">
-                  <BasicProbeUI 
-                    onComplete={() => {
-                      setHasProbed(true);
-                      setHasZeroed(true);
-                      setStockSettings({
-                        zeroX: machine.x.mpos,
-                        zeroY: machine.y.mpos,
-                        workOffsetZ: machine.z.mpos
-                      });
-                    }}
-                    stepSize={stepSize}
-                    stepSizes={stepSizes}
-                    onStepSizeChange={setStepSize}
-                    unitLabel={unitLabel}
-                  />
+                  <BasicProbeUI onComplete={() => {
+                    setHasProbed(true);
+                    setHasZeroed(true);
+                    setStockSettings({
+                      zeroX: machine.x.mpos,
+                      zeroY: machine.y.mpos,
+                      workOffsetZ: machine.z.mpos
+                    });
+                  }} />
                 </div>
                 <div className="mt-6 flex flex-col items-center">
                   <div className={`px-8 py-2 rounded-full transition-all text-xs font-bold border flex items-center gap-2 ${
