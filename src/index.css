@@ -137,6 +137,36 @@ body {
   color: var(--text-primary);
 }
 
+/* Prevent accidental full-UI text selection while preserving expected text edit/copy zones. */
+#root,
+#root * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+#root input,
+#root textarea,
+#root select,
+#root [contenteditable="true"],
+#root .select-text,
+#root .select-text *,
+#root pre,
+#root pre *,
+#root code,
+#root code *,
+#root .gcode-log-scroll,
+#root .gcode-log-scroll * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+img,
+svg {
+  -webkit-user-drag: none;
+}
+
 /* Removed problematic global CSS transitions that break HTML5 Drag and Drop targets */
 .dockview-container *,
 .dv-drag-proxy,
