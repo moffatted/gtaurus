@@ -12,6 +12,7 @@
 - **Tool Library** — Manage your bit collection with per-tool type, diameter, and notes.
 - **FluidNC Config Manager** — Edit and push FluidNC YAML configuration directly from the UI.
 - **Probing** — Guided Z-probe and corner-finding workflows.
+- **3-Axis Touch Plate Visualization** — Bed Visualizer can render a configurable aluminum corner touch plate with corner-aware placement, editable dimensions, side-wrap geometry, and hole location based on wall thickness + hole diameter.
 - **Camera Viewer** — Live feed from a Crowsnest-managed camera.
 - **AutoLevel** — Height-map probing and G-code mesh compensation.
 - **Legacy GRBL 1.1 Support** — Compatibility mode for non-FluidNC boards.
@@ -178,22 +179,22 @@ Allows control via any device on your network (tablet, laptop, or desktop comput
 
   This starts both `gtaurus_server` and the Vite web frontend in one command.
 
-2. **Alternative: Start components separately**:
+1. **Alternative: Start components separately**:
 
   ```bash
   npm run server
   npm run dev
   ```
 
-    **Headless Host Deployment (e.g., Raspberry Pi)**:
-    When deploying purely for remote access on a headless host, you only need the compiled Rust backend binary; Node.js is not required.
+  **Headless Host Deployment (e.g., Raspberry Pi)**:
+  When deploying purely for remote access on a headless host, you only need the compiled Rust backend binary; Node.js is not required.
 
-    ```bash
-    cd deps/gtaurus_server
-    cargo build --release
-    # Run the compiled binary directly (you can also configure this as a systemd service)
-    ./target/release/gtaurus_server
-    ```
+  ```bash
+  cd deps/gtaurus_server
+  cargo build --release
+  # Run the compiled binary directly (you can also configure this as a systemd service)
+  ./target/release/gtaurus_server
+  ```
 
 ## Job Resume & Recovery
 
@@ -249,6 +250,39 @@ When an interruption is detected, Gtaurus will open the **Resume Wizard** with t
 - Use a different tool than what was loaded when job interrupted
 
 For detailed information about Job Resume, access the **Help Center** in the app (? button) and select the **"Job Resume & Recovery"** topic.
+
+## 3-Axis Touch Plate Visualization (How To)
+
+Use this feature to visually verify touch-plate orientation and geometry before running a 3-axis corner probe.
+
+![3-Axis Touch Plate Visualization](docs/images/touch-plate-visualizer.png)
+
+### What It Does
+
+- Draws a corner touch plate on top of your configured stock in the **Bed Visualizer**.
+- Honors your selected probe corner from the **Probe Panel** (`front-left`, `front-right`, `back-left`, `back-right`).
+- Renders a square aluminum top plate plus X/Y side-wrap geometry for realistic shape.
+- Computes hole center from probe calibration values:
+  - `hole center X offset = xWallThickness + (holeDiameter / 2)`
+  - `hole center Y offset = yWallThickness + (holeDiameter / 2)`
+
+### Setup Steps
+
+1. Open **Settings -> Probe -> Touch Plate Visualization**.
+2. Enable **Show in Bed Visualizer**.
+3. Set **Touch Plate Length** and **Touch Plate Width** to your physical plate dimensions.
+4. Set **Side Wrap Depth** (how far side wraps project) and **Side Wrap Height** (bottom drop amount).
+5. Set **Plate Thick (Z-Offset)** in the Probe panel to your measured plate thickness (for example, 5mm).
+6. In the **Probe Panel**, select the intended corner dot for the actual touch-plate placement.
+
+### Verification Checklist
+
+Before probing, confirm these in the visualizer:
+
+1. Plate is on the correct stock corner.
+2. Hole is in the expected corner-relative location.
+3. Top and side-wrap geometry match your physical plate.
+4. Hole visibility is clear from your chosen camera angle.
 
 ## 🛠️ Build & Run Commands
 

@@ -252,6 +252,50 @@ export const HELP_TOPICS: HelpTopic[] = [
 
         <h3 className="text-lg font-semibold mt-4">Workpiece Management</h3>
         <p className="text-sm">The Workpiece panel summarizes your current setup, including stock dimensions and work offsets.</p>
+
+        <h3 className="text-lg font-semibold mt-6">3-Axis Touch Plate Visualization (Bed Visualizer)</h3>
+        <p className="text-sm">
+          Use the touch-plate visualizer to confirm corner orientation and hole placement before running the 3-axis corner probe.
+        </p>
+
+        <img
+          src="/help_touch_plate_visualizer.png"
+          alt="3-axis touch plate visualization example"
+          className="w-full rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
+        />
+
+        <h4 className="text-base font-semibold mt-4">How to Enable</h4>
+        <ol className="list-decimal pl-5 space-y-1 text-sm">
+          <li>Open <strong>Settings -&gt; Probe -&gt; Touch Plate Visualization</strong>.</li>
+          <li>Turn on <strong>Show in Bed Visualizer</strong>.</li>
+          <li>Set <strong>Touch Plate Length</strong> and <strong>Touch Plate Width</strong>.</li>
+          <li>Set <strong>Side Wrap Depth</strong> and <strong>Side Wrap Height</strong>.</li>
+          <li>Set <strong>Plate Thick</strong> (Z-Offset) in the Probe panel (for example, 5mm).</li>
+        </ol>
+
+        <h4 className="text-base font-semibold mt-4">How to Position Correctly</h4>
+        <ol className="list-decimal pl-5 space-y-1 text-sm">
+          <li>In the Probe panel, switch to <strong>3-Axis Corner</strong>.</li>
+          <li>Select the intended corner dot (<strong>front-left</strong>, <strong>front-right</strong>, <strong>back-left</strong>, or <strong>back-right</strong>).</li>
+          <li>Verify the visual touch plate moves to that same stock corner.</li>
+        </ol>
+
+        <h4 className="text-base font-semibold mt-4">Hole Location Formula</h4>
+        <p className="text-sm text-[var(--text-secondary)]">
+          Hole center offset is computed from your probe calibration values:
+        </p>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li><strong>X Offset:</strong> <code>xWallThickness + (holeDiameter / 2)</code></li>
+          <li><strong>Y Offset:</strong> <code>yWallThickness + (holeDiameter / 2)</code></li>
+        </ul>
+
+        <h4 className="text-base font-semibold mt-4">Pre-Probe Checklist</h4>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li>Corner selection matches physical plate placement.</li>
+          <li>Plate dimensions match your hardware.</li>
+          <li>Hole appears clearly and is in the expected corner-relative location.</li>
+          <li>Z-offset matches actual plate thickness.</li>
+        </ul>
       </div>
     ),
   },
