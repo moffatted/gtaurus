@@ -61,7 +61,59 @@ export function DockLayout(props: DockLayoutProps) {
   const [api, setApi] = useState<any>(null);
   const prevOrderRef = useRef<string>('');
     const prevLayoutRef = useRef<string | undefined>(settings.dashboardLayout);
+    const controlsWidthGuardDisposeRef = useRef<(() => void) | null>(null);
   const isRebuildingRef = useRef<boolean>(false);
+
+    const clearControlsWidthGuard = useCallback(() => {
+        if (controlsWidthGuardDisposeRef.current) {
+            controlsWidthGuardDisposeRef.current();
+            controlsWidthGuardDisposeRef.current = null;
+        }
+    }, []);
+
+    const enforcePanelConstraints = useCallback((panel: any, minW: number, minH: number) => {
+        const constraints = { minimumWidth: minW, minimumHeight: minH };
+
+        if (typeof panel?.setConstraints === 'function') {
+            panel.setConstraints(constraints);
+        }
+
+        const groupApi = panel?.group?.api;
+        if (groupApi && typeof groupApi.setConstraints === 'function') {
+            groupApi.setConstraints(constraints);
+        }
+
+        // If current panel dimensions are already below configured minimums,
+        // request an immediate resize back to the floor.
+        if (typeof panel?.setSize === 'function') {
+            if (typeof panel.width === 'number' && panel.width < minW) {
+                panel.setSize({ width: minW });
+            }
+            if (typeof panel.height === 'number' && panel.height < minH) {
+                panel.setSize({ height: minH });
+            }
+        }
+    }, []);
+
+    const attachControlsWidthGuard = useCallback((panel: any, minW: number) => {
+        clearControlsWidthGuard();
+
+        if (typeof panel?.onDidDimensionsChange !== 'function' || typeof panel?.setSize !== 'function') {
+            return;
+        }
+
+        const disposable = panel.onDidDimensionsChange(() => {
+            if (typeof panel.width === 'number' && panel.width < minW) {
+                panel.setSize({ width: minW });
+            }
+        });
+
+        controlsWidthGuardDisposeRef.current = () => {
+            if (disposable && typeof disposable.dispose === 'function') {
+                disposable.dispose();
+            }
+        };
+    }, [clearControlsWidthGuard]);
 
   const buildLayout = useCallback((apiInstance: any) => {
       console.log("Initializing Layout...");
@@ -180,11 +232,11 @@ export function DockLayout(props: DockLayoutProps) {
         const nextMinW = minWidth ?? DEFAULT_PANEL_MIN_WIDTH;
         const nextMinH = minHeight ?? DEFAULT_PANEL_MIN_HEIGHT;
 
-        if (enabled && panel && typeof (panel as any).setConstraints === 'function') {
-            (panel as any).setConstraints({
-                minimumWidth: nextMinW,
-                minimumHeight: nextMinH,
-            });
+        if (enabled && panel) {
+            enforcePanelConstraints(panel, nextMinW, nextMinH);
+            if (id === 'controls') {
+                attachControlsWidthGuard(panel, nextMinW);
+            }
         }
 
         if (enabled && !panel) {
@@ -194,7 +246,7 @@ export function DockLayout(props: DockLayoutProps) {
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            api.addPanel({
+            const addedPanel = api.addPanel({
                 id: id,
                 component: id,
                 title: label,
@@ -207,7 +259,15 @@ export function DockLayout(props: DockLayoutProps) {
                     direction: dir
                 }
             });
+
+            enforcePanelConstraints(addedPanel, nextMinW, nextMinH);
+            if (id === 'controls') {
+                attachControlsWidthGuard(addedPanel, nextMinW);
+            }
         } else if (!enabled && panel) {
+            if (id === 'controls') {
+                clearControlsWidthGuard();
+            }
             try {
                 if ('close' in panel && typeof (panel as any).close === 'function') {
                     (panel as any).close();
@@ -221,10 +281,14 @@ export function DockLayout(props: DockLayoutProps) {
     };
 
     settings.dashboardPanels.forEach((panelDef) => {
-         syncPanel(panelDef);
+            syncPanel(panelDef);
     });
 
-  }, [settings.dashboardPanels, api]);
+        return () => {
+            clearControlsWidthGuard();
+        };
+
+    }, [settings.dashboardPanels, api, enforcePanelConstraints, attachControlsWidthGuard, clearControlsWidthGuard]);
 
   return (
     <DockLayoutContext.Provider value={props}>
