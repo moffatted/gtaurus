@@ -3,40 +3,28 @@
  * @purpose UI panel for managing probing operations and calibration.
  */
 import { useState } from 'react';
-import { Crosshair, Settings, HelpCircle, X, Info } from 'lucide-react';
-import { useSettingsStore } from '../stores/settingsStore';
+import { Settings, HelpCircle, X, Info } from 'lucide-react';
 import { BasicProbeUI } from './shared/BasicProbeUI';
 
 export function ProbePanel() {
-  const { settings } = useSettingsStore();
-  const prb = settings.probe;
   const [showHelp, setShowHelp] = useState(false);
 
   return (
     <div className="relative h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
-      <div className="p-3 space-y-3 overflow-y-auto flex-1">
-        
-        {/* Header Info Banner - Compacted */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--border-color)] bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[var(--accent-primary)]/10">
-              <Crosshair className="w-4 h-4 text-[var(--accent-primary)]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Active Profile</span>
-              <span className="text-xs font-bold text-[var(--text-primary)]">{prb.probeType}</span>
-            </div>
-          </div>
+      <div className="p-2 space-y-2 overflow-y-auto flex-1">
+
+        {/* Minimal top action row */}
+        <div className="flex justify-end">
           <div className="flex gap-1">
             <button 
               onClick={() => setShowHelp(true)}
-              className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
+              className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
               title="Probe Help & Calibration Guide"
             >
-              <HelpCircle className="w-3.5 h-3.5" />
+              <HelpCircle className="w-3 h-3" />
             </button>
-            <button className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors hidden">
-              <Settings className="w-3.5 h-3.5" />
+            <button className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors hidden">
+              <Settings className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -44,7 +32,7 @@ export function ProbePanel() {
         <BasicProbeUI />
 
         {/* Footer Meta - Integrated into content flow */}
-        <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between opacity-60">
+        <div className="pt-1.5 border-t border-[var(--border-color)] flex items-center justify-between opacity-60">
           <div className="flex items-center gap-1.5">
             <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
             <span className="text-[9px] text-[var(--text-tertiary)] uppercase font-bold">Hardware Connected</span>

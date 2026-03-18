@@ -25,6 +25,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   const safeHeight = settings.general.safeHeight ?? 5;
   
   const [method, setMethod] = useState<ProbeMethod>(prb.lastProbeMethod ?? 'z-only');
+  const [showAdvanced3Axis, setShowAdvanced3Axis] = useState(false);
   const [corner, setCorner] = useState<ProbeCorner>('front-left');
   const [isProbing, setIsProbing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -268,13 +269,13 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {/* Method Toggle - Compacted */}
-      <div className="flex p-1 bg-[var(--bg-tertiary)] rounded-lg">
+      <div className="flex p-0.5 bg-[var(--bg-tertiary)] rounded-lg">
         <Tooltip content="Simple Z touch-off workflow. Use this for plate-only Z zeroing." delay={0} position="top" className="flex-1">
           <button
             onClick={() => { setMethod('z-only'); setProbeSettings({ lastProbeMethod: 'z-only' }); }}
-            className={`w-full py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+            className={`w-full py-0.5 px-2 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
               method === 'z-only' 
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
@@ -286,7 +287,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         <Tooltip content="Full corner probing routine for Z, X, and Y workpiece zero." delay={0} position="top" className="flex-1">
           <button
             onClick={() => { setMethod('3-axis'); setProbeSettings({ lastProbeMethod: '3-axis' }); }}
-            className={`w-full py-1 px-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+            className={`w-full py-0.5 px-2 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
               method === '3-axis' 
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
@@ -297,13 +298,13 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </Tooltip>
       </div>
 
-      <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/30 p-2 rounded-xl border border-[var(--border-color)]">
+      <div className="flex items-start gap-2 bg-[var(--bg-tertiary)]/30 p-1.5 rounded-lg border border-[var(--border-color)]">
         {/* Visual for 3-Axis or Z-Only */}
         <div className="relative flex justify-center p-1 shrink-0 bg-[var(--bg-secondary)]/50 rounded-lg border border-[var(--border-color)]/20 shadow-inner">
           <img 
             src={method === 'z-only' ? "/probe_z.png" : "/probe_corner.png"} 
             alt="Probe Visual" 
-            className="w-16 h-16 object-contain mix-blend-screen opacity-90 brightness-110 transition-all duration-300"
+            className="w-14 h-14 object-contain mix-blend-screen opacity-90 brightness-110 transition-all duration-300"
           />
           {method === '3-axis' && (
             <div className="absolute inset-1">
@@ -314,6 +315,88 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
             </div>
           )}
         </div>
+
+        {method === '3-axis' && (
+          <div className="w-[210px] shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-1.5 space-y-1.5">
+            <div className="flex items-center gap-1">
+              <Zap className="w-3 h-3 text-[var(--accent-primary)] shrink-0" />
+              <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Required Continuity</span>
+            </div>
+            <div className={`flex items-center gap-1 px-1.5 py-1 rounded-md border text-[9px] font-bold transition-all ${
+              continuityVerified
+                ? 'bg-green-500/15 border-green-500/40 text-green-400'
+                : probeCircuitClosed
+                  ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
+                  : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+            }`}>
+              {continuityVerified
+                ? <Zap className="w-3 h-3 shrink-0 animate-pulse" />
+                : probeCircuitClosed
+                  ? <Zap className="w-3 h-3 shrink-0" />
+                  : <ZapOff className="w-3 h-3 shrink-0" />}
+              <span className="truncate">
+                {continuityVerified
+                  ? 'Verified: Probe enabled'
+                  : awaitingCircuit
+                    ? continuityStep === 'await-open'
+                      ? 'Circuit CLOSED: Lift off'
+                      : 'Circuit OPEN: Touch plate'
+                    : probeCircuitClosed
+                      ? 'Circuit CLOSED: Verify'
+                      : 'Circuit OPEN: Not verified'}
+              </span>
+            </div>
+            <div className="text-[8px] text-[var(--text-secondary)] leading-snug">
+              {awaitingCircuit
+                ? continuityStep === 'await-open'
+                  ? 'Lift bit off plate until circuit opens, then touch again.'
+                  : 'Touch bit to plate now.'
+                : 'Verify continuity before probing.'}
+            </div>
+            <div className="flex gap-1">
+              <button
+                disabled={!canProbe || isProbing}
+                onClick={awaitingCircuit ? resetContinuityCheck : startContinuityCheck}
+                className="flex-1 py-1 rounded-md border border-[var(--border-color)] text-[9px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {awaitingCircuit ? 'Reset' : 'Verify'}
+              </button>
+              <button
+                disabled={!continuityVerified || !canProbe || isProbing}
+                onClick={handleProbe}
+                className="flex-1 py-1 rounded-md text-[9px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
+              >
+                {continuityVerified ? 'Start' : 'Locked'}
+              </button>
+            </div>
+
+            <div className="pt-1 border-t border-[var(--border-color)]/50">
+              <div className="text-[8px] font-bold text-[var(--accent-primary)] uppercase tracking-wide mb-1">Probe Corner</div>
+              <div className="grid grid-cols-4 gap-1">
+                {(['back-left', 'back-right', 'front-left', 'front-right'] as const).map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => {
+                      setCorner(pos);
+                      setProbeSettings({ touchPlateCorner: pos });
+                    }}
+                    className={`py-1 rounded-md text-[9px] font-bold uppercase tracking-wide border transition-all ${
+                      corner === pos
+                        ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)]'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)]'
+                    }`}
+                  >
+                    {pos === 'back-left' && 'BL'}
+                    {pos === 'back-right' && 'BR'}
+                    {pos === 'front-left' && 'FL'}
+                    {pos === 'front-right' && 'FR'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Input Controls - Slimmed */}
         <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1.5">
@@ -404,86 +487,87 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
                 </div>
               </div>
 
-              <div className="flex flex-col">
-                <ProbeLabel label="X Edge Clear" tip="Extra X margin beyond the outside plate edge before Z lowers for X probing." />
-                <div className="relative">
-                  <input 
-                    type="number"
-                    value={prb.xEdgeClearance ?? ''}
-                    onChange={(e) => setProbeSettings({ xEdgeClearance: Number(e.target.value) })}
-                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced3Axis(v => !v)}
+                className="col-span-2 py-1 rounded-md border border-[var(--border-color)] text-[9px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                {showAdvanced3Axis ? 'Hide Advanced 3-Axis Options' : 'Show Advanced 3-Axis Options'}
+              </button>
 
-              <div className="flex flex-col">
-                <ProbeLabel label="Y Edge Clear" tip="Extra Y margin beyond the outside plate edge before Z lowers for Y probing." />
-                <div className="relative">
-                  <input 
-                    type="number"
-                    value={prb.yEdgeClearance ?? ''}
-                    onChange={(e) => setProbeSettings({ yEdgeClearance: Number(e.target.value) })}
-                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
-                </div>
-              </div>
+              {showAdvanced3Axis && (
+                <>
+                  <div className="flex flex-col">
+                    <ProbeLabel label="X Edge Clear" tip="Extra X margin beyond the outside plate edge before Z lowers for X probing." />
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={prb.xEdgeClearance ?? ''}
+                        onChange={(e) => setProbeSettings({ xEdgeClearance: Number(e.target.value) })}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                    </div>
+                  </div>
 
-              <div className="flex flex-col col-span-2">
-                <ProbeLabel label="Centering Fudge" tip="Added safety margin for off-center spindle starts. Increases move-over and outside-start distances." />
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={prb.centeringFudge ?? ''}
-                    onChange={(e) => setProbeSettings({ centeringFudge: Number(e.target.value) })}
-                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
-                </div>
-              </div>
+                  <div className="flex flex-col">
+                    <ProbeLabel label="Y Edge Clear" tip="Extra Y margin beyond the outside plate edge before Z lowers for Y probing." />
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={prb.yEdgeClearance ?? ''}
+                        onChange={(e) => setProbeSettings({ yEdgeClearance: Number(e.target.value) })}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                    </div>
+                  </div>
 
-              <div className="flex flex-col">
-                <ProbeLabel label="Plate Type" tip="Select ring/hollow or solid plate geometry to control safe post-probe behavior." />
-                <select
-                  value={prb.plateGeometry ?? 'solid-block'}
-                  onChange={(e) => setProbeSettings({ plateGeometry: e.target.value as 'ring-hole' | 'solid-block' })}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                >
-                  <option value="solid-block">Solid Block</option>
-                  <option value="ring-hole">Ring / Hollow Center</option>
-                </select>
-              </div>
+                  <div className="flex flex-col col-span-2">
+                    <ProbeLabel label="Centering Fudge" tip="Added safety margin for off-center spindle starts. Increases move-over and outside-start distances." />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={prb.centeringFudge ?? ''}
+                        onChange={(e) => setProbeSettings({ centeringFudge: Number(e.target.value) })}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                    </div>
+                  </div>
 
-              <div className="flex flex-col">
-                <ProbeLabel label="After Probe" tip="Choose whether to stop at clearance Z after probing, or wait for plate removal and then return to the true work zero position at X0 Y0 Z0." />
-                <select
-                  value={prb.postProbeReturnMode ?? 'hold-z'}
-                  onChange={(e) => setProbeSettings({ postProbeReturnMode: e.target.value as 'hold-z' | 'auto-return-xy0' })}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
-                >
-                  <option value="hold-z">Stop at Clearance Z</option>
-                  <option value="auto-return-xy0">Return to Work Zero After Plate Removal</option>
-                </select>
-              </div>
+                  <div className="flex flex-col">
+                    <ProbeLabel label="Plate Type" tip="Select ring/hollow or solid plate geometry to control safe post-probe behavior." />
+                    <select
+                      value={prb.plateGeometry ?? 'solid-block'}
+                      onChange={(e) => setProbeSettings({ plateGeometry: e.target.value as 'ring-hole' | 'solid-block' })}
+                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                    >
+                      <option value="solid-block">Solid Block</option>
+                      <option value="ring-hole">Ring / Hollow Center</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <ProbeLabel label="After Probe" tip="Choose whether to stop at clearance Z after probing, or wait for plate removal and then return to the true work zero position at X0 Y0 Z0." />
+                    <select
+                      value={prb.postProbeReturnMode ?? 'hold-z'}
+                      onChange={(e) => setProbeSettings({ postProbeReturnMode: e.target.value as 'hold-z' | 'auto-return-xy0' })}
+                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                    >
+                      <option value="hold-z">Stop at Clearance Z</option>
+                      <option value="auto-return-xy0">Return to Work Zero After Plate Removal</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
       </div>
 
-      {/* Instructions - Tighter */}
-      <div className="bg-[var(--bg-tertiary)]/20 p-2 rounded-lg border border-[var(--border-color)]/30">
-        <div className="flex gap-2 items-start">
-          <HelpCircle className="w-3.5 h-3.5 text-[var(--accent-primary)] shrink-0 mt-0.5" />
-          <p className="text-[10px] text-[var(--text-tertiary)] leading-tight italic">
-            {method === 'z-only' 
-              ? "Position bit directly above touch plate before starting."
-              : "Position bit inside hole or over marked center point."}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-3 space-y-3">
+      {method !== '3-axis' && (
+      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-2 space-y-2">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
           <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Required Continuity Check</span>
@@ -536,6 +620,7 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </button>
         </div>
       </div>
+      )}
 
       {isAlarm && (
         <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30 space-y-1.5">
@@ -578,14 +663,6 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </div>
         </div>
       )}
-
-      <button
-        disabled
-        className="w-full py-3 rounded-xl font-bold tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 opacity-40 cursor-not-allowed bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]"
-      >
-        <Crosshair className="w-4 h-4" />
-        <span className="text-xs uppercase font-black">Use Required Continuity Check Above</span>
-      </button>
 
       <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity px-1">
         <span className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-tighter">Bit: {prb.stylusDiameter}mm</span>
