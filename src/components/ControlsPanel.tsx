@@ -413,12 +413,72 @@ export function ControlsPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[380px] overflow-y-auto custom-scrollbar">
-        {/* Connection & Status Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-               <div className="flex items-center gap-3">
+
+        <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[380px] overflow-y-auto custom-scrollbar">
+            {/* Combined Status & Movement Units Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+                {/* Movement Units and Status Row */}
+                <div className="flex flex-1 items-center gap-3 min-w-0 flex-wrap">
+                    {/* Movement Units */}
+                    <div className="flex items-center gap-2 min-w-[180px]">
+                        <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Movement Units</label>
+                        <div className="flex bg-[var(--bg-tertiary)] p-0.5 rounded border border-[var(--border-color)]">
+                            {(['mm', 'inches'] as const).map(u => (
+                                <button
+                                    key={u}
+                                    onClick={() => setGeneralSettings({ carvingUnits: u })}
+                                    className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded transition-all cursor-pointer ${
+                                        settings.general.carvingUnits === u 
+                                            ? 'bg-[var(--accent-primary)] text-white' 
+                                            : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                                    }`}
+                                >
+                                    {u === 'inches' ? 'in' : u}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {/* State */}
+                    <Tooltip content="Current Machine State" position="bottom">
+                        <div className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-base tracking-wide shadow-sm flex items-center gap-2 shrink-0 ${getStatusColor(state.status)}`}>
+                            <Activity className="w-4 h-4" />
+                            {state.status}
+                        </div>
+                    </Tooltip>
+                    {/* Home Status */}
+                    <div className="flex flex-col">
+                        <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
+                            <button 
+                                onClick={() => sendGcode('$H')}
+                                className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
+                                    hasHomed 
+                                        ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                                        : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
+                                }`}
+                            >
+                                <Home className="w-4 h-4" />
+                                {hasHomed ? "Homed" : "Home"}
+                            </button>
+                        </Tooltip>
+                    </div>
+                    {/* Feed Rate */}
+                    <Tooltip content="Feed Rate (mm/min)" position="bottom">
+                        <div className="flex items-center gap-1.5 cursor-help text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] shadow-sm">
+                            <Move className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                            <span>F: <span className="text-[var(--text-primary)]">{state.feed}</span></span>
+                        </div>
+                    </Tooltip>
+                    {/* Spindle Speed */}
+                    <Tooltip content="Spindle Speed (RPM)" position="bottom">
+                        <div className="flex items-center gap-1.5 cursor-help text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] shadow-sm">
+                            <Zap className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                            <span>S: <span className="text-[var(--text-primary)]">{state.spindle}</span></span>
+                        </div>
+                    </Tooltip>
+                </div>
+                {/* Alarm Banner (if active) */}
                 {state.status.toLowerCase().includes('alarm') && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 font-black text-[11px] animate-pulse">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 font-black text-[11px] animate-pulse ml-auto">
                         <AlertTriangle className="w-4 h-4" />
                         ALARM ACTIVE
                         <button 
@@ -429,73 +489,18 @@ export function ControlsPanel() {
                         </button>
                     </div>
                 )}
-                <Tooltip content="Current Machine State" position="bottom">
-                    <div className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-base tracking-wide shadow-sm flex items-center gap-2 shrink-0 ${getStatusColor(state.status)}`}>
-                        <Activity className="w-4 h-4" />
-                        {state.status}
-                    </div>
-                </Tooltip>
-                <div className="flex flex-col">
-                    <Tooltip content={hasHomed ? "Machine is Homed" : "Home All Axis ($H)"} position="bottom">
-                        <button 
-                            onClick={() => sendGcode('$H')}
-                            className={`p-2 border rounded-lg transition-all shadow-sm flex items-center gap-2 text-xs font-bold ${
-                                hasHomed 
-                                ? "bg-green-500/10 text-green-400 border-green-500/30" 
-                                : "bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]"
-                            }`}
-                        >
-                            <Home className="w-4 h-4" />
-                            {hasHomed ? "Homed" : "Home"}
-                        </button>
-                    </Tooltip>
-                </div>
-              </div>
- 
-             <div className="flex gap-4 text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)] ml-auto shrink-0 shadow-sm">
-                 <Tooltip content="Feed Rate (mm/min)" position="bottom">
-                     <div className="flex items-center gap-1.5 cursor-help">
-                         <Move className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                         <span>F: <span className="text-[var(--text-primary)]">{state.feed}</span></span>
-                     </div>
-                 </Tooltip>
-                 <div className="w-px bg-[var(--border-color)]" />
-                 <Tooltip content="Spindle Speed (RPM)" position="bottom">
-                     <div className="flex items-center gap-1.5 cursor-help">
-                         <Zap className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                         <span>S: <span className="text-[var(--text-primary)]">{state.spindle}</span></span>
-                     </div>
-                 </Tooltip>
-             </div>
-        </div>
+            </div>
 
         {/* Jog Controls */}
-        <div className="flex flex-col gap-4 select-none bg-[var(--bg-secondary)] shadow-sm p-3 rounded-2xl border border-[var(--border-color)]">
+        <div className="flex flex-col gap-1 select-none bg-[var(--bg-secondary)] shadow-sm pt-1 px-3 pb-3 rounded-2xl border border-[var(--border-color)]">
             <div className="flex flex-wrap gap-4 items-start justify-between">
-                <div className="flex flex-col gap-4 flex-1 min-w-[200px]">
-                    <div className="space-y-3">
-                         <div className="flex justify-between items-center px-0.5">
-                            <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Movement Units</label>
-                            <div className="flex bg-[var(--bg-tertiary)] p-0.5 rounded border border-[var(--border-color)]">
-                                {(['mm', 'inches'] as const).map(u => (
-                                    <button
-                                        key={u}
-                                        onClick={() => setGeneralSettings({ carvingUnits: u })}
-                                        className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded transition-all cursor-pointer ${
-                                            settings.general.carvingUnits === u 
-                                            ? 'bg-[var(--accent-primary)] text-white' 
-                                            : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-                                        }`}
-                                    >
-                                        {u === 'inches' ? 'in' : u}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <div className="space-y-0">
+                        {/* Removed duplicate Movement Units row */}
 
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                              <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Step Size ({unitLabel})</label>
-                             <div className="flex gap-1.5">
+                             <div className="flex gap-1">
                                  {stepSizes.map(size => (
                                      <button
                                          key={size}
