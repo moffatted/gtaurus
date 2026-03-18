@@ -27,32 +27,78 @@ interface DockLayoutProps {
 // Context to provide panel content to wrapper components
 const DockLayoutContext = createContext<DockLayoutProps | null>(null);
 
+function PanelShell({ panelId, children }: { panelId: string; children: ReactNode }) {
+    const panel = useSettingsStore((state) =>
+        state.settings.dashboardPanels.find((p) => p.id === panelId)
+    );
+
+    const minWidthPx = panel?.minWidth ? `${panel.minWidth}px` : undefined;
+    const minHeightPx = panel?.minHeight ? `${panel.minHeight}px` : undefined;
+
+    return (
+        <div
+            className="h-full w-full"
+            style={{
+                overflowX: 'auto',
+                overflowY: 'auto',
+            }}
+        >
+            <div
+                className="h-full"
+                style={{
+                    width: minWidthPx ? `max(100%, ${minWidthPx})` : '100%',
+                    height: minHeightPx ? `max(100%, ${minHeightPx})` : '100%',
+                    minWidth: minWidthPx ?? '100%',
+                    minHeight: minHeightPx ?? '100%',
+                }}
+            >
+                {children}
+            </div>
+        </div>
+    );
+}
+
 // Wrapper Components
 const ConsolePanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.consolePanel}</div>;
+    return <PanelShell panelId="console">{ctx.consolePanel}</PanelShell>;
 }
 const ControlsPanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.controlsPanel}</div>;
+    return <PanelShell panelId="controls">{ctx.controlsPanel}</PanelShell>;
 }
 const FileManagerPanel = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.fileManagerPanel}</div>;
+    return <PanelShell panelId="fileManager">{ctx.fileManagerPanel}</PanelShell>;
 }
 const ProbePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.probePanel}</div>;
+    return <PanelShell panelId="probe">{ctx.probePanel}</PanelShell>;
 }
 const WorkpiecePanelWrapper = () => {
     const ctx = useContext(DockLayoutContext);
     if (!ctx) return <div className="text-red-500 p-4">Error: Context Missing</div>;
-    return <div className="h-full w-full overflow-hidden">{ctx.workpiecePanel}</div>;
+    return <PanelShell panelId="workpiece">{ctx.workpiecePanel}</PanelShell>;
 }
+const MacrosPanelWrapper = () => (
+    <PanelShell panelId="macros">
+        <MacrosPanel />
+    </PanelShell>
+);
+const AutoLevelPanelWrapper = () => (
+    <PanelShell panelId="autolevel">
+        <AutoLevelPanel />
+    </PanelShell>
+);
+const VisualizerPanelWrapper = () => (
+    <PanelShell panelId="visualizer">
+        <BedVisualizer />
+    </PanelShell>
+);
 
 
 export function DockLayout(props: DockLayoutProps) {
@@ -124,6 +170,22 @@ export function DockLayout(props: DockLayoutProps) {
         };
     }, [clearPanelSizeGuard]);
 
+    const minDashboardWidth = useMemo(() => {
+        const activePanels = [...settings.dashboardPanels]
+            .filter((p) => p.enabled)
+            .sort((a, b) => a.order - b.order);
+
+        if (activePanels.length === 0) return 0;
+
+        // In this layout pattern index 0 and odd indices add horizontal columns.
+        return activePanels.reduce((sum, panel, index) => {
+            if (index === 0 || index % 2 === 1) {
+                return sum + (panel.minWidth ?? DEFAULT_PANEL_MIN_WIDTH);
+            }
+            return sum;
+        }, 0);
+    }, [settings.dashboardPanels]);
+
   const buildLayout = useCallback((apiInstance: any) => {
       console.log("Initializing Layout...");
       isRebuildingRef.current = true;
@@ -167,9 +229,9 @@ export function DockLayout(props: DockLayoutProps) {
       fileManager: FileManagerPanel,
       probe: ProbePanelWrapper,
       workpiece: WorkpiecePanelWrapper,
-      macros: MacrosPanel,
-      visualizer: BedVisualizer,
-      autolevel: AutoLevelPanel,
+      macros: MacrosPanelWrapper,
+      visualizer: VisualizerPanelWrapper,
+      autolevel: AutoLevelPanelWrapper,
       default: (_props: IDockviewPanelProps) => <div className="p-4">Unknown Panel</div>
   }), []);
 
@@ -296,13 +358,32 @@ export function DockLayout(props: DockLayoutProps) {
 
   return (
     <DockLayoutContext.Provider value={props}>
-        <div className="h-full w-full relative dock-layout-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}> 
-            <DockviewReact
-                components={components}
-                onReady={onReady}
-                className={theme === 'light' ? "dockview-theme-light flex-1" : "dockview-theme-dark flex-1"}
-            />
-        </div>
+            <div
+                className="h-full w-full relative dock-layout-container"
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    width: '100%',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                }}
+            >
+                <div
+                    style={{
+                        minWidth: minDashboardWidth > 0 ? `${minDashboardWidth}px` : '100%',
+                        minHeight: '100%',
+                        display: 'flex',
+                        flex: 1,
+                    }}
+                >
+                    <DockviewReact
+                        components={components}
+                        onReady={onReady}
+                        className={theme === 'light' ? "dockview-theme-light flex-1" : "dockview-theme-dark flex-1"}
+                    />
+                </div>
+            </div>
     </DockLayoutContext.Provider>
   );
 }
