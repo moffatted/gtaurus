@@ -27,6 +27,8 @@ import { DashboardContent } from './settings/DashboardContent';
 import { SettingsSection } from './settings/SettingsSection';
 import { ConnectionContent as SettingsConnectionContent } from './settings/ConnectionContent';
 import { FileManagerContent as SettingsFileManagerContent } from './settings/FileManagerContent';
+import { VisualizerContent as SettingsVisualizerContent } from './settings/VisualizerContent';
+import { StatsContent as SettingsStatsContent } from './settings/StatsContent';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -1165,7 +1167,7 @@ function LegacyFileManagerContent() {
 
 // ─── Visualizer section ───────────────────────────────────────────────────────
 
-function VisualizerContent() {
+function LegacyVisualizerContent() {
   const { settings, setShowAutolevelMesh, setDashboardPanelEnabled } = useSettingsStore();
 
   return (
@@ -1218,7 +1220,7 @@ function VisualizerContent() {
 
 // ─── Stats section ───────────────────────────────────────────────────────────
 
-function StatsContent() {
+function LegacyStatsContent() {
   const { settings, setStatsSettings } = useSettingsStore();
   const sts = settings.stats;
 
@@ -2346,11 +2348,11 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
   if (id === 'spindle')      return <SpindleContent />;
   if (id === 'atc')          return <AtcContent />;
   if (id === 'rotary')       return <RotaryContent />;
-  if (id === 'stats')        return <StatsContent />;
+  if (id === 'stats')        return <SettingsStatsContent />;
   if (id === 'camera')       return <CameraContent />;
   if (id === 'ai')           return <AIAssistantContent />;
   if (id === 'navigation')   return <NavigationContent />;
-  if (id === 'visualizer') return <VisualizerContent />;
+  if (id === 'visualizer') return <SettingsVisualizerContent />;
   if (id === 'macros')     return <MacrosContent />;
   return undefined; // renders placeholder
 }
