@@ -3,7 +3,7 @@
  * @purpose Shared UI component for executing Z-axis and corner probing routines.
  */
 import { useEffect, useState } from 'react';
-import { Crosshair, HelpCircle, AlertCircle, Zap, ZapOff } from 'lucide-react';
+import { HelpCircle, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import { useMachineStatusStore } from '../../stores/machineStatusStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { transport } from '../../services/transportService';

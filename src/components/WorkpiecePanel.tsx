@@ -43,7 +43,7 @@ export function WorkpiecePanel() {
   };
 
   return (
-    <div className="flex flex-col bg-[var(--bg-primary)] h-full min-w-[320px] overflow-hidden">
+    <div className="flex flex-col bg-[var(--bg-primary)] h-full min-w-0 overflow-hidden">
       <div className="p-2.5 pb-0 space-y-3 overflow-y-auto flex-1">
         
         {/* 0. Visibility Toggle */}

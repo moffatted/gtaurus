@@ -7,10 +7,14 @@ import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from 'dockview
 import 'dockview-core/dist/styles/dockview.css';
 import { BedVisualizer } from './BedVisualizer';
 import { useSettingsStore } from '../stores/settingsStore';
+import type { DashboardPanel } from '../stores/settingsStore';
 import { AutoLevelPanel } from './AutoLevelPanel';
 import { MacrosPanel } from './MacrosPanel';
 import { useThemeStore } from '../stores/themeStore';
 import "./DockLayout.css"; 
+
+const DEFAULT_PANEL_MIN_WIDTH = 100;
+const DEFAULT_PANEL_MIN_HEIGHT = 100;
 
 interface DockLayoutProps {
   consolePanel: ReactNode;
@@ -56,6 +60,7 @@ export function DockLayout(props: DockLayoutProps) {
   const { theme } = useThemeStore();
   const [api, setApi] = useState<any>(null);
   const prevOrderRef = useRef<string>('');
+    const prevLayoutRef = useRef<string | undefined>(settings.dashboardLayout);
   const isRebuildingRef = useRef<boolean>(false);
 
   const buildLayout = useCallback((apiInstance: any) => {
@@ -67,17 +72,14 @@ export function DockLayout(props: DockLayoutProps) {
               .filter(p => p.enabled)
               .sort((a, b) => a.order - b.order);
 
-          const PANEL_MIN_WIDTHS:  Record<string, number> = { controls: 380, probe: 300, workpiece: 280, macros: 280, autolevel: 360, fileManager: 280, console: 280 };
-          const PANEL_MIN_HEIGHTS: Record<string, number> = { controls: 450 };
-
           activePanels.forEach((panelData, index) => {
               const panelConfig: any = {
                   id: panelData.id,
                   component: panelData.id,
                   title: panelData.label,
                   renderer: 'always',
-                  minimumWidth:  PANEL_MIN_WIDTHS[panelData.id]  ?? 100,
-                  minimumHeight: PANEL_MIN_HEIGHTS[panelData.id] ?? 100,
+                  minimumWidth: panelData.minWidth ?? DEFAULT_PANEL_MIN_WIDTH,
+                  minimumHeight: panelData.minHeight ?? DEFAULT_PANEL_MIN_HEIGHT,
                   initialWidth: panelData.defaultWidth,
                   initialHeight: panelData.defaultHeight
               };
@@ -86,8 +88,7 @@ export function DockLayout(props: DockLayoutProps) {
                  apiInstance.addPanel(panelConfig);
               } else {
                  panelConfig.position = { 
-                     direction: index % 2 === 1 ? 'right' : 'below',
-                     size: index % 2 === 1 ? panelData.defaultWidth : panelData.defaultHeight
+                     direction: index % 2 === 1 ? 'right' : 'below'
                  };
                  apiInstance.addPanel(panelConfig);
               }
@@ -156,40 +157,57 @@ export function DockLayout(props: DockLayoutProps) {
      prevOrderRef.current = currentOrder;
   }, [settings.dashboardPanels, api, buildLayout]);
 
+    useEffect(() => {
+        if (!api) return;
+
+        const hadSavedLayout = Boolean(prevLayoutRef.current);
+        const hasSavedLayout = Boolean(settings.dashboardLayout);
+
+        // A transition from saved layout -> no layout means user requested a reset.
+        if (hadSavedLayout && !hasSavedLayout) {
+            buildLayout(api);
+        }
+
+        prevLayoutRef.current = settings.dashboardLayout;
+    }, [settings.dashboardLayout, api, buildLayout]);
+
   useEffect(() => {
     if (!api) return;
 
-    const syncPanel = (id: string, visible: boolean, title: string, defaultWidth?: number, defaultHeight?: number) => {
+    const syncPanel = (panelDef: DashboardPanel) => {
+        const { id, enabled, label, defaultWidth, defaultHeight, minWidth, minHeight } = panelDef;
         const panel = api.getPanel(id);
-        if (visible && !panel) {
+        const nextMinW = minWidth ?? DEFAULT_PANEL_MIN_WIDTH;
+        const nextMinH = minHeight ?? DEFAULT_PANEL_MIN_HEIGHT;
+
+        if (enabled && panel && typeof (panel as any).setConstraints === 'function') {
+            (panel as any).setConstraints({
+                minimumWidth: nextMinW,
+                minimumHeight: nextMinH,
+            });
+        }
+
+        if (enabled && !panel) {
             const activePanels = [...settings.dashboardPanels]
               .filter(p => p.enabled)
               .sort((a, b) => a.order - b.order);
             const index = activePanels.findIndex(p => p.id === id);
             const dir = (index > 0 && index % 2 === 1) ? 'right' : 'below';
 
-            const minWidths:  Record<string, number> = { controls: 380, probe: 300, workpiece: 280, macros: 280, autolevel: 360, fileManager: 280, console: 280 };
-            const minHeights: Record<string, number> = { controls: 450 };
-            const minH = minHeights[id] ?? 100;
-            const minW = minWidths[id] ?? 100;
-
-            const size = dir === 'right' ? defaultWidth : defaultHeight;
-
             api.addPanel({
                 id: id,
                 component: id,
-                title: title,
+                title: label,
                 renderer: 'always',
-                minimumHeight: minH,
-                minimumWidth: minW,
+                minimumHeight: nextMinH,
+                minimumWidth: nextMinW,
                 initialWidth: defaultWidth,
                 initialHeight: defaultHeight,
                 position: { 
-                    direction: dir,
-                    size: size
+                    direction: dir
                 }
             });
-        } else if (!visible && panel) {
+        } else if (!enabled && panel) {
             try {
                 if ('close' in panel && typeof (panel as any).close === 'function') {
                     (panel as any).close();
@@ -203,7 +221,7 @@ export function DockLayout(props: DockLayoutProps) {
     };
 
     settings.dashboardPanels.forEach((panelDef) => {
-       syncPanel(panelDef.id, panelDef.enabled, panelDef.label, panelDef.defaultWidth, panelDef.defaultHeight);
+         syncPanel(panelDef);
     });
 
   }, [settings.dashboardPanels, api]);

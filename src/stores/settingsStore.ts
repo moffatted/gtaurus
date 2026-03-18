@@ -18,10 +18,14 @@ export interface DashboardPanel {
   enabled: boolean;
   /** 0-based display order. Lower = appears first. */
   order: number;
-  /** Default width in pixels for the panel (used by DockView setSize). */
+  /** Initial width hint in pixels for first-time panel creation. */
   defaultWidth?: number;
-  /** Default height in pixels for the panel (used by DockView setSize). */
+  /** Initial height hint in pixels for first-time panel creation. */
   defaultHeight?: number;
+  /** Minimum width in pixels to prevent panel content squashing. */
+  minWidth?: number;
+  /** Minimum height in pixels to prevent panel content squashing. */
+  minHeight?: number;
 }
 
 export interface ConnectionSettings {
@@ -291,14 +295,14 @@ export interface Settings {
  * Dashboard. Initially all disabled — users opt-in via Settings > Dashboard.
  */
 export const AVAILABLE_DASHBOARD_PANELS: Omit<DashboardPanel, "order">[] = [
-  { id: "controls", label: "Controls", enabled: true, defaultWidth: 600, defaultHeight: 541 },
-  { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250 },
-  { id: "visualizer", label: "Bed Visualizer", enabled: false },
-  { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350 },
-  { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320 },
-  { id: "macros", label: "Macros", enabled: false },
-  { id: "workpiece", label: "Workpiece", enabled: false },
-  { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350 },
+  { id: "controls", label: "Controls", enabled: true, defaultWidth: 600, defaultHeight: 541, minWidth: 380, minHeight: 450 },
+  { id: "console", label: "G-code Console", enabled: true, defaultHeight: 250, minWidth: 280, minHeight: 190 },
+  { id: "visualizer", label: "Bed Visualizer", enabled: false, minWidth: 280, minHeight: 200 },
+  { id: "fileManager", label: "File Manager", enabled: false, defaultWidth: 350, minWidth: 280, minHeight: 220 },
+  { id: "probe", label: "Probe Panel", enabled: false, defaultWidth: 320, minWidth: 300, minHeight: 260 },
+  { id: "macros", label: "Macros", enabled: false, minWidth: 280, minHeight: 200 },
+  { id: "workpiece", label: "Workpiece", enabled: false, minWidth: 280, minHeight: 220 },
+  { id: "autolevel", label: "Auto-Leveling", enabled: false, defaultWidth: 350, minWidth: 360, minHeight: 250 },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -610,8 +614,9 @@ interface SettingsStore {
 
   // Dashboard helpers
   setDashboardPanelEnabled: (id: string, enabled: boolean) => void;
-  setDashboardPanelDimensions: (id: string, dims: { defaultWidth?: number; defaultHeight?: number }) => void;
-  setDashboardLayout: (layout: string) => void;
+  setDashboardPanelDimensions: (id: string, dims: { defaultWidth?: number; defaultHeight?: number; minWidth?: number; minHeight?: number }) => void;
+  setDashboardLayout: (layout?: string) => void;
+  resetDashboardLayout: () => void;
   moveDashboardPanelUp: (id: string) => void;
   moveDashboardPanelDown: (id: string) => void;
   // Connection helpers
@@ -692,7 +697,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
                   enabled: wasEnabled, 
                   order: 0,
                   defaultWidth: 600,
-                  defaultHeight: 541
+                  defaultHeight: 541,
+                  minWidth: 380,
+                  minHeight: 450
               });
           } else {
               migratedPanels = migratedPanels.map(p => 
@@ -715,7 +722,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
       // 4. Force labels to match definitions (handles renames)
       const labelMap = new Map(AVAILABLE_DASHBOARD_PANELS.map(p => [p.id, p.label]));
+      const defaultsMap = new Map(AVAILABLE_DASHBOARD_PANELS.map(p => [p.id, p]));
       merged = merged.map(p => ({
+          ...defaultsMap.get(p.id),
           ...p,
           label: labelMap.get(p.id) || p.label
       }));
@@ -811,6 +820,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setDashboardLayout: (layout) => {
     const next = { ...get().settings, dashboardLayout: layout };
+    set({ settings: next });
+    void saveToStorage(next);
+  },
+
+  resetDashboardLayout: () => {
+    const next = { ...get().settings, dashboardLayout: undefined };
     set({ settings: next });
     void saveToStorage(next);
   },

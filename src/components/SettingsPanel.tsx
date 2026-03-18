@@ -10,13 +10,14 @@ import {
   ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
   Wifi, UsbIcon, RefreshCw, Power, Activity,
   Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera, Drill,
-  Sparkles, Wind, Ghost, Leaf
+  Sparkles, Wind, Ghost, Leaf, RotateCcw
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
+import { ConfirmPopover } from './ui/Popovers';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
 import { MachineSetupWizard } from './wizards/MachineSetupWizard';
@@ -1149,16 +1150,30 @@ function AtcContent() {
 // ─── Dashboard section ───────────────────────────────────────────────────────
 
 function DashboardContent() {
-  const { settings, setDashboardPanelEnabled, setDashboardPanelDimensions, moveDashboardPanelUp, moveDashboardPanelDown } =
+  const { settings, setDashboardPanelEnabled, setDashboardPanelDimensions, resetDashboardLayout, moveDashboardPanelUp, moveDashboardPanelDown } =
     useSettingsStore();
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const resetLayoutButtonRef = useRef<HTMLButtonElement>(null);
 
   const sorted = [...settings.dashboardPanels].sort((a, b) => a.order - b.order);
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-[var(--text-tertiary)] pb-1">
-        Enable panels and set their default width/height on your Dashboard.
-      </p>
+      <div className="flex items-center justify-between gap-3 pb-1">
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Enable panels and set initial and minimum panel dimensions for your Dashboard.
+        </p>
+        <button
+          ref={resetLayoutButtonRef}
+          type="button"
+          onClick={() => setIsResetConfirmOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+          title="Clear saved dashboard arrangement and rebuild from current defaults"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset Layout
+        </button>
+      </div>
 
       {sorted.map((panel, idx) => (
         <div
@@ -1203,8 +1218,8 @@ function DashboardContent() {
             {panel.label}
           </span>
 
-          {/* Width / Height Inputs */}
-          <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity mr-1">
+          {/* Initial / Minimum dimension inputs */}
+          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity mr-1">
             <div className="flex items-center gap-1">
               <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">W</span>
               <input
@@ -1219,6 +1234,8 @@ function DashboardContent() {
                   const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
                   setDashboardPanelDimensions(panel.id, { defaultWidth: val });
                 }}
+                aria-label={`${panel.label} initial width`}
+                title="Initial width (Auto = Dockview default)"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -1235,6 +1252,44 @@ function DashboardContent() {
                   const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
                   setDashboardPanelDimensions(panel.id, { defaultHeight: val });
                 }}
+                aria-label={`${panel.label} initial height`}
+                title="Initial height (Auto = Dockview default)"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">MinW</span>
+              <input
+                type="number"
+                min="100"
+                max="2000"
+                step="10"
+                className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
+                placeholder="Auto"
+                value={panel.minWidth ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  setDashboardPanelDimensions(panel.id, { minWidth: val });
+                }}
+                aria-label={`${panel.label} minimum width`}
+                title="Minimum width"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase text-[var(--text-tertiary)] tracking-wider">MinH</span>
+              <input
+                type="number"
+                min="100"
+                max="2000"
+                step="10"
+                className="w-14 px-1 py-0.5 text-xs text-center rounded-[4px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
+                placeholder="Auto"
+                value={panel.minHeight ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  setDashboardPanelDimensions(panel.id, { minHeight: val });
+                }}
+                aria-label={`${panel.label} minimum height`}
+                title="Minimum height"
               />
             </div>
           </div>
@@ -1255,6 +1310,19 @@ function DashboardContent() {
           </button>
         </div>
       ))}
+
+      <ConfirmPopover
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={resetDashboardLayout}
+        title="Reset Dashboard Layout?"
+        message="This will clear the saved dashboard arrangement and rebuild the layout using your current panel order and default sizes."
+        kind="warning"
+        okLabel="Reset Layout"
+        cancelLabel="Keep Current"
+        triggerRef={resetLayoutButtonRef}
+        position="bottom"
+      />
     </div>
   );
 }

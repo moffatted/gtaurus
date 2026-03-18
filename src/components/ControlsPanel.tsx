@@ -414,7 +414,7 @@ export function ControlsPanel() {
 
   return (
 
-        <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-[380px] overflow-y-auto custom-scrollbar">
+        <div className="h-full flex flex-col gap-3.5 p-3 max-w-4xl mx-auto w-full min-w-0 overflow-y-auto custom-scrollbar">
             {/* Combined Status & Movement Units Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
                 {/* Movement Units and Status Row */}

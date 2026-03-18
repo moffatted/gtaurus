@@ -410,7 +410,7 @@ export default function FileManager() {
   return (
     <div 
       ref={dropZoneRef}
-      className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-[300px] relative"
+      className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden min-w-0 relative"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
