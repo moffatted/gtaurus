@@ -562,6 +562,83 @@ function MachineBed() {
   );
 }
 
+// ─── Touch Plate Visualization ─────────────────────────────────────────────
+
+function TouchPlate() {
+  const { settings } = useSettingsStore();
+  const stock = settings.stock;
+  const probe = settings.probe;
+
+  if (!probe.showTouchPlateVisual) return null;
+
+  // Touch plate dimensions (editable from settings)
+  const length = Math.max(probe.touchPlateLength, 1);
+  const width = Math.max(probe.touchPlateWidth, 1);
+  const thickness = Math.max(probe.zOffset, 0.5);
+
+  // Position on top of workpiece
+  const stockX = stock.width / 2;
+  const stockZ = -stock.height / 2;
+  const stockThickness = Math.max(stock.thickness, 1);
+  const plateY = stockThickness + thickness / 2 + 0.1;
+
+  // Aluminum material profile
+  const aluminumProfile = {
+    color: "#cbd5e1",
+    metalness: 0.85,
+    roughness: 0.15,
+    emissive: "#e2e8f0",
+    emissiveIntensity: 0.15,
+  };
+
+  // Calculate probe hole position
+  const holeX = probe.xWallThickness + probe.holeDiameter / 2;
+  const holeY = probe.yWallThickness + probe.holeDiameter / 2;
+  const holeRadius = Math.max(probe.holeDiameter / 2, 0.5);
+
+  return (
+    <group position={[stockX, plateY, stockZ]}>
+      {/* Main touch plate body */}
+      <mesh position={[0, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[length, thickness, width]} />
+        <meshStandardMaterial
+          color={aluminumProfile.color}
+          metalness={aluminumProfile.metalness}
+          roughness={aluminumProfile.roughness}
+          emissive={aluminumProfile.emissive}
+          emissiveIntensity={aluminumProfile.emissiveIntensity}
+        />
+      </mesh>
+
+      {/* Probe hole visualization */}
+      <mesh position={[-length / 2 + holeX, thickness / 2 + 0.05, -width / 2 + holeY]} castShadow>
+        <cylinderGeometry args={[holeRadius, holeRadius, thickness + 1, 32]} />
+        <meshStandardMaterial
+          color="#1e293b"
+          metalness={0.3}
+          roughness={0.7}
+          emissive="#0f172a"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+
+      {/* Subtle edge highlight on top surface */}
+      <mesh position={[0, thickness / 2 + 0.01, 0]}>
+        <boxGeometry args={[length + 0.2, 0.02, width + 0.2]} />
+        <meshStandardMaterial
+          color="#f1f5f9"
+          emissive="#cbd5e1"
+          emissiveIntensity={0.3}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+// ─── Scene Content ─────────────────────────────────────────────────────
+
 function SceneContent() {
   const { settings } = useSettingsStore();
 
@@ -573,6 +650,7 @@ function SceneContent() {
       <MachineBed />
       <RealtimePathTracker />
       {settings.showAutolevelMesh && <AutolevelMesh />}
+      <TouchPlate />
       <group position={[0, 0, 0]}>
         <mesh>
           <sphereGeometry args={[2, 16, 16]} />

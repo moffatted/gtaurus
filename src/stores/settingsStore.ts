@@ -90,6 +90,10 @@ export interface ProbeSettings {
   centeringFudge: number;
   plateGeometry: 'ring-hole' | 'solid-block';
   postProbeReturnMode: 'hold-z' | 'auto-return-xy0';
+  // Touch Plate Visualization
+  touchPlateLength: number;
+  touchPlateWidth: number;
+  showTouchPlateVisual: boolean;
   // Last selected probe mode
   lastProbeMethod: 'z-only' | '3-axis';
   // Safety
@@ -353,6 +357,9 @@ export const DEFAULT_SETTINGS: Settings = {
     centeringFudge: 2,
     plateGeometry: 'solid-block',
     postProbeReturnMode: 'hold-z',
+    touchPlateLength: 30,
+    touchPlateWidth: 30,
+    showTouchPlateVisual: true,
     lastProbeMethod: 'z-only',
 
     protectedPositioning: true,

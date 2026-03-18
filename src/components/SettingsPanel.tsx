@@ -706,11 +706,58 @@ function ProbeContent() {
           </div>
         </div>
       </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {/* 6. Touch Plate Visualization */}
+      <div className="space-y-4">
+        <h4 className={subHeaderCls}>6. Touch Plate Visualization</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-[var(--text-primary)]">Show in Bed Visualizer</label>
+            <button
+              onClick={() => setProbeSettings({ showTouchPlateVisual: !prb.showTouchPlateVisual })}
+              className={`relative h-5 w-9 rounded-full transition-colors ${prb.showTouchPlateVisual ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${prb.showTouchPlateVisual ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+          {prb.showTouchPlateVisual && (
+            <div className="grid grid-cols-2 gap-4 mt-3 p-3 rounded-lg bg-[var(--bg-tertiary)]/30 border border-[var(--border-color)]">
+              <div>
+                <label className={labelCls}>Touch Plate Length (mm)</label>
+                <input
+                  type="number"
+                  value={prb.touchPlateLength ?? 30}
+                  onChange={(e) => setProbeSettings({ touchPlateLength: parseFloat(e.target.value) || 30 })}
+                  className={inputCls}
+                  step={0.5}
+                  min={1}
+                />
+                <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">X dimension</p>
+              </div>
+              <div>
+                <label className={labelCls}>Touch Plate Width (mm)</label>
+                <input
+                  type="number"
+                  value={prb.touchPlateWidth ?? 30}
+                  onChange={(e) => setProbeSettings({ touchPlateWidth: parseFloat(e.target.value) || 30 })}
+                  className={inputCls}
+                  step={0.5}
+                  min={1}
+                />
+                <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">Y dimension</p>
+              </div>
+            </div>
+          )}
+          <p className="text-[10px] text-[var(--text-tertiary)] italic">
+            The touch plate height is automatically set to the Z-Offset (Plate Thickness) value. Adjust dimensions to match your aluminum touch plate.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
-
-// ─── Spindle section ─────────────────────────────────────────────────────────
 
 function SpindleContent() {
   const { settings, setSpindleSettings } = useSettingsStore();
