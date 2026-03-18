@@ -222,7 +222,10 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           position={pos.startsWith('back') ? 'top' : 'bottom'}
         >
           <button
-            onClick={() => setCorner(pos)}
+            onClick={() => {
+              setCorner(pos);
+              setProbeSettings({ touchPlateCorner: pos });
+            }}
             className={`relative w-3.5 h-3.5 rounded-full border-2 transition-all z-20 ${
               active
                 ? 'bg-[var(--accent-primary)] border-white scale-125 shadow-[0_0_12px_rgba(var(--accent-rgb),0.8)]'

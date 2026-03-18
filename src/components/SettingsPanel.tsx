@@ -748,6 +748,30 @@ function ProbeContent() {
                 />
                 <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">Y dimension</p>
               </div>
+              <div>
+                <label className={labelCls}>Side Wrap Depth (mm)</label>
+                <input
+                  type="number"
+                  value={prb.touchPlateWrapDepth ?? 5}
+                  onChange={(e) => setProbeSettings({ touchPlateWrapDepth: parseFloat(e.target.value) || 5 })}
+                  className={inputCls}
+                  step={0.5}
+                  min={0.5}
+                />
+                <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">How far the side legs wrap under the stock faces</p>
+              </div>
+              <div>
+                <label className={labelCls}>Side Wrap Height (mm)</label>
+                <input
+                  type="number"
+                  value={prb.touchPlateWrapHeight ?? 5}
+                  onChange={(e) => setProbeSettings({ touchPlateWrapHeight: parseFloat(e.target.value) || 5 })}
+                  className={inputCls}
+                  step={0.5}
+                  min={0.5}
+                />
+                <p className="mt-1 text-[9px] text-[var(--text-tertiary)]">Vertical leg height down the stock side</p>
+              </div>
             </div>
           )}
           <p className="text-[10px] text-[var(--text-tertiary)] italic">

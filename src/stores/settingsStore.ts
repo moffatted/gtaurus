@@ -93,7 +93,10 @@ export interface ProbeSettings {
   // Touch Plate Visualization
   touchPlateLength: number;
   touchPlateWidth: number;
+  touchPlateWrapDepth: number;
+  touchPlateWrapHeight: number;
   showTouchPlateVisual: boolean;
+  touchPlateCorner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
   // Last selected probe mode
   lastProbeMethod: 'z-only' | '3-axis';
   // Safety
@@ -359,7 +362,10 @@ export const DEFAULT_SETTINGS: Settings = {
     postProbeReturnMode: 'hold-z',
     touchPlateLength: 30,
     touchPlateWidth: 30,
+    touchPlateWrapDepth: 5,
+    touchPlateWrapHeight: 5,
     showTouchPlateVisual: true,
+    touchPlateCorner: 'front-left',
     lastProbeMethod: 'z-only',
 
     protectedPositioning: true,

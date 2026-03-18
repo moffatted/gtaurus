@@ -5,7 +5,7 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, GizmoHelper, GizmoViewcube, Text } from '@react-three/drei';
-import { Plus, Minus, Eraser, FileX } from 'lucide-react';
+import { Plus, Minus, Eraser, FileX, Hexagon } from 'lucide-react';
 import * as THREE from 'three';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
@@ -574,64 +574,173 @@ function TouchPlate() {
   // Touch plate dimensions (editable from settings)
   const length = Math.max(probe.touchPlateLength, 1);
   const width = Math.max(probe.touchPlateWidth, 1);
-  const thickness = Math.max(probe.zOffset, 0.5);
+  const thickness = Math.max(probe.zOffset || 5, 0.5);
 
-  // Position on top of workpiece
-  const stockX = stock.width / 2;
-  const stockZ = -stock.height / 2;
+  // Stock dimensions — StockMesh group is centered at (width/2, thickness/2, -depth/2),
+  // so its corners in world space are: front-left=(0,0), front-right=(width,0), back-left=(0,-depth), back-right=(width,-depth)
+  const stockWidth = Math.max(stock.width, 1);
+  const stockDepth = Math.max(stock.height, 1);
   const stockThickness = Math.max(stock.thickness, 1);
-  const plateY = stockThickness + thickness / 2 + 0.1;
+
+  // Distance from each plate edge to hole center
+  const holeDiameter = Math.max(probe.holeDiameter || 14.86, 0.5);
+  const wallX = Math.max(probe.xWallThickness || 2.63, 0);
+  const wallZ = Math.max(probe.yWallThickness || 2.63, 0);
+  const holeRadius = Math.max(holeDiameter / 2, 0.5);
+  const holeXdist = wallX + holeRadius;
+  const holeZdist = wallZ + holeRadius;
+
+  // 3D wrap profile (editable from settings)
+  const sideWrapDepth = Math.max(probe.touchPlateWrapDepth ?? 5, 0.5);
+  const sideWrapDrop = Math.max(probe.touchPlateWrapHeight ?? 5, 0.5);
+  const sideWrapHeight = thickness + sideWrapDrop;
+  const wrapOverhangX = Math.max(holeXdist, sideWrapDepth);
+  const wrapOverhangZ = Math.max(holeZdist, sideWrapDepth);
+
+  // Stock mesh top surface is at stockThickness + 0.05 in world Y.
+  // Place touch plate directly on that surface (no artificial gap).
+  const plateY = stockThickness + 0.05 + thickness / 2;
+
+  // For each corner, the outer corner of the plate aligns with the stock corner.
+  // Plate center is offset inward by half its dimensions.
+  // Hole is in the outer corner quadrant of the plate.
+  const corner = probe.touchPlateCorner;
+  let plateX: number, plateZ: number;
+  let outerEdgeX: number, outerEdgeZ: number;
+  let inwardSignX: number, inwardSignZ: number;
+  let outwardSignX: number, outwardSignZ: number;
+
+  switch (corner) {
+    case 'front-left':
+      // Stock corner at world (0, 0). Plate extends +X, -Z (into stock).
+      plateX = length / 2;
+      plateZ = -width / 2;
+      outerEdgeX = -length / 2;
+      outerEdgeZ = width / 2;
+      inwardSignX = 1;
+      inwardSignZ = -1;
+      outwardSignX = -1;
+      outwardSignZ = 1;
+      break;
+    case 'front-right':
+      // Stock corner at world (stockWidth, 0). Plate extends -X, -Z.
+      plateX = stockWidth - length / 2;
+      plateZ = -width / 2;
+      outerEdgeX = length / 2;
+      outerEdgeZ = width / 2;
+      inwardSignX = -1;
+      inwardSignZ = -1;
+      outwardSignX = 1;
+      outwardSignZ = 1;
+      break;
+    case 'back-left':
+      // Stock corner at world (0, -stockDepth). Plate extends +X, +Z.
+      plateX = length / 2;
+      plateZ = -stockDepth + width / 2;
+      outerEdgeX = -length / 2;
+      outerEdgeZ = -width / 2;
+      inwardSignX = 1;
+      inwardSignZ = 1;
+      outwardSignX = -1;
+      outwardSignZ = -1;
+      break;
+    case 'back-right':
+    default:
+      // Stock corner at world (stockWidth, -stockDepth). Plate extends -X, +Z.
+      plateX = stockWidth - length / 2;
+      plateZ = -stockDepth + width / 2;
+      outerEdgeX = length / 2;
+      outerEdgeZ = -width / 2;
+      inwardSignX = -1;
+      inwardSignZ = 1;
+      outwardSignX = 1;
+      outwardSignZ = -1;
+      break;
+  }
+
+  // Full-edge wrap legs for a true corner plate profile.
+  const xFaceWrapCenterX = outerEdgeX + outwardSignX * (wrapOverhangX / 2);
+  const xFaceWrapCenterZ = 0;
+  const zFaceWrapCenterX = 0;
+  const zFaceWrapCenterZ = outerEdgeZ + outwardSignZ * (wrapOverhangZ / 2);
+  const cornerWrapCenterX = outerEdgeX + outwardSignX * (wrapOverhangX / 2);
+  const cornerWrapCenterZ = outerEdgeZ + outwardSignZ * (wrapOverhangZ / 2);
+
+  // Place hole from the true outermost X/Z edges of the touch plate body.
+  const outerMostX = outerEdgeX + outwardSignX * wrapOverhangX;
+  const outerMostZ = outerEdgeZ + outwardSignZ * wrapOverhangZ;
+  const holeLocalX = outerMostX + inwardSignX * holeXdist;
+  const holeLocalZ = outerMostZ + inwardSignZ * holeZdist;
+
+  // Keep side-wrap top faces flush with the top plate top face,
+  // then extend downward by `sideWrapDrop` below the stock top.
+  const wrapCenterY = thickness / 2 - sideWrapHeight / 2;
 
   // Aluminum material profile
   const aluminumProfile = {
-    color: "#cbd5e1",
-    metalness: 0.85,
-    roughness: 0.15,
-    emissive: "#e2e8f0",
-    emissiveIntensity: 0.15,
+    color: "#e2e8f0",
+    metalness: 0.62,
+    roughness: 0.24,
+    emissive: "#f8fafc",
+    emissiveIntensity: 0.22,
   };
 
-  // Calculate probe hole position
-  const holeX = probe.xWallThickness + probe.holeDiameter / 2;
-  const holeY = probe.yWallThickness + probe.holeDiameter / 2;
-  const holeRadius = Math.max(probe.holeDiameter / 2, 0.5);
+  const aluminumMaterialProps = {
+    color: aluminumProfile.color,
+    metalness: aluminumProfile.metalness,
+    roughness: aluminumProfile.roughness,
+    emissive: aluminumProfile.emissive,
+    emissiveIntensity: aluminumProfile.emissiveIntensity,
+  };
 
   return (
-    <group position={[stockX, plateY, stockZ]}>
-      {/* Main touch plate body */}
+    <group position={[plateX, plateY, plateZ]}>
+      {/* Main touch plate top (square/rect body) */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[length, thickness, width]} />
+        <meshStandardMaterial {...aluminumMaterialProps} />
+      </mesh>
+
+      {/* Side leg hugging X face */}
+      <mesh position={[xFaceWrapCenterX, wrapCenterY, xFaceWrapCenterZ]} castShadow receiveShadow>
+        <boxGeometry args={[wrapOverhangX, sideWrapHeight, width]} />
+        <meshStandardMaterial {...aluminumMaterialProps} />
+      </mesh>
+
+      {/* Side leg hugging Z face */}
+      <mesh position={[zFaceWrapCenterX, wrapCenterY, zFaceWrapCenterZ]} castShadow receiveShadow>
+        <boxGeometry args={[length, sideWrapHeight, wrapOverhangZ]} />
+        <meshStandardMaterial {...aluminumMaterialProps} />
+      </mesh>
+
+      {/* Corner filler so X/Y wraps read as one solid enclosure */}
+      <mesh position={[cornerWrapCenterX, wrapCenterY, cornerWrapCenterZ]} castShadow receiveShadow>
+        <boxGeometry args={[wrapOverhangX, sideWrapHeight, wrapOverhangZ]} />
+        <meshStandardMaterial {...aluminumMaterialProps} />
+      </mesh>
+
+      {/* Probe hole cavity (through top plate) */}
+      <mesh position={[holeLocalX, 0, holeLocalZ]} castShadow>
+        <cylinderGeometry args={[holeRadius, holeRadius, thickness + 0.8, 40]} />
         <meshStandardMaterial
-          color={aluminumProfile.color}
-          metalness={aluminumProfile.metalness}
-          roughness={aluminumProfile.roughness}
-          emissive={aluminumProfile.emissive}
-          emissiveIntensity={aluminumProfile.emissiveIntensity}
+          color="#020617"
+          metalness={0.05}
+          roughness={0.92}
+          emissive="#000000"
+          emissiveIntensity={0}
         />
       </mesh>
 
-      {/* Probe hole visualization */}
-      <mesh position={[-length / 2 + holeX, thickness / 2 + 0.05, -width / 2 + holeY]} castShadow>
-        <cylinderGeometry args={[holeRadius, holeRadius, thickness + 1, 32]} />
-        <meshStandardMaterial
-          color="#1e293b"
-          metalness={0.3}
-          roughness={0.7}
-          emissive="#0f172a"
-          emissiveIntensity={0.1}
-        />
+      {/* Filled top disk for high-contrast, always-visible hole face */}
+      <mesh position={[holeLocalX, thickness / 2 + 0.04, holeLocalZ]}>
+        <cylinderGeometry args={[holeRadius, holeRadius, 0.08, 64]} />
+        <meshBasicMaterial color="#020617" />
       </mesh>
 
-      {/* Subtle edge highlight on top surface */}
-      <mesh position={[0, thickness / 2 + 0.01, 0]}>
-        <boxGeometry args={[length + 0.2, 0.02, width + 0.2]} />
-        <meshStandardMaterial
-          color="#f1f5f9"
-          emissive="#cbd5e1"
-          emissiveIntensity={0.3}
-          transparent
-          opacity={0.8}
-        />
+      {/* Subtle metal rim to keep it looking machined, not painted */}
+      <mesh position={[holeLocalX, thickness / 2 + 0.05, holeLocalZ]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[holeRadius + 0.18, 0.09, 16, 64]} />
+        <meshStandardMaterial color="#64748b" metalness={0.65} roughness={0.35} />
       </mesh>
     </group>
   );
@@ -687,6 +796,11 @@ export function BedVisualizer() {
     }
   };
 
+  const toggleTouchPlate = () => {
+    const { setProbeSettings } = useSettingsStore.getState();
+    setProbeSettings({ showTouchPlateVisual: !settings.probe.showTouchPlateVisual });
+  };
+
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] overflow-hidden relative rounded-bl-lg rounded-br-lg">
       <Canvas shadows camera={{ position: [300, 300, 300], fov: 45 }} gl={{ antialias: true, alpha: true }} style={{ width: '100%', height: '100%' }}>
@@ -716,6 +830,19 @@ export function BedVisualizer() {
         <Tooltip content="Zoom Out" position="right">
           <button onClick={() => handleZoom('out')} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all">
             <Minus className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+        <div className="border-t border-[var(--border-color)]/20 my-1" />
+        <Tooltip content="Toggle Touch Plate" position="right">
+          <button 
+            onClick={toggleTouchPlate}
+            className={`p-1.5 rounded-lg shadow-sm transition-all border ${
+              settings.probe.showTouchPlateVisual
+                ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-[var(--accent-primary)]'
+                : 'bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+            }`}
+          >
+            <Hexagon className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
       </div>
