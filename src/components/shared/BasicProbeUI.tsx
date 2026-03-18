@@ -9,6 +9,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { transport } from '../../services/transportService';
 import { ProbeService, ProbeCorner } from '../../services/ProbeService';
 import { parseStatusReport } from '../../utils/parser';
+import { StepSizeSelector } from './StepSizeSelector';
 import { Tooltip } from '../ui/Tooltip';
 
 type ProbeMethod = 'z-only' | '3-axis';
@@ -16,13 +17,42 @@ type ContinuityStep = 'await-open' | 'await-close' | 'verified';
 
 interface BasicProbeUIProps {
   onComplete?: () => void;
+  /** Current selected step size for fine-tuning probe position */
+  stepSize?: number;
+  /** Available step sizes to choose from */
+  stepSizes?: number[];
+  /** Callback when step size changes */
+  onStepSizeChange?: (size: number) => void;
+  /** Unit label for step size display */
+  unitLabel?: string;
 }
 
-export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
+export function BasicProbeUI({ 
+  onComplete, 
+  stepSize: externalStepSize,
+  stepSizes: externalStepSizes,
+  onStepSizeChange,
+  unitLabel: externalUnitLabel
+}: BasicProbeUIProps) {
   const { settings, setProbeSettings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
   const prb = settings.probe;
   const safeHeight = settings.general.safeHeight ?? 5;
+  
+  // Use external step size if provided, otherwise use internal state
+  const isMetric = settings.general.carvingUnits === 'mm';
+  const unitLabel = externalUnitLabel ?? (isMetric ? 'mm' : 'in');
+  const stepSizes = externalStepSizes ?? (isMetric ? [0.05, 0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.05, 0.1, 0.5, 1]);
+  const [internalStepSize, setInternalStepSize] = useState<number>(externalStepSize ?? (isMetric ? 10 : 0.5));
+  const stepSize = externalStepSize !== undefined ? externalStepSize : internalStepSize;
+  
+  const handleStepSizeChange = (size: number) => {
+    if (onStepSizeChange) {
+      onStepSizeChange(size);
+    } else {
+      setInternalStepSize(size);
+    }
+  };
   
   const [method, setMethod] = useState<ProbeMethod>(prb.lastProbeMethod ?? 'z-only');
   const [corner, setCorner] = useState<ProbeCorner>('front-left');
@@ -293,6 +323,14 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
           </button>
         </Tooltip>
       </div>
+
+      <StepSizeSelector
+        value={stepSize}
+        options={stepSizes}
+        onChange={handleStepSizeChange}
+        unitLabel={unitLabel}
+        className="bg-[var(--bg-tertiary)]/30 p-3 rounded-xl border border-[var(--border-color)]"
+      />
 
       <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/30 p-2 rounded-xl border border-[var(--border-color)]">
         {/* Visual for 3-Axis or Z-Only */}

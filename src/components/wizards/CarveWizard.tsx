@@ -14,6 +14,7 @@ import { transport } from '../../services/transportService';
 import { BasicProbeUI } from '../shared/BasicProbeUI';
 import { BasicAutolevelUI } from '../shared/BasicAutolevelUI';
 import { Tooltip } from '../ui/Tooltip';
+import { StepSizeSelector } from '../shared/StepSizeSelector';
 import { 
   CheckCircle2, Play, 
   Box, FileCode, Target, AlignVerticalSpaceAround,
@@ -52,6 +53,12 @@ export function CarveWizard() {
   const [newToolNumber, setNewToolNumber] = useState(1);
   const [newToolType, setNewToolType] = useState<ToolType>('endmill');
 
+  // Jog State for Wizard
+  const isMetric = settings.general.carvingUnits === 'mm';
+  const unitLabel = isMetric ? 'mm' : 'in';
+  const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
+  const stepSizes = isMetric ? [0.05, 0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.05, 0.1, 0.5, 1];
+
   // Local files state for selection
   const [localFiles, setLocalFiles] = useState<{name: string, size: number, modified: number}[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
@@ -82,6 +89,12 @@ export function CarveWizard() {
     }
   };
 
+  // Sync step size with units
+  useEffect(() => {
+    const isActuallyMetric = settings.general.carvingUnits === 'mm';
+    setStepSize(isActuallyMetric ? 10 : 0.5);
+  }, [settings.general.carvingUnits]);
+
   // Reset local state when wizard opens
   useEffect(() => {
     if (isCarveWizardOpen) {
@@ -103,7 +116,6 @@ export function CarveWizard() {
 
   const handleJog = (x: number, y: number, z: number) => {
     if (!isIdle) return;
-    const stepSize = settings.general.carvingUnits === 'mm' ? 10 : 0.5;
     const feed = 1000;
     
     // respect reversal settings
@@ -610,6 +622,14 @@ export function CarveWizard() {
                 : 'Jog the tool so it is directly above the touch probe puck, ready to lower.'}
            </p>
 
+           <StepSizeSelector
+             value={stepSize}
+             options={stepSizes}
+             onChange={setStepSize}
+             unitLabel={unitLabel}
+             className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]"
+           />
+
            <div className="flex items-center justify-center gap-8 bg-[var(--bg-tertiary)]/50 p-6 rounded-2xl border border-[var(--border-color)]">
               {/* XY Pad */}
               <div className="grid grid-cols-3 gap-2 w-48 h-48">
@@ -697,15 +717,21 @@ export function CarveWizard() {
                    Ensure the alligator clip is attached to the collet and the puck is positioned correctly. 
                 </p>
                 <div className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]">
-                  <BasicProbeUI onComplete={() => {
-                    setHasProbed(true);
-                    setHasZeroed(true);
-                    setStockSettings({
-                      zeroX: machine.x.mpos,
-                      zeroY: machine.y.mpos,
-                      workOffsetZ: machine.z.mpos
-                    });
-                  }} />
+                  <BasicProbeUI 
+                    onComplete={() => {
+                      setHasProbed(true);
+                      setHasZeroed(true);
+                      setStockSettings({
+                        zeroX: machine.x.mpos,
+                        zeroY: machine.y.mpos,
+                        workOffsetZ: machine.z.mpos
+                      });
+                    }}
+                    stepSize={stepSize}
+                    stepSizes={stepSizes}
+                    onStepSizeChange={setStepSize}
+                    unitLabel={unitLabel}
+                  />
                 </div>
                 <div className="mt-6 flex flex-col items-center">
                   <div className={`px-8 py-2 rounded-full transition-all text-xs font-bold border flex items-center gap-2 ${
