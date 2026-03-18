@@ -25,6 +25,8 @@ import { ThemeContent } from './settings/ThemeContent';
 import { GeneralContent } from './settings/GeneralContent';
 import { DashboardContent } from './settings/DashboardContent';
 import { SettingsSection } from './settings/SettingsSection';
+import { ConnectionContent as SettingsConnectionContent } from './settings/ConnectionContent';
+import { FileManagerContent as SettingsFileManagerContent } from './settings/FileManagerContent';
 
 // ─── SettingsSection ─────────────────────────────────────────────────────────
 
@@ -812,7 +814,7 @@ function AtcContent() {
 
 // ─── Connection section ───────────────────────────────────────────────────────
 
-function ConnectionContent() {
+function LegacyConnectionContent() {
   const { settings, updateSettings } = useSettingsStore();
   const conn = settings.connection;
 
@@ -1094,7 +1096,7 @@ function ConnectionContent() {
 
 // ─── File Manager section ────────────────────────────────────────────────────
 
-function FileManagerContent() {
+function LegacyFileManagerContent() {
   const { settings, updateSettings } = useSettingsStore();
   const [path, setPath] = useState(settings.gcodeStoragePath);
 
@@ -2338,8 +2340,8 @@ function getSectionContent(id: SectionId): ReactNode | undefined {
   if (id === 'dashboard')  return <DashboardContent />;
   if (id === 'theme')      return <ThemeContent />;
   if (id === 'general')    return <GeneralContent />;
-  if (id === 'connection') return <ConnectionContent />;
-  if (id === 'file-manager') return <FileManagerContent />;
+  if (id === 'connection') return <SettingsConnectionContent />;
+  if (id === 'file-manager') return <SettingsFileManagerContent />;
   if (id === 'probe')        return <ProbeContent />;
   if (id === 'spindle')      return <SpindleContent />;
   if (id === 'atc')          return <AtcContent />;
