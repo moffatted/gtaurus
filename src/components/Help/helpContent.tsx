@@ -14,6 +14,19 @@ export interface HelpTopic {
   content: ReactNode;
 }
 
+function HelpScreenshot({ src, alt, caption }: { src: string; alt: string; caption: string }) {
+  return (
+    <figure className="space-y-2 mt-4">
+      <img
+        src={src}
+        alt={alt}
+        className="w-full rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
+      />
+      <figcaption className="text-xs text-[var(--text-tertiary)]">{caption}</figcaption>
+    </figure>
+  );
+}
+
 export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'getting-started',
@@ -40,6 +53,18 @@ export const HELP_TOPICS: HelpTopic[] = [
         <p className="text-sm text-[var(--text-secondary)] mt-3">
           Use the <strong>Connection Panel</strong> in the sidebar to select your mode and connect.
         </p>
+
+        <HelpScreenshot
+          src="/help_images/sidebar-connection-panel.png"
+          alt="Sidebar Connection panel"
+          caption="Connection panel in the left sidebar, where you choose connection mode and initiate connect/disconnect."
+        />
+
+        <HelpScreenshot
+          src="/help_images/top-menu-bar.png"
+          alt="Top menu bar"
+          caption="Top menu bar with status, emergency controls, quick-access tools, help, and settings."
+        />
 
         <h3 className="text-lg font-semibold mt-4">Legacy GRBL Support</h3>
         <p className="text-sm mb-2">If you are using an older standard GRBL 1.1 controller instead of FluidNC:</p>
@@ -78,6 +103,12 @@ export const HELP_TOPICS: HelpTopic[] = [
             ?   - Real-time Status Report<br/>
             $I  - Build Info
         </div>
+
+        <HelpScreenshot
+          src="/help_images/dashboard-gcode-console-panel.png"
+          alt="G-code Console panel"
+          caption="Console panel with command input, command history, and controller response log."
+        />
       </div>
     ),
   },
@@ -128,6 +159,12 @@ export const HELP_TOPICS: HelpTopic[] = [
         <p className="text-sm">
           <strong>Simulation Speed:</strong> Use the slider to adjust how quickly the toolpath is rendered during simulation.
         </p>
+
+        <HelpScreenshot
+          src="/help_images/dashboard-machine-controls-panel.png"
+          alt="Machine Controls panel"
+          caption="Controls panel containing DRO, jogging controls, file controls, and execution buttons."
+        />
       </div>
     ),
   },
@@ -205,6 +242,12 @@ export const HELP_TOPICS: HelpTopic[] = [
 
         <h3 className="text-lg font-semibold mt-4">Usage Tracking</h3>
         <p className="text-sm">Gtaurus automatically records total <strong>Usage Time</strong> and <strong>Cutting Distance</strong> for each bit, helping you plan maintenance or replacement.</p>
+
+        <HelpScreenshot
+          src="/help_images/top-menu-bit-library-panel.png"
+          alt="Tool Library panel"
+          caption="Bit Library panel used to manage tool definitions and set the active tool."
+        />
       </div>
     ),
   },
@@ -231,6 +274,12 @@ export const HELP_TOPICS: HelpTopic[] = [
         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-200 italic">
           <strong>Caution:</strong> Macros execute immediately. Ensure your machine state (position, tool) is safe for the specific macro being run.
         </div>
+
+        <HelpScreenshot
+          src="/help_images/dashboard-quick-macros-panel.png"
+          alt="Quick Macros panel"
+          caption="Quick Macros panel for one-click execution of saved G-code routines."
+        />
       </div>
     ),
   },
@@ -243,8 +292,34 @@ export const HELP_TOPICS: HelpTopic[] = [
         <h2 className="text-xl font-bold mb-4">Probing & Setup</h2>
         <p>Accurately locate your workpiece and set your zeroes.</p>
         
-        <h3 className="text-lg font-semibold mt-4">Automated Probing</h3>
-        <p className="text-sm">The Probe panel allows for axis-aligned probing (G38.2).</p>
+        <h3 className="text-lg font-semibold mt-4">Probe Configuration Check</h3>
+        <p className="text-sm">When you connect to a FluidNC controller, Gtaurus automatically queries the probe configuration using the <code>$probe</code> command. This check verifies that a probe input is properly configured on your controller.</p>
+        
+        <h4 className="text-base font-semibold mt-3">How It Works</h4>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li>On connection, Gtaurus sends the <code>$probe</code> query to retrieve the probe pin configuration.</li>
+          <li>The controller responds with details about the probe input (e.g., <code>pin: gpio.22:low</code>).</li>
+          <li>Gtaurus parses this response and displays the configuration status in the <strong>Probe Status</strong> indicator.</li>
+        </ul>
+
+        <h4 className="text-base font-semibold mt-3">What the Status Indicator Means</h4>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]">
+          <li><strong>Green indicator</strong> with <em>"Probe configured"</em>: Your probe is properly set up on the controller. Probing operations are available.</li>
+          <li><strong>Gray indicator</strong> with <em>"No probe configured"</em>: The controller does not have a probe input configured. Probing operations will not work.</li>
+          <li><strong>No indicator</strong>: Not connected, or controller type is unknown. Connect to perform the check.</li>
+        </ul>
+
+        <h4 className="text-base font-semibold mt-3">Why This Check Matters</h4>
+        <p className="text-sm text-[var(--text-secondary)]">
+          A probe should only be used if it is physically installed on your machine AND configured in the controller's settings. Without both, probing will either fail silently or produce incorrect results. The configuration check prevents wasting time attempting probes on machines without probe support.
+        </p>
+
+        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded text-xs text-blue-200 italic">
+          <strong>💡 Tip:</strong> If you've just installed or configured a probe on your FluidNC controller, disconnect and reconnect to refresh the probe configuration check.
+        </div>
+
+        <h3 className="text-lg font-semibold mt-6">Automated Probing</h3>
+        <p className="text-sm">Once your probe is confirmed as configured, the Probe panel allows for axis-aligned probing (G38.2).</p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
           <li><strong>Operation:</strong> Select between Z, X, Y, or multi-axis probing.</li>
           <li><strong>Max Travel:</strong> Set the maximum distance the probe should move before alarming if no contact is made.</li>
@@ -253,15 +328,27 @@ export const HELP_TOPICS: HelpTopic[] = [
         <h3 className="text-lg font-semibold mt-4">Workpiece Management</h3>
         <p className="text-sm">The Workpiece panel summarizes your current setup, including stock dimensions and work offsets.</p>
 
+        <HelpScreenshot
+          src="/help_images/dashboard-probe-panel.png"
+          alt="Probe panel"
+          caption="Probe panel for axis probing, probe parameters, and zero-set workflows."
+        />
+
+        <HelpScreenshot
+          src="/help_images/dashboard-workpiece-panel.png"
+          alt="Workpiece panel"
+          caption="Workpiece panel showing stock setup, dimensions, and related carving context."
+        />
+
         <h3 className="text-lg font-semibold mt-6">3-Axis Touch Plate Visualization (Bed Visualizer)</h3>
         <p className="text-sm">
           Use the touch-plate visualizer to confirm corner orientation and hole placement before running the 3-axis corner probe.
         </p>
 
-        <img
-          src="/help_touch_plate_visualizer.png"
-          alt="3-axis touch plate visualization example"
-          className="w-full rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)]"
+        <HelpScreenshot
+          src="/help_images/dashboard-bed-visualizer-panel.png"
+          alt="3-axis touch plate visualization in the Bed Visualizer"
+          caption="The Bed Visualizer showing a 3-axis touch plate positioned at the selected stock corner."
         />
 
         <h4 className="text-base font-semibold mt-4">How to Enable</h4>
@@ -320,6 +407,12 @@ export const HELP_TOPICS: HelpTopic[] = [
             <li><strong>Rotate:</strong> Left-click and drag.</li>
             <li><strong>Pan:</strong> Right-click and drag.</li>
         </ul>
+
+        <HelpScreenshot
+          src="/help_images/dashboard-bed-visualizer-panel.png"
+          alt="Bed visualizer panel"
+          caption="Bed Visualizer panel used for 3D orientation, path review, and setup verification."
+        />
       </div>
     ),
   },
@@ -365,6 +458,186 @@ export const HELP_TOPICS: HelpTopic[] = [
           <li><strong>Spindle Hours:</strong> Cumulative time the spindle has been active.</li>
           <li><strong>Job History:</strong> A rolling log of the last 10 jobs with start/end times and status.</li>
         </ul>
+
+        <HelpScreenshot
+          src="/help_images/top-menu-machine-statistics-panel.png"
+          alt="Machine Statistics panel"
+          caption="Machine Statistics panel for OEE and machine utilization trends."
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'dashboard-panels',
+    title: 'Dashboard Panels',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Dashboard Panel Reference</h2>
+        <p className="text-sm">This reference maps each dashboard panel to its role in day-to-day operation.</p>
+
+        <h3 className="text-lg font-semibold mt-4">File Manager</h3>
+        <p className="text-sm">Use this panel to browse, select, and manage G-code files used for simulation and carving.</p>
+        <HelpScreenshot
+          src="/help_images/dashboard-file-manager-panel.png"
+          alt="File Manager panel"
+          caption="File Manager panel for selecting and organizing G-code files."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Auto-Leveling</h3>
+        <p className="text-sm">Configure probing grid, bounds, and compensation behavior for uneven work surfaces.</p>
+        <HelpScreenshot
+          src="/help_images/dashboard-auto-leveling-panel.png"
+          alt="Auto-Leveling panel"
+          caption="Auto-Leveling panel used to configure and run surface compensation routines."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Dashboard Configuration</h3>
+        <p className="text-sm">Use dashboard settings to control panel visibility, layout behavior, and default workspace organization.</p>
+        <HelpScreenshot
+          src="/help_images/settings-dashboard-panel-layout.png"
+          alt="Dashboard settings panel"
+          caption="Dashboard settings panel for configuring dashboard layout and panel behavior."
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'top-menu-panels',
+    title: 'Top Menu Panels',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Top Menu & Popout Panels</h2>
+        <p className="text-sm">These panels are launched from the top menu shortcuts for quick access to advanced tools.</p>
+
+        <HelpScreenshot
+          src="/help_images/top-menu-bar.png"
+          alt="Top menu"
+          caption="Top menu with machine status, control shortcuts, and access to utility panels."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">AI Assistant</h3>
+        <p className="text-sm">The AI Assistant helps with CNC workflows, command suggestions, and troubleshooting guidance.</p>
+        <HelpScreenshot
+          src="/help_images/top-menu-ai-assistant-panel.png"
+          alt="AI Assistant panel"
+          caption="AI Assistant panel launched from the top menu."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">FluidNC Manager</h3>
+        <p className="text-sm">Use this manager for FluidNC-specific configuration and controller-level maintenance actions.</p>
+        <HelpScreenshot
+          src="/help_images/top-menu-fluidnc-manager-panel.png"
+          alt="FluidNC Manager panel"
+          caption="FluidNC Manager panel for controller configuration tasks."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Tool Changer</h3>
+        <p className="text-sm">The Tool panel supports manual or assisted tool-change workflows tied to active jobs.</p>
+        <HelpScreenshot
+          src="/help_images/top-menu-tool-changer-panel.png"
+          alt="Tool panel"
+          caption="Tool panel opened from top-menu tooling controls."
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'settings-dashboard',
+    title: 'Settings: Dashboard',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Dashboard Settings</h2>
+        <p className="text-sm">Controls which dashboard panels are visible and how your working layout is managed.</p>
+        <HelpScreenshot
+          src="/help_images/settings-dashboard-panel-layout.png"
+          alt="Dashboard settings"
+          caption="Dashboard settings for panel order, default size, minimum size, visibility toggles, and layout reset."
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'settings-ui-controls',
+    title: 'Settings: UI Controls',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">UI Controls Settings</h2>
+        <p className="text-sm">These screens configure interface behavior and interaction details used during day-to-day operation.</p>
+        <HelpScreenshot
+          src="/help_images/settings-ui-controls-theme-ux.png"
+          alt="UI Controls settings screen 1"
+          caption="Theme & UX settings, including theme preset selection and UI scale adjustment."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-ui-controls-top-menu-buttons.png"
+          alt="UI Controls settings screen 2"
+          caption="Top Menu visibility controls for Camera, AI Assistant, Stats, Bit Library, Tool Changer, and FluidNC Manager buttons."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-ui-controls-bed-visualizer.png"
+          alt="UI Controls settings screen 3"
+          caption="Bed Visualizer settings, including AutoLevel mesh display and Workpiece visualization panel access."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-ui-controls-stats-camera.png"
+          alt="UI Controls settings screen 4"
+          caption="Stats Display and Camera settings for enabling camera UI, stream URL, and Crowsnest config path."
+        />
+      </div>
+    ),
+  },
+  {
+    id: 'settings-machine-system',
+    title: 'Settings: Machine & System',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Machine &amp; System Settings</h2>
+        <p className="text-sm">These screens contain machine-level and system behavior settings. Review each screen carefully before applying changes on production hardware.</p>
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-general.png"
+          alt="Machine and System settings screen 1"
+          caption="General machine settings: Legacy GRBL mode, carving units, and firmware fallback behavior."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-geometry-limits.png"
+          alt="Machine and System settings screen 2"
+          caption="Machine geometry and safety setup: safe Z height, bed limits, and axis endstop orientation."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-connection.png"
+          alt="Machine and System settings screen 3"
+          caption="Connection settings for WiFi (Telnet) and Serial/USB communication parameters."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-monitoring-file-manager.png"
+          alt="Machine and System settings screen 4"
+          caption="Monitoring and storage settings: status polling interval and File Manager local G-code storage path."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-probe-configuration.png"
+          alt="Machine and System settings screen 5"
+          caption="Probe configuration: probe profile selection, feed/retract/travel values, and touch-plate calibration inputs."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-calibration-calculator.png"
+          alt="Machine and System settings screen 6"
+          caption="Calibration calculator for steps-per-mm using motor steps, microstepping, and roller diameter."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-fluidnc-config-motion-limits.png"
+          alt="Machine and System settings screen 7"
+          caption="FluidNC integration and motion controls: config file switching plus constraints and motion limit values."
+        />
+        <HelpScreenshot
+          src="/help_images/settings-machine-system-ai-assistant.png"
+          alt="Machine and System settings screen 8"
+          caption="AI Assistant settings for top-menu/dashboard visibility, response style, engine tier, and local model configuration."
+        />
       </div>
     ),
   },
