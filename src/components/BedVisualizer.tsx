@@ -76,8 +76,9 @@ function Spindle() {
     const simPos = gcodeState.simPos;
     
     // 1. Position Update
-    let tx = wcsX + (machine.x.mpos - machine.x.wco);
-    let ty = wcsY + (machine.y.mpos - machine.y.wco);
+    // Live machine rendering should use machine coordinates so homing lands at machine origin.
+    let tx = machine.x.mpos;
+    let ty = machine.y.mpos;
     let tz = machine.z.mpos;
 
     if (isSimulating && simPos) {
