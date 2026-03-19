@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { Plus, Save, Edit, Trash, FileCode, Settings } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
