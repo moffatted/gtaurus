@@ -222,6 +222,118 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
+    id: 'carve-wizard',
+    title: 'Carve Wizard',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Carve Wizard: Step-by-Step</h2>
+        <p className="text-sm">
+          The Carve Wizard guides you through an 11-step preflight before streaming a job.
+          Some steps can render different screens depending on your choices (manual zero vs probe, zero location selection, etc.).
+        </p>
+
+        <h3 className="text-lg font-semibold mt-4">Step 1: Power &amp; Homing</h3>
+        <p className="text-sm">Confirm machine status and run homing ($H$) if needed before continuing.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-01-power-homing.png"
+          alt="Carve Wizard step 1 power and homing"
+          caption="Step 1 checks homing state and provides a direct action to run the homing cycle."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 2: Workpiece Placement</h3>
+        <p className="text-sm">Physically secure the workpiece and acknowledge that it is clamped or fixtured safely.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-02-workpiece-placement.png"
+          alt="Carve Wizard step 2 workpiece placement"
+          caption="Step 2 requires user confirmation that the workpiece is securely placed."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 3: File &amp; Dimensions</h3>
+        <p className="text-sm">Choose the active file and verify/edit actual workpiece dimensions used for carving setup.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-03-file-dimensions.png"
+          alt="Carve Wizard step 3 file and dimensions"
+          caption="Step 3 file selection and editable workpiece dimensions."
+        />
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-03b-zero-position-variant.png"
+          alt="Carve Wizard step 3 zero position variant"
+          caption="Step 3 variant showing zero-position selection relative to the workpiece and fixed job bounds preview."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 4: Tooling</h3>
+        <p className="text-sm">Verify the active tool and pick the correct tool from the library for this operation.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-04-tooling-selection.png"
+          alt="Carve Wizard step 4 tooling selection"
+          caption="Step 4 ensures the loaded physical tool matches the selected library tool."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 5: Zero Method</h3>
+        <p className="text-sm">Choose how you want to set workspace zero: manual positioning or touch-probe workflow.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-05-zero-method.png"
+          alt="Carve Wizard step 5 zero method"
+          caption="Step 5 lets you choose between manual zero and probe-based zeroing."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 6: Position Tool</h3>
+        <p className="text-sm">Jog to the intended origin using step size controls and XYZ jog buttons.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-06-position-tool.png"
+          alt="Carve Wizard step 6 position tool"
+          caption="Step 6 manual jogging interface for precise tool positioning at origin."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 7: Set Zero</h3>
+        <p className="text-sm">Execute the zero action for the chosen method and confirm the resulting workspace coordinates.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-07-set-zero-manual.png"
+          alt="Carve Wizard step 7 set zero manual"
+          caption="Step 7 manual zero variant with explicit X0 Y0 Z0 action."
+        />
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-07b-set-zero-probe-variant.png"
+          alt="Carve Wizard step 7 set zero probe variant"
+          caption="Step 7 probe variant running a touch-plate probe sequence before zero set confirmation."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 8: Surface Calibration</h3>
+        <p className="text-sm">Select whether to run Auto Level mesh mapping before carving (recommended for uneven surfaces and PCB work).</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-08-surface-calibration.png"
+          alt="Carve Wizard step 8 surface calibration"
+          caption="Step 8 Auto Level choice: map the surface or skip."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 9: End Job Options</h3>
+        <p className="text-sm">Define post-job behavior such as optional macro execution at job completion.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-09-end-job-options.png"
+          alt="Carve Wizard step 9 end job options"
+          caption="Step 9 post-job action toggle for optional automation after carve completion."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 10: Safety Checks</h3>
+        <p className="text-sm">Complete final safety confirmations before the machine is allowed to start carving.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-10-safety-checks.png"
+          alt="Carve Wizard step 10 safety checks"
+          caption="Step 10 checklist for personal safety, clamping, clearance, and coolant/dust readiness."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 11: Ready to Carve</h3>
+        <p className="text-sm">Review final job details (file, RPM, feed rate) and press Start Carve when ready.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/carve-wizard-step-11-ready-to-carve.png"
+          alt="Carve Wizard step 11 ready to carve"
+          caption="Step 11 final confirmation screen where carving starts."
+        />
+      </div>
+    ),
+  },
+  {
     id: 'bit-management',
     title: 'Bit Library',
     category: 'general',
