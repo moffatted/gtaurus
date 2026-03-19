@@ -3,7 +3,7 @@
  * @purpose Tests for the G-code status report parser, ensuring accurate state and coordinate extraction.
  */
 import { describe, it, expect } from 'vitest';
-import { parseStatusReport } from '../utils/parser';
+import { parseFluidNCProbeSettingLine, parseStatusReport } from '../utils/parser';
 
 describe('Gtaurus Frontend Logic & Parser', () => {
 
@@ -43,4 +43,41 @@ describe('Gtaurus Frontend Logic & Parser', () => {
 
      expect(parsed.pins).toBe('XYZ');
   });
+
+    it('should parse FluidNC probe and toolsetter pin flags', () => {
+      const report = '<Idle|MPos:0.000,0.000,0.000|Pn:PT>';
+      const parsed = parseStatusReport(report);
+
+      expect(parsed.pins).toBe('PT');
+    });
+
+    it('should parse a configured FluidNC probe runtime setting line', () => {
+      const parsed = parseFluidNCProbeSettingLine('$probe/pin=gpio.22:low');
+
+      expect(parsed).toEqual({
+        setting: 'pin',
+        value: 'gpio.22:low',
+        configured: true,
+      });
+    });
+
+    it('should treat NO_PIN FluidNC probe runtime setting lines as unconfigured', () => {
+      const parsed = parseFluidNCProbeSettingLine('$probe/toolsetter_pin=NO_PIN');
+
+      expect(parsed).toEqual({
+        setting: 'toolsetter_pin',
+        value: 'NO_PIN',
+        configured: false,
+      });
+    });
+
+    it('should parse probe section key-value lines', () => {
+      const parsed = parseFluidNCProbeSettingLine('pin: gpio.22:low');
+
+      expect(parsed).toEqual({
+        setting: 'pin',
+        value: 'gpio.22:low',
+        configured: true,
+      });
+    });
 });

@@ -565,12 +565,10 @@ function MachineBed() {
 
 // ─── Touch Plate Visualization ─────────────────────────────────────────────
 
-function TouchPlate() {
+function CornerTouchPlate() {
   const { settings } = useSettingsStore();
   const stock = settings.stock;
   const probe = settings.probe;
-
-  if (!probe.showTouchPlateVisual) return null;
 
   // Touch plate dimensions (editable from settings)
   const length = Math.max(probe.touchPlateLength, 1);
@@ -745,6 +743,84 @@ function TouchPlate() {
       </mesh>
     </group>
   );
+}
+
+function ZTouchPlate() {
+  const { settings } = useSettingsStore();
+  const stock = settings.stock;
+  const probe = settings.probe;
+
+  const thickness = Math.max(probe.zOffset || 5, 0.5);
+  const stockWidth = Math.max(stock.width, 1);
+  const stockDepth = Math.max(stock.height, 1);
+  const stockThickness = Math.max(stock.thickness, 1);
+  const shape = probe.zTouchPlateShape ?? 'square';
+  const diameter = Math.max(probe.zTouchPlateDiameter ?? 40, 1);
+  const length = shape === 'round' ? diameter : Math.max(probe.zTouchPlateLength ?? 40, 1);
+  const width = shape === 'round' ? diameter : Math.max(probe.zTouchPlateWidth ?? 40, 1);
+  const insetX = THREE.MathUtils.clamp(probe.zTouchPlateInsetX ?? 8, 0, Math.max(stockWidth - length, 0));
+  const insetY = THREE.MathUtils.clamp(probe.zTouchPlateInsetY ?? 8, 0, Math.max(stockDepth - width, 0));
+  const plateX = insetX + length / 2;
+  const plateZ = -(insetY + width / 2);
+  const plateY = stockThickness + 0.05 + thickness / 2;
+  const radius = diameter / 2;
+
+  const aluminumProfile = {
+    color: "#e2e8f0",
+    metalness: 0.62,
+    roughness: 0.24,
+    emissive: "#f8fafc",
+    emissiveIntensity: 0.22,
+  };
+
+  return (
+    <group position={[plateX, plateY, plateZ]}>
+      {shape === 'round' ? (
+        <>
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[radius, radius, thickness, 64]} />
+            <meshStandardMaterial {...aluminumProfile} />
+          </mesh>
+          <mesh position={[0, thickness / 2 + 0.04, 0]}>
+            <cylinderGeometry args={[Math.max(radius - 2.2, radius * 0.5), Math.max(radius - 2.2, radius * 0.5), 0.08, 64]} />
+            <meshBasicMaterial color="#cbd5e1" />
+          </mesh>
+          <mesh position={[0, thickness / 2 + 0.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[Math.max(radius - 0.75, 0.8), 0.16, 16, 64]} />
+            <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.28} />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[length, thickness, width]} />
+            <meshStandardMaterial {...aluminumProfile} />
+          </mesh>
+          <mesh position={[0, thickness / 2 + 0.04, 0]}>
+            <boxGeometry args={[Math.max(length - 4, 1), 0.08, Math.max(width - 4, 1)]} />
+            <meshBasicMaterial color="#cbd5e1" />
+          </mesh>
+          <mesh position={[0, thickness / 2 + 0.09, 0]}>
+            <boxGeometry args={[Math.max(length - 9, 1), 0.08, Math.max(width - 9, 1)]} />
+            <meshBasicMaterial color="#94a3b8" />
+          </mesh>
+        </>
+      )}
+
+      <mesh position={[0, thickness / 2 + 0.12, 0]}>
+        <cylinderGeometry args={[1.2, 1.2, 0.08, 32]} />
+        <meshBasicMaterial color="#0f172a" />
+      </mesh>
+    </group>
+  );
+}
+
+function TouchPlate() {
+  const probe = useSettingsStore(state => state.settings.probe);
+
+  if (!probe.showTouchPlateVisual) return null;
+
+  return probe.lastProbeMethod === '3-axis' ? <CornerTouchPlate /> : <ZTouchPlate />;
 }
 
 // ─── Scene Content ─────────────────────────────────────────────────────

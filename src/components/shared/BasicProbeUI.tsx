@@ -275,25 +275,25 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         <Tooltip content="Simple Z touch-off workflow. Use this for plate-only Z zeroing." delay={0} position="top" className="flex-1">
           <button
             onClick={() => { setMethod('z-only'); setProbeSettings({ lastProbeMethod: 'z-only' }); }}
-            className={`w-full py-0.5 px-2 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
+            className={`w-full py-1 px-2 rounded-md text-[8px] font-bold uppercase tracking-wide leading-tight whitespace-normal transition-all ${
               method === 'z-only' 
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
-            Touch Plate
+            Z-Axis Touchplate
           </button>
         </Tooltip>
         <Tooltip content="Full corner probing routine for Z, X, and Y workpiece zero." delay={0} position="top" className="flex-1">
           <button
             onClick={() => { setMethod('3-axis'); setProbeSettings({ lastProbeMethod: '3-axis' }); }}
-            className={`w-full py-0.5 px-2 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
+            className={`w-full py-1 px-2 rounded-md text-[8px] font-bold uppercase tracking-wide leading-tight whitespace-normal transition-all ${
               method === '3-axis' 
                 ? 'bg-[var(--accent-primary)] text-white shadow-sm' 
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
-            3-Axis Corner
+            3-Axis Corner Touchplate
           </button>
         </Tooltip>
       </div>
@@ -315,6 +315,62 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
             </div>
           )}
         </div>
+
+        {method !== '3-axis' && (
+          <div className="w-[210px] shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-1.5 space-y-1.5">
+            <div className="flex items-center gap-1">
+              <Zap className="w-3 h-3 text-[var(--accent-primary)] shrink-0" />
+              <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Required Continuity</span>
+            </div>
+            <div className={`flex items-center gap-1 px-1.5 py-1 rounded-md border text-[9px] font-bold transition-all ${
+              continuityVerified
+                ? 'bg-green-500/15 border-green-500/40 text-green-400'
+                : probeCircuitClosed
+                  ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
+                  : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
+            }`}>
+              {continuityVerified
+                ? <Zap className="w-3 h-3 shrink-0 animate-pulse" />
+                : probeCircuitClosed
+                  ? <Zap className="w-3 h-3 shrink-0" />
+                  : <ZapOff className="w-3 h-3 shrink-0" />}
+              <span className="truncate">
+                {continuityVerified
+                  ? 'Verified: Probe enabled'
+                  : awaitingCircuit
+                    ? continuityStep === 'await-open'
+                      ? 'Circuit CLOSED: Lift off'
+                      : 'Circuit OPEN: Touch plate'
+                    : probeCircuitClosed
+                      ? 'Circuit CLOSED: Verify'
+                      : 'Circuit OPEN: Not verified'}
+              </span>
+            </div>
+            <div className="text-[8px] text-[var(--text-secondary)] leading-snug">
+              {awaitingCircuit
+                ? continuityStep === 'await-open'
+                  ? 'Lift off, then touch the plate again.'
+                  : 'Touch bit to plate now.'
+                : 'Verify continuity before probing.'}
+            </div>
+            <div className="flex gap-1">
+              <button
+                disabled={!canProbe || isProbing}
+                onClick={awaitingCircuit ? resetContinuityCheck : startContinuityCheck}
+                className="flex-1 py-1 rounded-md border border-[var(--border-color)] text-[9px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {awaitingCircuit ? 'Reset' : 'Verify'}
+              </button>
+              <button
+                disabled={!continuityVerified || !canProbe || isProbing}
+                onClick={handleProbe}
+                className="flex-1 py-1 rounded-md text-[9px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
+              >
+                {continuityVerified ? 'Start' : 'Locked'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {method === '3-axis' && (
           <div className="w-[210px] shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-1.5 space-y-1.5">
@@ -446,6 +502,91 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
             />
           </div>
 
+          {method !== '3-axis' && (
+            <>
+              <div className="flex flex-col">
+                <OptionLabel label="Plate Shape" tip="Visual shape for the Z-only touch plate shown in the Bed Visualizer." />
+                <select
+                  value={prb.zTouchPlateShape ?? 'square'}
+                  onChange={(e) => setProbeSettings({ zTouchPlateShape: e.target.value as 'square' | 'round' })}
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                >
+                  <option value="square">Square</option>
+                  <option value="round">Round</option>
+                </select>
+              </div>
+
+              {prb.zTouchPlateShape === 'round' ? (
+                <div className="flex flex-col">
+                  <OptionLabel label="Plate Dia" tip="Diameter of the round Z touch plate." />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={prb.zTouchPlateDiameter ?? ''}
+                      onChange={(e) => setProbeSettings({ zTouchPlateDiameter: Number(e.target.value) })}
+                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                    />
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col">
+                    <OptionLabel label="Plate Len" tip="X dimension of the square or rectangular Z touch plate." />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={prb.zTouchPlateLength ?? ''}
+                        onChange={(e) => setProbeSettings({ zTouchPlateLength: Number(e.target.value) })}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <OptionLabel label="Plate Width" tip="Y dimension of the square or rectangular Z touch plate." />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={prb.zTouchPlateWidth ?? ''}
+                        onChange={(e) => setProbeSettings({ zTouchPlateWidth: Number(e.target.value) })}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="flex flex-col">
+                <OptionLabel label="Inset X" tip="Distance from the stock left edge to the Z touch plate." />
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={prb.zTouchPlateInsetX ?? ''}
+                    onChange={(e) => setProbeSettings({ zTouchPlateInsetX: Number(e.target.value) })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <OptionLabel label="Inset Y" tip="Distance from the stock front edge to the Z touch plate." />
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={prb.zTouchPlateInsetY ?? ''}
+                    onChange={(e) => setProbeSettings({ zTouchPlateInsetY: Number(e.target.value) })}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-tertiary)] font-mono pointer-events-none">mm</span>
+                </div>
+              </div>
+            </>
+          )}
+
           {method === '3-axis' && (
             <>
               <div className="flex flex-col">
@@ -566,62 +707,6 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       </div>
 
-      {method !== '3-axis' && (
-      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]/40 p-2 space-y-2">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
-          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">Required Continuity Check</span>
-        </div>
-        <p className="text-[10px] text-[var(--text-secondary)] leading-snug">
-          {awaitingCircuit
-            ? continuityStep === 'await-open'
-              ? 'The probe circuit is already closed. Lift the bit off the plate until it opens, then touch it again to verify a real open-to-closed transition.'
-              : 'Touch the bit to the touch plate now. Probe motion stays locked out until continuity is verified.'
-            : 'Before probing, click Verify Continuity and touch the bit to the plate. Probe motion is disabled until this passes.'}
-        </p>
-        <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all ${
-          continuityVerified
-            ? 'bg-green-500/15 border-green-500/40 text-green-400'
-            : probeCircuitClosed
-              ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300'
-              : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)]'
-        }`}>
-          {continuityVerified
-            ? <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
-            : probeCircuitClosed
-              ? <Zap className="w-3.5 h-3.5 shrink-0" />
-              : <ZapOff className="w-3.5 h-3.5 shrink-0" />}
-          <span>
-            {continuityVerified
-              ? 'Continuity VERIFIED ✓ — Probe motion enabled'
-              : awaitingCircuit
-                ? continuityStep === 'await-open'
-                  ? 'Circuit CLOSED — Lift off plate until OPEN'
-                  : 'Circuit OPEN — Waiting for contact...'
-                : probeCircuitClosed
-                  ? 'Circuit currently CLOSED — Start verification to confirm transition'
-                  : 'Circuit OPEN — Verification not started'}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <button
-            disabled={!canProbe || isProbing}
-            onClick={awaitingCircuit ? resetContinuityCheck : startContinuityCheck}
-            className="flex-1 py-1.5 rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {awaitingCircuit ? 'Reset Check' : 'Verify Continuity'}
-          </button>
-          <button
-            disabled={!continuityVerified || !canProbe || isProbing}
-            onClick={handleProbe}
-            className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--accent-primary)] text-white hover:brightness-110 disabled:hover:brightness-100"
-          >
-            {continuityVerified ? 'Start Probe' : 'Start Probe Locked'}
-          </button>
-        </div>
-      </div>
-      )}
-
       {isAlarm && (
         <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/30 space-y-1.5">
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400">
@@ -664,10 +749,6 @@ export function BasicProbeUI({ onComplete }: BasicProbeUIProps) {
         </div>
       )}
 
-      <div className="flex justify-between items-center opacity-40 hover:opacity-100 transition-opacity px-1">
-        <span className="text-[9px] text-[var(--text-tertiary)] font-bold uppercase tracking-tighter">Bit: {prb.stylusDiameter}mm</span>
-        <span className="text-[9px] text-[var(--text-tertiary)] font-mono">F{prb.fastFeedrate}/{prb.slowFeedrate}</span>
-      </div>
     </div>
   );
 }

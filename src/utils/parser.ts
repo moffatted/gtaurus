@@ -13,6 +13,27 @@ export interface ControllerStatus {
   units: 'mm' | 'in';
 }
 
+export interface FluidNCProbeSettingLine {
+  setting: 'pin' | 'toolsetter_pin';
+  value: string;
+  configured: boolean;
+}
+
+export const parseFluidNCProbeSettingLine = (raw: string): FluidNCProbeSettingLine | null => {
+  const trimmed = raw.trim();
+  const runtimeMatch = trimmed.match(/^\$(?:\/)?probe\/(pin|toolsetter_pin)=(.+)$/i);
+  const sectionMatch = trimmed.match(/^(pin|toolsetter_pin):\s*(.+)$/i);
+  const match = runtimeMatch ?? sectionMatch;
+  if (!match) return null;
+
+  const value = match[2].trim();
+  return {
+    setting: match[1].toLowerCase() as 'pin' | 'toolsetter_pin',
+    value,
+    configured: value.length > 0 && !/^(null|none|no[ _]pin|undefined)$/i.test(value),
+  };
+};
+
 /**
  * Parses a standard GRBL/FluidNC status report line.
  * Example: <Idle|MPos:0.000,0.000,0.000|Bf:15,128|FS:0,0|WCO:0.000,0.000,0.000|Pn:P|Ov:100,100,100>
@@ -34,7 +55,7 @@ export const parseStatusReport = (raw: string): Partial<ControllerStatus> => {
   const fsMatch = raw.match(/FS:(\d+),(\d+)/i);
   const sMatch = raw.match(/S:(\d+)/i);
   const bfMatch = raw.match(/Bf:(\d+),(\d+)/i);
-  const pinsMatch = raw.match(/Pn:([XYZPDHRS]+)/i);
+  const pinsMatch = raw.match(/Pn:([XYZPDHRST]+)/i);
 
   // Detect Units (Case-insensitive)
   const isInch = /\|in/i.test(raw);

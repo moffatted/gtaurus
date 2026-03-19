@@ -99,6 +99,12 @@ export interface ProbeSettings {
   touchPlateWidth: number;
   touchPlateWrapDepth: number;
   touchPlateWrapHeight: number;
+  zTouchPlateShape: 'square' | 'round';
+  zTouchPlateLength: number;
+  zTouchPlateWidth: number;
+  zTouchPlateDiameter: number;
+  zTouchPlateInsetX: number;
+  zTouchPlateInsetY: number;
   showTouchPlateVisual: boolean;
   touchPlateCorner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
   // Last selected probe mode
@@ -368,6 +374,12 @@ export const DEFAULT_SETTINGS: Settings = {
     touchPlateWidth: 30,
     touchPlateWrapDepth: 5,
     touchPlateWrapHeight: 5,
+    zTouchPlateShape: 'square',
+    zTouchPlateLength: 40,
+    zTouchPlateWidth: 40,
+    zTouchPlateDiameter: 40,
+    zTouchPlateInsetX: 8,
+    zTouchPlateInsetY: 8,
     showTouchPlateVisual: true,
     touchPlateCorner: 'front-left',
     lastProbeMethod: 'z-only',
@@ -577,6 +589,12 @@ function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
     xEdgeClearance: toNumber(savedProbe.xEdgeClearance, DEFAULT_SETTINGS.probe.xEdgeClearance),
     yEdgeClearance: toNumber(savedProbe.yEdgeClearance, DEFAULT_SETTINGS.probe.yEdgeClearance),
     centeringFudge: toNumber(savedProbe.centeringFudge, DEFAULT_SETTINGS.probe.centeringFudge),
+    zTouchPlateShape: savedProbe.zTouchPlateShape === 'round' ? 'round' : 'square',
+    zTouchPlateLength: toNumber(savedProbe.zTouchPlateLength, DEFAULT_SETTINGS.probe.zTouchPlateLength),
+    zTouchPlateWidth: toNumber(savedProbe.zTouchPlateWidth, DEFAULT_SETTINGS.probe.zTouchPlateWidth),
+    zTouchPlateDiameter: toNumber(savedProbe.zTouchPlateDiameter, DEFAULT_SETTINGS.probe.zTouchPlateDiameter),
+    zTouchPlateInsetX: toNumber(savedProbe.zTouchPlateInsetX, DEFAULT_SETTINGS.probe.zTouchPlateInsetX),
+    zTouchPlateInsetY: toNumber(savedProbe.zTouchPlateInsetY, DEFAULT_SETTINGS.probe.zTouchPlateInsetY),
     plateGeometry: savedProbe.plateGeometry === 'ring-hole' ? 'ring-hole' : 'solid-block',
     postProbeReturnMode: savedProbe.postProbeReturnMode === 'auto-return-xy0' ? 'auto-return-xy0' : 'hold-z',
     lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
