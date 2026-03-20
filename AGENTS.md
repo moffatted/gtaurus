@@ -31,6 +31,8 @@
 
 - Use focused commits with clear, user-impactful commit messages.
 - Include documentation/help updates when behavior or UI affordances change.
+- If the developer says "commit" without qualifiers, treat it as "commit and push" by default.
+- Only keep commits local when the developer explicitly asks to "commit locally" or "do not push".
 
 ## UI Help Affordances
 
