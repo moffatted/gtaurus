@@ -45,6 +45,11 @@ describe('aiCommandRouter', () => {
     expect(suggestions.some((suggestion) => suggestion.template.startsWith('/help'))).toBe(true);
   });
 
+  it('suggests status modes from /status input text', () => {
+    const suggestions = getCommandSuggestions('/status f');
+    expect(suggestions.some((suggestion) => suggestion.template === '/status firmware')).toBe(true);
+  });
+
   it('resolves settings command with open action for strong matches', () => {
     const parsed = parseSlashCommand('/settings probe');
     if (!parsed) throw new Error('Expected parsed slash command');
@@ -57,6 +62,63 @@ describe('aiCommandRouter', () => {
       tab: 'machine',
       section: 'probe',
     });
+  });
+
+  it('resolves status with FluidNC diagnostic command guidance', () => {
+    const parsed = parseSlashCommand('/status');
+    if (!parsed) throw new Error('Expected parsed slash command');
+
+    const result = resolveSlashCommand(parsed, { settings: DEFAULT_SETTINGS, machine });
+    expect(result.kind).toBe('local');
+    if (result.kind !== 'local') return;
+
+    expect(result.response).toContain('Machine status (live app context):');
+    expect(result.response).toContain('$I');
+    expect(result.response).toContain('$SS');
+    expect(result.response).toContain('$$');
+    expect(result.response).toContain('$CD');
+    expect(result.card?.title).toBe('Machine + FluidNC Status');
+  });
+
+  it('resolves status firmware mode', () => {
+    const parsed = parseSlashCommand('/status firmware');
+    if (!parsed) throw new Error('Expected parsed slash command');
+
+    const result = resolveSlashCommand(parsed, { settings: DEFAULT_SETTINGS, machine });
+    expect(result.kind).toBe('local');
+    if (result.kind !== 'local') return;
+
+    expect(result.response).toContain('FluidNC firmware diagnostics');
+    expect(result.response).toContain('$I');
+    expect(result.response).toContain('$SS');
+    expect(result.card?.title).toBe('FluidNC Firmware Status');
+    expect(result.action).toEqual({ type: 'sendGcode', cmd: '$I' });
+  });
+
+  it('resolves status config mode', () => {
+    const parsed = parseSlashCommand('/status config');
+    if (!parsed) throw new Error('Expected parsed slash command');
+
+    const result = resolveSlashCommand(parsed, { settings: DEFAULT_SETTINGS, machine });
+    expect(result.kind).toBe('local');
+    if (result.kind !== 'local') return;
+
+    expect(result.response).toContain('FluidNC config diagnostics');
+    expect(result.response).toContain('$CD');
+    expect(result.card?.title).toBe('FluidNC Config Status');
+    expect(result.action).toEqual({ type: 'sendGcode', cmd: '$CD' });
+  });
+
+  it('resolves status live mode', () => {
+    const parsed = parseSlashCommand('/status live');
+    if (!parsed) throw new Error('Expected parsed slash command');
+
+    const result = resolveSlashCommand(parsed, { settings: DEFAULT_SETTINGS, machine });
+    expect(result.kind).toBe('local');
+    if (result.kind !== 'local') return;
+
+    expect(result.response).toContain('Machine status (live app context):');
+    expect(result.action).toEqual({ type: 'sendGcode', cmd: '?' });
   });
 
   it('resolves diagnose to hybrid mode', () => {

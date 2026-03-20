@@ -8,6 +8,7 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { useUIStore } from "../stores/uiStore";
 import { useHelpStore } from "../stores/helpStore";
+import { useConsoleStore } from "../stores/consoleStore";
 import { transport } from '../services/transportService';
 import { getCommandSuggestions, parseSlashCommand, resolveSlashCommand, type CommandCard } from '../utils/aiCommandRouter';
 
@@ -96,7 +97,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
         {
           id: `${Date.now()}-local`,
           role: 'model',
-          content: commandResult.card ? '' : commandResult.response,
+          content: commandResult.response,
           includeInAiHistory: false,
           commandCard: commandResult.card,
         },
@@ -234,6 +235,14 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
       if (action.windowId === 'toolChanger') ui.openToolChanger();
       if (action.windowId === 'toolLibrary') ui.openToolLibrary();
       if (action.windowId === 'cameraViewer') ui.openCameraViewer();
+      return;
+    }
+    if (action.type === 'sendGcode') {
+      const appendLine = useConsoleStore.getState().appendLine;
+      appendLine(`> ${action.cmd}`, 'cmd');
+      transport.invoke('send_gcode', { cmd: action.cmd }).catch((err) => {
+        appendLine(`error: ${String(err)}`, 'error');
+      });
     }
   };
 

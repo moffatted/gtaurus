@@ -60,7 +60,12 @@ export interface OpenWindowAction {
   windowId: 'aiAssistant' | 'fluidNCManager' | 'machineStats' | 'toolChanger' | 'toolLibrary' | 'cameraViewer';
 }
 
-export type CommandAction = OpenSettingsAction | OpenHelpAction | OpenWindowAction;
+export interface SendGcodeAction {
+  type: 'sendGcode';
+  cmd: string;
+}
+
+export type CommandAction = OpenSettingsAction | OpenHelpAction | OpenWindowAction | SendGcodeAction;
 
 export interface CommandCardItem {
   label: string;
@@ -247,7 +252,7 @@ const SHORTCUTS = [
 const SLASH_COMMANDS = [
   { name: 'commands', template: '/commands', summary: 'Show the available slash commands.' },
   { name: 'help', template: '/help ', summary: 'Search local help topics.' },
-  { name: 'status', template: '/status', summary: 'Show current machine state.' },
+  { name: 'status', template: '/status', summary: 'Show live machine state and key FluidNC status commands.' },
   { name: 'settings', template: '/settings probe', summary: 'Search settings sections.' },
   { name: 'shortcuts', template: '/shortcuts', summary: 'Show keyboard shortcuts.' },
   { name: 'wizard', template: '/wizard carve', summary: 'Find a relevant wizard.' },
@@ -264,6 +269,8 @@ interface OpenTargetEntry extends RankedMatch {
   actionLabel: string;
   action: CommandAction;
 }
+
+type StatusMode = 'all' | 'live' | 'firmware' | 'config';
 
 const WIZARD_ENTRIES: DescriptorEntry[] = [
   {
@@ -581,6 +588,18 @@ function buildHelpTopicSuggestions(query: string): CommandSuggestion[] {
   }));
 }
 
+function buildStatusModeSuggestions(query: string): CommandSuggestion[] {
+  const modes = [
+    { id: 'status-live', label: '/status live', template: '/status live', summary: 'Live machine snapshot from app context.' },
+    { id: 'status-firmware', label: '/status firmware', template: '/status firmware', summary: 'FluidNC firmware and startup diagnostics commands.' },
+    { id: 'status-config', label: '/status config', template: '/status config', summary: 'FluidNC configuration diagnostics commands.' },
+  ];
+
+  const prefix = normalize(query.trim());
+  if (!prefix) return modes;
+  return modes.filter((mode) => normalize(mode.label).includes(prefix) || normalize(mode.template).includes(prefix));
+}
+
 function formatHelpMatches(matches: HelpMatch[]): string {
   return matches
     .map((match) => `- ${match.title} (${match.category})`)
@@ -592,7 +611,7 @@ function buildCommandsResponse(): string {
     'Available slash commands:',
     '- /commands: Show the command list.',
     '- /help <topic>: Search local help topics.',
-    '- /status: Show current machine state.',
+    '- /status: Show current machine state plus key FluidNC status commands.',
     '- /settings <query>: Search settings sections.',
     '- /shortcuts: Show keyboard shortcuts.',
     '- /wizard <query>: Find the right wizard.',
@@ -610,7 +629,7 @@ function buildCommandsCard(): CommandCard {
     summary: 'Use slash commands when you want deterministic product help, live machine summaries, or grounded AI workflows.',
     items: [
       { label: '/help <topic>', detail: 'Search local help topics and documentation.' },
-      { label: '/status', detail: 'Show current machine state from live context.' },
+      { label: '/status', detail: 'Show current machine state and FluidNC diagnostic commands.' },
       { label: '/settings <query>', detail: 'Search settings sections and jump to the best match.' },
       { label: '/shortcuts', detail: 'Show keyboard shortcuts.' },
       { label: '/wizard <query>', detail: 'Find the right setup or carve wizard.' },
@@ -694,13 +713,25 @@ function buildHelpCard(query: string): CommandCard {
   };
 }
 
-function buildStatusResponse(context: CommandRouterContext): string {
+function parseStatusMode(args: string): { mode: StatusMode; normalizedArgs: string } {
+  const normalizedArgs = normalize(args);
+  if (!normalizedArgs) return { mode: 'all', normalizedArgs };
+
+  const [token] = normalizedArgs.split(/\s+/);
+  if (token === 'live') return { mode: 'live', normalizedArgs };
+  if (token === 'firmware' || token === 'fw' || token === 'build' || token === 'startup') return { mode: 'firmware', normalizedArgs };
+  if (token === 'config' || token === 'cfg' || token === 'yaml' || token === 'settings') return { mode: 'config', normalizedArgs };
+
+  return { mode: 'all', normalizedArgs };
+}
+
+function buildStatusResponseForMode(context: CommandRouterContext, mode: StatusMode): string {
   const { machine, settings } = context;
   const connection = machine.status === 'Disconnected' ? 'Disconnected' : 'Connected';
   const units = settings.general.carvingUnits;
 
-  return [
-    'Machine status:',
+  const liveSection = [
+    'Machine status (live app context):',
     `- Connection: ${connection}`,
     `- State: ${machine.status}`,
     `- Firmware: ${machine.firmware}`,
@@ -711,6 +742,105 @@ function buildStatusResponse(context: CommandRouterContext): string {
     `- Spindle: ${machine.spindle}`,
     `- Units: ${units}`,
   ].join('\n');
+
+  const firmwareSection = [
+    'FluidNC firmware diagnostics (run in G-code console):',
+    '- $I (Build Info): Firmware version, build info, and board details as reported by FluidNC.',
+    '- $SS (Startup Show): Replays boot sequence to reveal board/SD detection and config issues.',
+    '- $$ (Grbl Settings): Legacy compatibility settings; mostly read-only in FluidNC.',
+  ].join('\n');
+
+  const configSection = [
+    'FluidNC config diagnostics (run in G-code console):',
+    '- $CD (Config Dump): Dumps active YAML configuration in memory.',
+    '- $$ (Grbl Settings): Legacy compatibility settings for sender compatibility.',
+  ].join('\n');
+
+  if (mode === 'live') {
+    return [
+      liveSection,
+      '',
+      'For firmware/build details, run `/status firmware`. For config detail, run `/status config`.',
+    ].join('\n');
+  }
+
+  if (mode === 'firmware') {
+    return [
+      firmwareSection,
+      '',
+      'Also available: `/status live` and `/status config`.',
+    ].join('\n');
+  }
+
+  if (mode === 'config') {
+    return [
+      configSection,
+      '',
+      'Also available: `/status live` and `/status firmware`.',
+    ].join('\n');
+  }
+
+  return [
+    liveSection,
+    '',
+    firmwareSection,
+    '',
+    configSection,
+    '',
+    'Tip: use `/status live`, `/status firmware`, or `/status config` for focused views.',
+  ].join('\n');
+}
+
+function buildStatusCard(mode: StatusMode): CommandCard {
+  if (mode === 'live') {
+    return {
+      title: 'Machine Status (Live)',
+      eyebrow: 'Status',
+      summary: 'Live machine snapshot from GTAurus context. Use firmware/config modes for deeper FluidNC details.',
+      items: [
+        { label: '/status firmware', detail: 'Build info and startup diagnostics commands.' },
+        { label: '/status config', detail: 'YAML config dump and related settings commands.' },
+        { label: '?', detail: 'Request an immediate GRBL-style status frame from the controller.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '?' } },
+      ],
+    };
+  }
+
+  if (mode === 'firmware') {
+    return {
+      title: 'FluidNC Firmware Status',
+      eyebrow: 'Status',
+      summary: 'Firmware/build and startup diagnostics commands.',
+      items: [
+        { label: '$I', detail: 'Firmware version/build info and board details from the controller.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$I' } },
+        { label: '$SS', detail: 'Replay startup log to inspect board, SD card, and startup/config errors.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$SS' } },
+        { label: '$$', detail: 'Legacy Grbl settings view, mostly read-only in FluidNC.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$$' } },
+      ],
+    };
+  }
+
+  if (mode === 'config') {
+    return {
+      title: 'FluidNC Config Status',
+      eyebrow: 'Status',
+      summary: 'Configuration-focused diagnostics commands.',
+      items: [
+        { label: '$CD', detail: 'Dump active YAML config currently loaded in memory.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$CD' } },
+        { label: '$$', detail: 'Legacy Grbl settings view for compatibility checks.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$$' } },
+      ],
+    };
+  }
+
+  return {
+    title: 'Machine + FluidNC Status',
+    eyebrow: 'Status',
+    summary: 'Use the live snapshot plus these console commands for deeper firmware and config diagnostics.',
+    items: [
+      { label: '$I', detail: 'Firmware version/build info and board details from the controller.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$I' } },
+      { label: '$SS', detail: 'Replay startup log to inspect board, SD card, and startup/config errors.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$SS' } },
+      { label: '$$', detail: 'Legacy Grbl settings view, mostly read-only in FluidNC.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$$' } },
+      { label: '$CD', detail: 'Dump active YAML config currently loaded in memory.', actionLabel: 'Run in Console', action: { type: 'sendGcode', cmd: '$CD' } },
+    ],
+  };
 }
 
 function buildSettingsResponse(query: string, matches: SettingsEntry[]): string {
@@ -979,6 +1109,10 @@ export function getCommandSuggestions(input: string): CommandSuggestion[] {
     return buildHelpTopicSuggestions(argText);
   }
 
+  if ((commandName === 'status' || commandName === 'stat') && (body.includes(' ') || body.endsWith(' '))) {
+    return buildStatusModeSuggestions(argText);
+  }
+
   if (body.includes(' ')) return [];
 
   const prefix = normalize(body);
@@ -1016,7 +1150,16 @@ export function resolveSlashCommand(parsed: ParsedSlashCommand, context: Command
   }
 
   if (alias === 'status') {
-    return { kind: 'local', response: buildStatusResponse(context) };
+    const { mode } = parseStatusMode(args);
+    const action = mode === 'firmware'
+      ? { type: 'sendGcode', cmd: '$I' as const }
+      : mode === 'config'
+        ? { type: 'sendGcode', cmd: '$CD' as const }
+        : mode === 'live'
+          ? { type: 'sendGcode', cmd: '?' as const }
+          : undefined;
+
+    return { kind: 'local', response: buildStatusResponseForMode(context, mode), card: buildStatusCard(mode), action };
   }
 
   if (alias === 'settings') {
