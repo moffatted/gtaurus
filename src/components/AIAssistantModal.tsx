@@ -17,9 +17,9 @@ export function AIAssistantModal() {
       isOpen={aiAssistantOpen}
       onClose={closeAIAssistant}
       defaultPosition={{ x: 150, y: 100 }}
-      defaultSize={{ width: 450, height: 600 }}
+      defaultSize={{ width: 450, height: 680 }}
       minWidth={350}
-      minHeight={400}
+      minHeight={500}
       zIndex={useUIStore.getState().zIndexMap.aiAssistant}
       onFocus={() => useUIStore.getState().bringToFront('aiAssistant')}
     >

@@ -4,12 +4,12 @@
  */
 import { create } from 'zustand';
 
-interface AxisState {
+export interface AxisState {
     mpos: number;
     wco: number;
 }
 
-interface MachineStatus {
+export interface MachineStatus {
     status: string;
     x: AxisState;
     y: AxisState;

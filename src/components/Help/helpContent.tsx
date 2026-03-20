@@ -18,3 +18,10 @@ export const HELP_TOPICS = [
   ...settingsTopics,
   ...referenceTopics,
 ];
+
+export const HELP_TOPIC_INDEX = HELP_TOPICS.map((topic) => ({
+  id: topic.id,
+  title: topic.title,
+  category: topic.category,
+  searchText: topic.searchText,
+}));
