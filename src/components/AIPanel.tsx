@@ -3,37 +3,58 @@
  * @purpose Provides a chat interface for AI-assisted G-code generation and machine troubleshooting.
  */
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Trash2, Code } from "lucide-react";
+import { Send, Bot, User, Trash2, Code, Command, Sparkles, Search, Activity, ExternalLink } from "lucide-react";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
+import { useUIStore } from "../stores/uiStore";
+import { useHelpStore } from "../stores/helpStore";
 import { transport } from '../services/transportService';
+import { getCommandSuggestions, parseSlashCommand, resolveSlashCommand, type CommandCard } from '../utils/aiCommandRouter';
 
 interface Message {
   id: string;
   role: "user" | "model";
   content: string;
   isError?: boolean;
+  includeInAiHistory?: boolean;
+  aiContent?: string;
+  commandCard?: CommandCard;
 }
 
 interface AIPanelProps {
   hideHeader?: boolean;
 }
 
+const COMMAND_CHIPS = [
+  { label: "/help", value: "/help ", icon: Search },
+  { label: "/status", value: "/status", icon: Activity },
+  { label: "/settings", value: "/settings probe", icon: Command },
+  { label: "/open", value: "/open tool library", icon: ExternalLink },
+  { label: "/diagnose", value: "/diagnose probe fails after connect", icon: Sparkles },
+];
+
 export function AIPanel({ hideHeader }: AIPanelProps) {
   const { settings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
+  const openHelp = useHelpStore((state) => state.open);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "model",
       content:
-        "Hello! I'm your AI CNC companion. How can I help you with your machining tasks today?",
+        "Hello! I'm your AI CNC companion. Use /commands to see local and grounded slash commands, or ask a normal question.",
+      includeInAiHistory: false,
     },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const liveParsedCommand = parseSlashCommand(input);
+  const liveCommandResult = liveParsedCommand
+    ? resolveSlashCommand(liveParsedCommand, { settings, machine })
+    : null;
+  const commandSuggestions = getCommandSuggestions(input);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -48,14 +69,55 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
     e?.preventDefault();
     if (!input.trim() || isTyping) return;
 
+    const trimmedInput = input.trim();
+    const parsedCommand = parseSlashCommand(trimmedInput);
+    const commandResult = parsedCommand
+      ? resolveSlashCommand(parsedCommand, { settings, machine })
+      : null;
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim(),
+      content: trimmedInput,
+      includeInAiHistory: commandResult?.kind === 'hybrid' || !commandResult,
+      aiContent: commandResult?.kind === 'hybrid' ? commandResult.userPrompt : trimmedInput,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    if (commandResult?.kind === 'local') {
+      if (commandResult.action) {
+        runCommandAction(commandResult.action);
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-local`,
+          role: 'model',
+          content: commandResult.card ? '' : commandResult.response,
+          includeInAiHistory: false,
+          commandCard: commandResult.card,
+        },
+      ]);
+      return;
+    }
+
+    if (commandResult?.kind === 'unknown') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-unknown`,
+          role: 'model',
+          content: commandResult.response,
+          isError: true,
+          includeInAiHistory: false,
+        },
+      ]);
+      return;
+    }
+
     setIsTyping(true);
 
     try {
@@ -71,15 +133,14 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
 
       // Translate history
       const history = [...messages, userMsg]
-        // Filter out initial greeting if needed, or translate directly
-        .filter(m => m.id !== "1") // filter greeting for token savings if desired, optional
+        .filter((m) => m.includeInAiHistory !== false)
         .map(m => ({
           role: m.role,
-          parts: [{ text: m.content }]
+          parts: [{ text: m.aiContent ?? m.content }]
         }));
 
       const reply = await transport.invoke<string>("ask_ai", {
-        messages: history.length > 0 ? history : [{ role: "user", parts: [{ text: userMsg.content }] }],
+        messages: history.length > 0 ? history : [{ role: "user", parts: [{ text: userMsg.aiContent ?? userMsg.content }] }],
         machineContext,
         aiTier: settings.ai.tier,
         apiKey: settings.ai.apiKey,
@@ -89,6 +150,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
         localBaseUrl: settings.ai.localBaseUrl,
         localApiKey: settings.ai.localApiKey,
         conciseMode: settings.ai.conciseMode,
+        localContext: commandResult?.kind === 'hybrid' ? commandResult.localContext : null,
       });
 
 
@@ -98,6 +160,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
           id: Date.now().toString(),
           role: "model",
           content: reply,
+          commandCard: commandResult?.kind === 'hybrid' ? commandResult.relatedCard : undefined,
         },
       ]);
     } catch (err: any) {
@@ -132,6 +195,47 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
     : settings.ai.tier === 'pro'
       ? settings.ai.proModel
       : settings.ai.localModel;
+
+  const commandModeLabel = !liveParsedCommand
+    ? 'Chat'
+    : liveCommandResult?.kind === 'local'
+      ? 'Local'
+      : liveCommandResult?.kind === 'hybrid'
+        ? 'Grounded AI'
+        : 'Unknown';
+
+  const commandSummary = !liveParsedCommand
+    ? 'Use slash commands for local help, settings, status, and grounded AI flows.'
+    : liveCommandResult?.kind === 'local'
+      ? `/${liveParsedCommand.name} will run locally without an LLM call.`
+      : liveCommandResult?.kind === 'hybrid'
+        ? `/${liveParsedCommand.name} will search local product context, then send a grounded request to the AI.`
+        : `/${liveParsedCommand.name} is not recognized. Try /commands.`;
+
+  const insertCommand = (value: string) => {
+    setInput(value);
+  };
+
+  const runCommandAction = (action: NonNullable<CommandCard['items']>[number]['action']) => {
+    if (!action) return;
+    if (action.type === 'openSettings') {
+      useUIStore.getState().openSettings(action.tab, action.section);
+      return;
+    }
+    if (action.type === 'openHelp') {
+      openHelp(action.topicId);
+      return;
+    }
+    if (action.type === 'openWindow') {
+      const ui = useUIStore.getState();
+      if (action.windowId === 'aiAssistant') ui.openAIAssistant();
+      if (action.windowId === 'fluidNCManager') ui.openFluidNCManager();
+      if (action.windowId === 'machineStats') ui.openMachineStats();
+      if (action.windowId === 'toolChanger') ui.openToolChanger();
+      if (action.windowId === 'toolLibrary') ui.openToolLibrary();
+      if (action.windowId === 'cameraViewer') ui.openCameraViewer();
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]">
@@ -194,7 +298,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
 
               {/* Bubble */}
               <div
-                className={`px-3.5 py-2 rounded-xl text-sm leading-relaxed select-text ${
+                className={`px-3.5 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap break-words select-text ${
                   msg.role === "user"
                     ? "bg-[var(--accent-primary)] text-white rounded-tr-sm shadow-md"
                     : msg.isError
@@ -202,8 +306,76 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
                     : "bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-tl-sm shadow-sm"
                 }`}
               >
-                {msg.isError && <span className="font-bold mr-1.5">Error:</span>}
-                {msg.content}
+                {msg.commandCard ? (
+                  <div className="space-y-3 min-w-[260px]">
+                    {msg.content && (
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {msg.content}
+                      </div>
+                    )}
+
+                    <div>
+                      {msg.commandCard.eyebrow && (
+                        <div className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[var(--text-tertiary)] mb-1">
+                          {msg.commandCard.eyebrow}
+                        </div>
+                      )}
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">
+                        {msg.commandCard.title}
+                      </div>
+                      {msg.commandCard.summary && (
+                        <div className="text-xs text-[var(--text-secondary)] mt-1">
+                          {msg.commandCard.summary}
+                        </div>
+                      )}
+                    </div>
+
+                    {msg.commandCard.items && msg.commandCard.items.length > 0 && (
+                      <div className="space-y-2">
+                        {msg.commandCard.items.map((item) => (
+                          <div
+                            key={`${msg.id}-${item.label}`}
+                            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]/55 px-3 py-2"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-[var(--text-primary)]">
+                                  {item.label}
+                                </div>
+                                {item.detail && (
+                                  <div className="text-xs text-[var(--text-secondary)] mt-0.5 whitespace-normal">
+                                    {item.detail}
+                                  </div>
+                                )}
+                              </div>
+                              {item.action && item.actionLabel && (
+                                <button
+                                  type="button"
+                                  onClick={() => runCommandAction(item.action)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--accent-primary)]/25 bg-[var(--accent-primary)]/10 text-[11px] font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/15 transition-colors flex-shrink-0"
+                                >
+                                  {item.actionLabel}
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {msg.commandCard.footer && (
+                      <div className="text-[11px] text-[var(--text-tertiary)] border-t border-[var(--border-color)] pt-2 whitespace-normal">
+                        {msg.commandCard.footer}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {msg.isError && <span className="font-bold mr-1.5">Error:</span>}
+                    {msg.content}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -260,6 +432,81 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
 
       {/* Input Area */}
       <div className="p-3 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] flex-shrink-0">
+        <div className="mb-2.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)]/80 px-2.5 py-2 shadow-inner">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-md bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 flex items-center justify-center flex-shrink-0">
+                <Command className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">Command Context</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                    commandModeLabel === 'Grounded AI'
+                      ? 'bg-blue-500/15 text-blue-300 border border-blue-500/20'
+                      : commandModeLabel === 'Local'
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
+                        : commandModeLabel === 'Unknown'
+                          ? 'bg-red-500/15 text-red-300 border border-red-500/20'
+                          : 'bg-[var(--bg-primary)] text-[var(--text-tertiary)] border border-[var(--border-color)]'
+                  }`}>
+                    {commandModeLabel}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] truncate mt-0.5">
+                  {commandSummary}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => insertCommand('/commands')}
+              className="px-2 py-1 text-[10px] font-semibold rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors flex-shrink-0"
+            >
+              /commands
+            </button>
+          </div>
+
+          <div className="flex gap-1.5 mt-2 overflow-x-auto pb-0.5">
+            {COMMAND_CHIPS.map(({ label, value, icon: Icon }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => insertCommand(value)}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/30 hover:bg-[var(--bg-primary)] transition-colors"
+              >
+                <Icon className="w-3 h-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {commandSuggestions.length > 0 && (
+            <div className="mt-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden">
+              {commandSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => insertCommand(suggestion.template)}
+                  className="w-full px-2.5 py-2 text-left hover:bg-[var(--bg-primary)] transition-colors border-b last:border-b-0 border-[var(--border-color)]/60"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+                      {suggestion.label}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] truncate">
+                      {suggestion.template}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                    {suggestion.summary}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <form
           onSubmit={handleSubmit}
           className={`flex items-end gap-2 bg-[var(--bg-tertiary)] border transition-all rounded-lg p-1.5 shadow-inner ${

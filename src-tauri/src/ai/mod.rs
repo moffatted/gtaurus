@@ -94,11 +94,20 @@ pub async fn ask_ai(
     local_base_url: String,
     local_api_key: String,
     concise_mode: bool,
+    local_context: Option<String>,
 ) -> Result<String, String> {
     let concise_instruction = if concise_mode {
         "6. CONCISENESS: Be very brief and direct. Avoid conversational filler or long intros. Use bullet points for steps. If providing G-code, just provide the block with a one-sentence explanation."
     } else {
         "6. DETAIL: Provide thorough explanations and context for your technical advice."
+    };
+
+    let local_context_block = match local_context {
+        Some(context) if !context.trim().is_empty() => format!(
+            "\n\n=== LOCAL GTAURUS PRODUCT CONTEXT ===\n{}\n===================================\nUse this local product context as the source of truth for Gtaurus-specific UI names, help topics, and workflows. Prefer it over generic assumptions when answering.",
+            context
+        ),
+        _ => String::new(),
     };
 
     let system_prompt = format!(
@@ -116,9 +125,10 @@ pub async fn ask_ai(
         {}\n\n\
         === CURRENT MACHINE & APP CONTEXT (JSON) ===\n\
         {}\n\
-        ===============================",
+        ==============================={}",
         concise_instruction,
-        machine_context
+        machine_context,
+        local_context_block
     );
 
     if ai_tier == "local" {

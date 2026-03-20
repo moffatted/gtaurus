@@ -6,6 +6,7 @@ export const panelTopics: HelpTopic[] = [
     id: 'visualizer',
     title: 'Bed Visualizer',
     category: 'general',
+    searchText: 'visualizer 3d bed view navigation zoom camera position coordinates',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">3D Bed Visualizer</h2>
@@ -36,6 +37,7 @@ export const panelTopics: HelpTopic[] = [
     id: 'carve-preview',
     title: 'Carve Preview',
     category: 'general',
+    searchText: 'preview simulation playback bit visualization toolpath scrubber step-over',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Carve Preview</h2>
@@ -59,6 +61,7 @@ export const panelTopics: HelpTopic[] = [
   {
     id: 'stats',
     title: 'Machine Stats',
+    searchText: 'statistics stats oee overall equipment effectiveness utilization tracking efficiency',
     category: 'general',
     content: (
       <div className="space-y-4">
@@ -86,6 +89,7 @@ export const panelTopics: HelpTopic[] = [
   {
     id: 'dashboard-panels',
     title: 'Dashboard Panels',
+    searchText: 'dashboard panels file manager auto-leveling configuration layout visibility',
     category: 'general',
     content: (
       <div className="space-y-4">
@@ -120,6 +124,7 @@ export const panelTopics: HelpTopic[] = [
   },
   {
     id: 'top-menu-panels',
+    searchText: 'top menu ai assistant fluidnc manager tool changer popout panels shortcuts',
     title: 'Top Menu Panels',
     category: 'general',
     content: (

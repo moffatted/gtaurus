@@ -6,6 +6,7 @@ export const wizardTopics: HelpTopic[] = [
     id: 'carve-wizard',
     title: 'Carve Wizard',
     category: 'general',
+    searchText: 'wizard carve steps preflight workpiece file tool zero safety checks',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Carve Wizard: Step-by-Step</h2>
@@ -118,6 +119,7 @@ export const wizardTopics: HelpTopic[] = [
     id: 'machine-setup-wizard',
     title: 'Machine Setup Wizard',
     category: 'general',
+    searchText: 'wizard setup connection dimensions bed tooling probe axis direction homing',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Machine Setup Wizard: Step-by-Step</h2>
@@ -210,6 +212,7 @@ export const wizardTopics: HelpTopic[] = [
   {
     id: 'surfacing-wizard',
     title: 'Surfacing Wizard',
+    searchText: 'wizard surfacing bit stock pass depth preview toolpath raster gcode generate',
     category: 'general',
     content: (
       <div className="space-y-4">

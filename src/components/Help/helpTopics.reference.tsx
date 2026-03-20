@@ -6,6 +6,7 @@ export const referenceTopics: HelpTopic[] = [
     id: 'about',
     title: 'About',
     category: 'general',
+    searchText: 'about gtaurus version alpha information',
     content: (
       <div className="space-y-4 text-center">
         <h2 className="text-2xl font-bold mb-2">Gtaurus</h2>
@@ -24,6 +25,7 @@ export const referenceTopics: HelpTopic[] = [
     id: 'gcode-ref',
     title: 'G-code Quick Reference',
     category: 'cheat-sheets',
+    searchText: 'gcode reference codes cheat sheet g-code commands quick',
     content: <GcodeCheatSheet />,
   },
 ];

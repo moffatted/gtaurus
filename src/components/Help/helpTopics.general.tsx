@@ -6,6 +6,7 @@ export const generalTopics: HelpTopic[] = [
     id: 'getting-started',
     title: 'Getting Started',
     category: 'general',
+    searchText: 'connection serial usb wifi telnet websocket fluidnc grbl setup safety homing',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Welcome to Gtaurus</h2>
@@ -61,6 +62,7 @@ export const generalTopics: HelpTopic[] = [
     id: 'console',
     title: 'G-code Console',
     category: 'general',
+    searchText: 'gcode console command history input controller response homing status',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">G-code Console</h2>
@@ -89,6 +91,7 @@ export const generalTopics: HelpTopic[] = [
   {
     id: 'controls',
     title: 'Machine Controls',
+    searchText: 'dro digital readout jogging jog controls file execution simulation start pause',
     category: 'general',
     content: (
       <div className="space-y-4">
@@ -144,6 +147,7 @@ export const generalTopics: HelpTopic[] = [
   },
   {
     id: 'workflow',
+    searchText: 'workflow homing carving zero probe bit setup ready preflight steps',
     title: 'Getting Ready to Carve',
     category: 'general',
     content: (
