@@ -24,4 +24,6 @@ case "$branch" in
     ;;
 esac
 
+  npm run -s secrets:check
+
 exit 0
