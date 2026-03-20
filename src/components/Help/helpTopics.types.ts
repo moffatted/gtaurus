@@ -7,4 +7,5 @@ export interface HelpTopic {
   title: string;
   category: HelpCategory;
   content: ReactNode;
+  searchText: string;
 }

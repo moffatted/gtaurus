@@ -6,6 +6,7 @@ export const featureTopics: HelpTopic[] = [
     id: 'bit-management',
     title: 'Bit Library',
     category: 'general',
+    searchText: 'bit tool library catalog management active usage tracking cutting distance',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Bit Management System</h2>
@@ -36,6 +37,7 @@ export const featureTopics: HelpTopic[] = [
     id: 'macros',
     title: 'Quick Macros',
     category: 'general',
+    searchText: 'macro quick gcode snippet automation toolchange probing spindle warmup',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Macro Management</h2>
@@ -67,6 +69,7 @@ export const featureTopics: HelpTopic[] = [
   {
     id: 'probing',
     title: 'Probing & Workpiece',
+    searchText: 'probe probing touch plate workpiece setup configuration z-axis corner calibration',
     category: 'general',
     content: (
       <div className="space-y-4">
@@ -169,6 +172,7 @@ export const featureTopics: HelpTopic[] = [
   },
   {
     id: 'job-resume',
+    searchText: 'resume recovery checkpoint interruption safety collision detection modal restoration',
     title: 'Job Resume & Recovery',
     category: 'general',
     content: (

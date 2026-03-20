@@ -6,6 +6,7 @@ export const settingsTopics: HelpTopic[] = [
     id: 'settings-dashboard',
     title: 'Settings: Dashboard',
     category: 'general',
+    searchText: 'settings dashboard panels layout visibility default size configuration',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">Dashboard Settings</h2>
@@ -22,6 +23,7 @@ export const settingsTopics: HelpTopic[] = [
     id: 'settings-ui-controls',
     title: 'Settings: UI Controls',
     category: 'general',
+    searchText: 'settings ui controls theme interface scale camera visualizer behavior',
     content: (
       <div className="space-y-4">
         <h2 className="text-xl font-bold mb-4">UI Controls Settings</h2>
@@ -52,6 +54,7 @@ export const settingsTopics: HelpTopic[] = [
   {
     id: 'settings-machine-system',
     title: 'Settings: Machine & System',
+    searchText: 'settings machine system geometry limits connection probe calibration fluidnc grbl',
     category: 'general',
     content: (
       <div className="space-y-4">
@@ -103,6 +106,7 @@ export const settingsTopics: HelpTopic[] = [
   {
     id: 'shortcuts',
     title: 'Keyboard Shortcuts',
+    searchText: 'keyboard shortcuts command keys feed hold status soft reset console history',
     category: 'general',
     content: (
       <div className="space-y-4">
