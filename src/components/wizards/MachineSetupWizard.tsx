@@ -119,22 +119,22 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
       title: 'Connection',
       canProceed: isConnected,
       component: (
-        <div className="space-y-6">
-          <div className="space-y-3">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
              <label className="text-xs font-bold text-[var(--text-tertiary)] uppercase px-1">Connection Type</label>
-             <div className="grid grid-cols-3 gap-3">
+             <div className="grid grid-cols-3 gap-2">
                {(['telnet', 'serial', 'websocket'] as const).map((mode) => (
                  <button
                   key={mode}
                   onClick={() => updateSettings({ connection: { ...settings.connection, preferredMode: mode } })}
                   className={`
-                    flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer
+                    flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all cursor-pointer
                     ${settings.connection.preferredMode === mode 
                       ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/5 text-[var(--accent-primary)]' 
                       : 'border-[var(--border-color)] hover:border-[var(--text-tertiary)] text-[var(--text-secondary)]'}
                   `}
                  >
-                   <div className="w-8 h-8 rounded-full bg-current/10 flex items-center justify-center">
+                   <div className="w-7 h-7 rounded-full bg-current/10 flex items-center justify-center">
                      {mode === 'telnet' && <Cpu className="w-4 h-4" />}
                      {mode === 'serial' && <Settings2 className="w-4 h-4" />}
                      {mode === 'websocket' && <MousePointer2 className="w-4 h-4" />}
@@ -145,7 +145,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
              </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-[var(--bg-tertiary)]/50 p-6 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center gap-3 bg-[var(--bg-tertiary)]/50 p-3 rounded-2xl border border-[var(--border-color)]">
             <div className={`w-3 h-3 rounded-full animate-pulse shrink-0 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <div className="flex-1 min-w-0">
               <h4 className="font-bold text-[var(--text-primary)] truncate">
@@ -159,8 +159,8 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
           </div>
 
           {(settings.connection.preferredMode === 'telnet' || settings.connection.preferredMode === 'websocket') && (
-            <div className="grid grid-cols-3 gap-4 p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
-              <div className="col-span-2 space-y-1.5">
+            <div className="grid grid-cols-3 gap-2 p-2.5 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)]">
+              <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase px-1">Host / IP Address</label>
                 <input 
                   type="text"
@@ -174,10 +174,10 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                     }
                   }}
                   placeholder="e.g. 192.168.1.10"
-                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  className="w-full px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase px-1">Port</label>
                 <input 
                   type="number"
@@ -190,7 +190,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                       updateSettings({ connection: { ...settings.connection, bridgePort: val } });
                     }
                   }}
-                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  className="w-full px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
                 />
               </div>
               <p className="col-span-3 text-[10px] text-[var(--text-tertiary)] italic px-1">
@@ -241,7 +241,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
             }}
             disabled={isTestingConnection || (settings.connection.preferredMode === 'serial' && !settings.connection.serialPort)}
             className={`
-              w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 cursor-pointer btn-3d
+              w-full py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 cursor-pointer btn-3d
               ${isTestingConnection ? 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]' : 'bg-[var(--accent-primary)] text-white hover:opacity-90 shadow-[var(--accent-primary)]/20'}
             `}
           >
@@ -259,18 +259,18 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
           </button>
           
           {settings.connection.preferredMode === 'serial' && (
-            <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 flex gap-3">
+            <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 flex gap-2.5">
               <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-              <p className="text-sm text-amber-200">
+              <p className="text-xs text-amber-200">
                 USB connection is currently unavailable. If you intend to use USB, please ensure your machine is plugged in and the drivers are installed.
               </p>
             </div>
           )}
 
           {!isConnected && settings.connection.preferredMode !== 'serial' && (
-            <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-3">
+            <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-2.5">
               <Info className="w-5 h-5 text-blue-500 shrink-0" />
-              <p className="text-sm text-blue-200">
+              <p className="text-xs text-blue-200">
                 Please check your network settings and ensure the Gtaurus server is running. 
               </p>
             </div>
@@ -400,56 +400,56 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
       title: 'X-Axis Direction',
       canProceed: axisChecks.x,
       component: (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500">
-            <Info className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm font-medium">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500">
+            <Info className="w-4 h-4 flex-shrink-0" />
+            <p className="text-xs font-medium">
               <span className="font-bold underline">Requirement:</span> You must **Home** the machine before testing jog directions to ensure the machine knows its limits and coordinate system.
             </p>
           </div>
 
           {isAlarm && (
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-500 animate-pulse">
-                <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-6 h-6" />
+            <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/50 text-red-500 animate-pulse">
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
                     <div>
-                        <p className="font-bold">MACHINE ALARMED</p>
+                        <p className="font-bold text-sm">MACHINE ALARMED</p>
                         <p className="text-xs opacity-80">Check for limit switches or E-Stop triggers.</p>
                     </div>
                 </div>
                 <button 
                     onClick={handleUnlock}
-                    className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2 font-bold text-sm shadow-lg shadow-red-500/20"
+                    className="px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2 font-bold text-sm shadow-lg shadow-red-500/20"
                 >
                     <Unlock className="w-4 h-4" /> UNLOCK
                 </button>
             </div>
           )}
 
-          <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-3">
-            <Info className="w-5 h-5 text-blue-500 shrink-0" />
-            <p className="text-sm text-blue-200">
+          <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-2">
+            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-200">
               Check if the X axis moves in the correct direction. 
               Positive (+) should move the tool to the <strong>RIGHT</strong>.
             </p>
           </div>
 
-          <div className="flex flex-col items-center gap-6 py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center gap-3 py-1">
+            <div className="flex items-center gap-3">
                <button 
                 onClick={() => handleJog('X', -1)}
                 disabled={!isIdle}
-                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
+                className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
                >
-                 <ArrowLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+                 <ArrowLeft className="w-7 h-7 group-hover:-translate-x-1 transition-transform" />
                  X -
                </button>
                
-               <div className="flex flex-col gap-3">
+               <div className="flex flex-col gap-2">
                    <button 
                     onClick={handleHome}
                     disabled={!isIdle}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95
+                    className={`p-2.5 rounded-xl border transition-all flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95
                       ${hasHomed 
                         ? 'bg-green-600 shadow-lg shadow-green-500/20 text-white border-green-500/50' 
                         : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'}
@@ -459,7 +459,7 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                   </button>
                   <button 
                     onClick={handleStop}
-                    className="p-3 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95"
+                    className="p-2.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-xs btn-3d active:scale-95"
                   >
                     <AlertTriangle className="w-4 h-4" /> STOP
                   </button>
@@ -468,24 +468,24 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                <button 
                 onClick={() => handleJog('X', 1)}
                 disabled={!isIdle}
-                className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
+                className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group btn-3d active:scale-95"
                >
-                 <ArrowRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
+                 <ArrowRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
                  X +
                </button>
             </div>
 
-            <div className="flex flex-col items-center gap-6 w-full max-w-sm">
+            <div className="flex flex-col items-center gap-3 w-full max-w-sm">
                 <button
                     onClick={() => setGeneralSettings({ reverseX: !settings.general.reverseX })}
                     className={`
-                        w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer
+                        w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer
                         ${settings.general.reverseX 
                            ? 'border-amber-500/50 bg-amber-500/5 text-amber-500' 
                            : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]'}
                     `}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <RotateCcw className={`w-4 h-4 transition-transform duration-500 ${settings.general.reverseX ? 'rotate-180' : ''}`} />
                         <span className="text-sm font-bold">Reverse X Axis Direction</span>
                     </div>
@@ -497,14 +497,14 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                 <div 
                     onClick={() => setAxisChecks(prev => ({ ...prev, x: !prev.x }))}
                     className={`
-                    w-full flex items-center gap-3 px-6 py-4 rounded-2xl border cursor-pointer transition-all
+                    w-full flex items-center gap-2 px-4 py-3 rounded-2xl border cursor-pointer transition-all
                     ${axisChecks.x 
                         ? 'bg-green-500/10 border-green-500/50 text-green-400' 
                         : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)] text-[var(--text-secondary)]'}
                     `}
                 >
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${axisChecks.x ? 'bg-green-500 border-green-500' : 'border-[var(--border-color)]'}`}>
-                        {axisChecks.x && <CheckCircle2 className="w-4 h-4 text-white" />}
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${axisChecks.x ? 'bg-green-500 border-green-500' : 'border-[var(--border-color)]'}`}>
+                        {axisChecks.x && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <span className="font-bold">The X axis moves correctly</span>
                 </div>
@@ -518,83 +518,83 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
       title: 'Y-Axis Direction',
       canProceed: axisChecks.y,
       component: (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {isAlarm && (
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-500 animate-pulse">
-                <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-6 h-6" />
-                    <p className="font-bold">ALARM ACTIVE</p>
+            <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/50 text-red-500 animate-pulse">
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    <p className="font-bold text-sm">ALARM ACTIVE</p>
                 </div>
                 <button 
                     onClick={handleUnlock}
-                    className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2 font-bold text-sm"
+                    className="px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2 font-bold text-sm"
                 >
                     <Unlock className="w-4 h-4" /> UNLOCK
                 </button>
             </div>
           )}
 
-          <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-3">
-            <Info className="w-5 h-5 text-blue-500 shrink-0" />
-            <p className="text-sm text-blue-200">
+          <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 flex gap-2">
+            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-200">
               Check if the Y axis moves in the correct direction. 
               Positive (+) should move the bed <strong>TOWARDS YOU</strong> (or tool <strong>BACK</strong>).
             </p>
           </div>
 
-          <div className="flex flex-col items-center gap-6 py-4">
-            <div className="flex items-center gap-12">
-               <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-3 py-1">
+            <div className="flex items-center gap-8">
+               <div className="flex flex-col items-center gap-2">
                   <button 
                     onClick={() => handleJog('Y', 1)}
                     disabled={!isIdle}
-                    className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
                   >
-                    <ArrowUp className="w-8 h-8 group-hover:-translate-y-1 transition-transform" />
+                    <ArrowUp className="w-7 h-7 group-hover:-translate-y-1 transition-transform" />
                     Y +
                   </button>
                   <button 
                     onClick={() => handleJog('Y', -1)}
                     disabled={!isIdle}
-                    className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:border-blue-500 transition-all font-bold group"
                   >
-                    <ArrowDown className="w-8 h-8 group-hover:translate-y-1 transition-transform" />
+                    <ArrowDown className="w-7 h-7 group-hover:translate-y-1 transition-transform" />
                     Y -
                   </button>
                </div>
 
-               <div className="flex flex-col gap-4">
+               <div className="flex flex-col gap-2">
                   <button 
                     onClick={handleHome}
                     disabled={!isIdle}
-                    className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95
+                    className={`p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95
                       ${hasHomed 
                         ? 'bg-green-600 shadow-lg shadow-green-500/20 text-white border-green-500/50' 
                         : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'}
                     `}
                   >
-                    <Home className="w-5 h-5" /> {hasHomed ? 'HOMED' : 'HOME'}
+                    <Home className="w-4 h-4" /> {hasHomed ? 'HOMED' : 'HOME'}
                   </button>
                   <button 
                     onClick={handleStop}
-                    className="p-4 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95"
+                    className="p-2.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 transition-colors flex flex-col items-center justify-center gap-1 font-bold text-xs btn-3d active:scale-95"
                   >
-                    <AlertTriangle className="w-5 h-5" /> STOP
+                    <AlertTriangle className="w-4 h-4" /> STOP
                   </button>
                </div>
             </div>
 
-            <div className="flex flex-col items-center gap-6 w-full max-w-sm">
+            <div className="flex flex-col items-center gap-3 w-full max-w-sm">
                 <button
                     onClick={() => setGeneralSettings({ reverseY: !settings.general.reverseY })}
                     className={`
-                        w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer
+                        w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer
                         ${settings.general.reverseY 
                            ? 'border-amber-500/50 bg-amber-500/5 text-amber-500' 
                            : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]'}
                     `}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <RotateCcw className={`w-4 h-4 transition-transform duration-500 ${settings.general.reverseY ? 'rotate-180' : ''}`} />
                         <span className="text-sm font-bold">Reverse Y Axis Direction</span>
                     </div>
@@ -606,14 +606,14 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
                 <div 
                     onClick={() => setAxisChecks(prev => ({ ...prev, y: !prev.y }))}
                     className={`
-                    w-full flex items-center gap-3 px-6 py-4 rounded-2xl border cursor-pointer transition-all
+                    w-full flex items-center gap-2 px-4 py-3 rounded-2xl border cursor-pointer transition-all
                     ${axisChecks.y 
                         ? 'bg-green-500/10 border-green-500/50 text-green-400' 
                         : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] hover:border-[var(--text-tertiary)] text-[var(--text-secondary)]'}
                     `}
                 >
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center ${axisChecks.y ? 'bg-green-500 border-green-500' : 'border-[var(--border-color)]'}`}>
-                        {axisChecks.y && <CheckCircle2 className="w-4 h-4 text-white" />}
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${axisChecks.y ? 'bg-green-500 border-green-500' : 'border-[var(--border-color)]'}`}>
+                        {axisChecks.y && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <span className="font-bold">The Y axis moves correctly</span>
                 </div>
@@ -785,23 +785,23 @@ export function MachineSetupWizard({ isOpen, onClose }: { isOpen: boolean; onClo
       id: 'finish',
       title: 'Complete',
       component: (
-        <div className="flex flex-col items-center text-center space-y-6 py-8">
-           <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 mb-2">
-            <CheckCircle2 className="w-12 h-12" />
+        <div className="flex flex-col items-center text-center space-y-4 py-4">
+           <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500">
+            <CheckCircle2 className="w-10 h-10" />
           </div>
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Setup Complete!</h3>
-            <p className="text-[var(--text-secondary)]">
+          <div className="space-y-1">
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">Setup Complete!</h3>
+            <p className="text-sm text-[var(--text-secondary)]">
               Your machine is connected, verified, and homed. 
               You are now ready to start carving.
             </p>
           </div>
-          <div className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)] w-full text-left">
-            <h4 className="text-xs font-bold text-[var(--text-tertiary)] uppercase mb-2">Next Steps</h4>
-            <ul className="text-sm space-y-2 text-[var(--text-secondary)]">
-              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2" /> Load a G-code file in the File Manager</li>
-              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2" /> Set your Workspace Zero</li>
-              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2" /> Use the Carve Wizard to start a job</li>
+          <div className="p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)] w-full text-left">
+            <h4 className="text-xs font-bold text-[var(--text-tertiary)] uppercase mb-1.5">Next Steps</h4>
+            <ul className="text-sm space-y-1.5 text-[var(--text-secondary)]">
+              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2 shrink-0" /> Load a G-code file in the File Manager</li>
+              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2 shrink-0" /> Set your Workspace Zero</li>
+              <li className="flex gap-2"><div className="w-1 h-1 bg-blue-500 rounded-full mt-2 shrink-0" /> Use the Carve Wizard to start a job</li>
             </ul>
           </div>
         </div>
