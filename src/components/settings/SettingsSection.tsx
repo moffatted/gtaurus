@@ -5,16 +5,19 @@ interface SettingsSectionProps {
   title: string;
   icon: ReactNode;
   children?: ReactNode;
+  compact?: boolean;
 }
 
-export function SettingsSection({ title, icon, children }: SettingsSectionProps) {
+export function SettingsSection({ title, icon, children, compact = false }: SettingsSectionProps) {
   const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="border border-[var(--border-color)] rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 cursor-pointer transition-colors duration-150 gap-3"
+        className={`w-full flex items-center justify-between bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 cursor-pointer transition-colors duration-150 gap-3 ${
+          compact ? 'px-3 py-2.5' : 'px-4 py-3'
+        }`}
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-2.5">
@@ -32,7 +35,7 @@ export function SettingsSection({ title, icon, children }: SettingsSectionProps)
         className="overflow-hidden transition-all duration-200"
         style={{ maxHeight: expanded ? '1000px' : '0px', opacity: expanded ? 1 : 0 }}
       >
-        <div className="px-4 py-4 bg-[var(--bg-secondary)]">
+        <div className={`bg-[var(--bg-secondary)] ${compact ? 'px-3 py-3' : 'px-4 py-4'}`}>
           {children ?? (
             <p className="text-sm text-[var(--text-tertiary)] italic">
               No settings configured yet.

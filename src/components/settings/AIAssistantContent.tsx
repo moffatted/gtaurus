@@ -64,15 +64,15 @@ export function AIAssistantContent() {
     }
   };
 
-  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
+  const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1';
   const inputCls =
-    'w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
+    'w-full px-3 py-1.5 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] ' +
     'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
     'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
-  const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-3 mt-1";
+  const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-2 mt-0.5";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Visibility Toggle */}
       <div className="flex items-center justify-between">
         <div>
@@ -100,7 +100,7 @@ export function AIAssistantContent() {
 
       <div className="border-t border-[var(--border-color)]" />
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h4 className={subHeaderCls}>Dashboard Integration</h4>
         <div className="flex items-center justify-between">
           <div>
@@ -131,7 +131,7 @@ export function AIAssistantContent() {
 
       <div className="border-t border-[var(--border-color)]" />
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>AI Engine Tier</h4>
         <div className="flex gap-1.5 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
           <button
@@ -176,9 +176,9 @@ export function AIAssistantContent() {
 
       <div className="border-t border-[var(--border-color)]" />
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>Model Configuration</h4>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {settings.ai.tier === 'free' && (
             <div>
               <label className={labelCls}>Free Tier Model</label>
@@ -204,7 +204,7 @@ export function AIAssistantContent() {
             </div>
           )}
           {settings.ai.tier === 'local' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <label className={labelCls}>Local Model String</label>
                 <input
@@ -215,7 +215,7 @@ export function AIAssistantContent() {
                   placeholder="e.g. qwen/qwen2.5-coder-14b"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>API Base URL</label>
                   <input
@@ -246,7 +246,7 @@ export function AIAssistantContent() {
 
       {settings.ai.tier !== 'local' && (
         <>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>API Credentials</h4>
               <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
@@ -276,8 +276,8 @@ export function AIAssistantContent() {
 
       <div className="border-t border-[var(--border-color)]" />
 
-      <div className="space-y-4">
-        <div className="flex gap-2 mt-4">
+      <div className="space-y-3">
+        <div className="flex gap-2 mt-2">
           <button
             onClick={handleSave}
             disabled={loading}

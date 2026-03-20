@@ -106,8 +106,111 @@ export function SettingsPanel() {
   const { hasHomed } = useMachineStore();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [panelWidth, setPanelWidth] = useState(1024);
+  const [panelHeight, setPanelHeight] = useState(780);
+  const [sidebarWidth, setSidebarWidth] = useState(224);
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+  const persistLayout = (next: { width?: number; height?: number; sidebarWidth?: number }) => {
+    try {
+      const raw = localStorage.getItem('settingsPanelLayout');
+      const parsed = raw ? JSON.parse(raw) : {};
+      const merged = {
+        width: next.width ?? parsed.width ?? panelWidth,
+        height: next.height ?? parsed.height ?? panelHeight,
+        sidebarWidth: next.sidebarWidth ?? parsed.sidebarWidth ?? sidebarWidth,
+      };
+      localStorage.setItem('settingsPanelLayout', JSON.stringify(merged));
+    } catch {
+      // ignore localStorage write failures
+    }
+  };
+
+  const handlePanelResizeStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = panelWidth;
+    const startHeight = panelHeight;
+    let lastWidth = startWidth;
+    let lastHeight = startHeight;
+    const maxWidth = Math.max(820, window.innerWidth - 32);
+    const maxHeight = Math.max(560, window.innerHeight - 32);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clamp(startWidth + (moveEvent.clientX - startX), 820, maxWidth);
+      const nextHeight = clamp(startHeight + (moveEvent.clientY - startY), 560, maxHeight);
+      lastWidth = nextWidth;
+      lastHeight = nextHeight;
+      setPanelWidth(nextWidth);
+      setPanelHeight(nextHeight);
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      persistLayout({ width: lastWidth, height: lastHeight });
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleSidebarResizeStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    let lastWidth = startWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clamp(startWidth + (moveEvent.clientX - startX), 184, 380);
+      lastWidth = nextWidth;
+      setSidebarWidth(nextWidth);
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      persistLayout({ sidebarWidth: lastWidth });
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('settingsPanelLayout');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.width === 'number') {
+          setPanelWidth(clamp(parsed.width, 820, Math.max(820, window.innerWidth - 32)));
+        }
+        if (typeof parsed.height === 'number') {
+          setPanelHeight(clamp(parsed.height, 560, Math.max(560, window.innerHeight - 32)));
+        }
+        if (typeof parsed.sidebarWidth === 'number') {
+          setSidebarWidth(clamp(parsed.sidebarWidth, 184, 380));
+        }
+      }
+    } catch {
+      // ignore localStorage read failures
+    }
+  }, []);
+
+  useEffect(() => {
+    const onWindowResize = () => {
+      setPanelWidth((w) => clamp(w, 820, Math.max(820, window.innerWidth - 32)));
+      setPanelHeight((h) => clamp(h, 560, Math.max(560, window.innerHeight - 32)));
+      setSidebarWidth((w) => clamp(w, 184, 380));
+    };
+
+    window.addEventListener('resize', onWindowResize);
+    return () => window.removeEventListener('resize', onWindowResize);
+  }, []);
 
   useEffect(() => {
     if (settingsOpen) {
@@ -128,6 +231,7 @@ export function SettingsPanel() {
   }, [settingsOpen, settingsSection]);
 
   const query = search.trim().toLowerCase();
+  const isMachineView = !query && settingsTab === 'machine';
   
   // If searching, show all matches. Otherwise, filter by active tab.
   const visibleSections = SECTIONS.filter((s) => {
@@ -157,8 +261,15 @@ export function SettingsPanel() {
           onClick={closeSettings}
         >
           <div
-            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl w-full max-w-4xl border border-[var(--border-color)] overflow-hidden flex flex-col"
-            style={{ maxHeight: '85vh' }}
+            className="bg-[var(--bg-secondary)] rounded-xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col relative"
+            style={{
+              width: `${panelWidth}px`,
+              height: `${panelHeight}px`,
+              minWidth: '820px',
+              minHeight: '560px',
+              maxWidth: 'calc(100vw - 2rem)',
+              maxHeight: 'calc(100vh - 2rem)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -250,7 +361,10 @@ export function SettingsPanel() {
             <div className="flex flex-1 overflow-hidden relative">
               {/* Sidebar - only show if not searching and we are in UI or Machine tabs */}
               {!query && (settingsTab === 'ui' || settingsTab === 'machine') && (
-                <div className="w-56 bg-[var(--bg-tertiary)]/30 border-r border-[var(--border-color)] overflow-y-auto py-6 flex-shrink-0 hidden md:block select-none">
+                <div
+                  className="bg-[var(--bg-tertiary)]/30 border-r border-[var(--border-color)] overflow-y-auto py-6 flex-shrink-0 hidden md:block select-none"
+                  style={{ width: `${sidebarWidth}px` }}
+                >
                   <div className="px-4 space-y-1">
                     <div className="px-2 mb-4">
                       <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest opacity-60">
@@ -278,10 +392,22 @@ export function SettingsPanel() {
                 </div>
               )}
 
+              {!query && (settingsTab === 'ui' || settingsTab === 'machine') && (
+                <div
+                  className="hidden md:block w-1.5 cursor-col-resize bg-transparent hover:bg-[var(--accent-primary)]/20 active:bg-[var(--accent-primary)]/30 transition-colors"
+                  onMouseDown={handleSidebarResizeStart}
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize settings navigation"
+                />
+              )}
+
               {/* Scrollable sections */}
               <div 
                 ref={scrollContainerRef} 
-                className="overflow-y-auto flex-1 px-6 py-8 space-y-8 custom-scrollbar scroll-smooth"
+                className={`overflow-y-auto flex-1 custom-scrollbar scroll-smooth ${
+                  isMachineView ? 'px-4 py-5 space-y-5' : 'px-6 py-8 space-y-8'
+                }`}
               >
                 {visibleSections.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -294,10 +420,10 @@ export function SettingsPanel() {
                     </p>
                   </div>
                 ) : (
-                  <div className="max-w-3xl mx-auto space-y-10">
+                  <div className={`max-w-3xl mx-auto ${isMachineView ? 'space-y-6' : 'space-y-10'}`}>
                     {visibleSections.map((section) => (
                       <div key={section.id} id={`settings-section-${section.id}`} className="scroll-mt-8">
-                        <SettingsSection title={section.title} icon={section.icon}>
+                        <SettingsSection title={section.title} icon={section.icon} compact={section.tab === 'machine'}>
                           {getSectionContent(section.id)}
                         </SettingsSection>
                       </div>
@@ -315,6 +441,16 @@ export function SettingsPanel() {
               >
                 Done
               </button>
+            </div>
+
+            <div
+              className="absolute right-0 bottom-0 w-5 h-5 cursor-nwse-resize"
+              onMouseDown={handlePanelResizeStart}
+              role="separator"
+              aria-orientation="both"
+              aria-label="Resize settings panel"
+            >
+              <div className="absolute right-1 bottom-1 w-3 h-3 border-r-2 border-b-2 border-[var(--text-tertiary)]/60" />
             </div>
           </div>
         </div>
