@@ -71,6 +71,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
     ?? settings.ai.clients?.find((c) => c.tier === settings.ai.tier)
     ?? settings.ai.clients?.[0]
     ?? null;
+  const enabledClients = settings.ai.clients.filter((client) => client.enabled);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -575,6 +576,29 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
             <Send className="w-4 h-4" />
           </button>
         </form>
+
+        {hideHeader && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)]/60 px-2 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">Model</span>
+            <select
+              value={activeClient?.id ?? ''}
+              onChange={(e) => {
+                const next = settings.ai.clients.find((c) => c.id === e.target.value);
+                if (!next) return;
+                setAiSettings({
+                  activeClientId: next.id,
+                  tier: next.tier,
+                });
+              }}
+              className="max-w-[220px] px-2 py-1 text-[10px] rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)]"
+            >
+              {enabledClients.map((client) => (
+                <option key={client.id} value={client.id}>{client.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="text-[9px] text-center text-[var(--text-tertiary)] mt-2 font-medium tracking-wide uppercase">
           {activeModelName}
         </div>
