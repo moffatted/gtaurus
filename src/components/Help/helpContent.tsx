@@ -334,6 +334,65 @@ export const HELP_TOPICS: HelpTopic[] = [
     ),
   },
   {
+    id: 'surfacing-wizard',
+    title: 'Surfacing Wizard',
+    category: 'general',
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4">Surfacing Wizard: Step-by-Step</h2>
+        <p className="text-sm">
+          The Surfacing Wizard guides you through selecting a surfacing bit, defining pass parameters,
+          previewing the raster toolpath, and generating a ready-to-run G-code file.
+        </p>
+
+        <h3 className="text-lg font-semibold mt-4">Step 1: Select Surfacing Bit</h3>
+        <p className="text-sm">Choose the tool to use for surfacing. The selected bit diameter drives step-over and line-count calculations.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-01-select-tool.png"
+          alt="Surfacing Wizard step 1 select surfacing bit"
+          caption="Step 1 tool selection with active surfacing bit highlighted."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 2: Configure Pass</h3>
+        <p className="text-sm">Set stock dimensions, origin, removal depth, and core toolpath parameters before generation.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-02-configure-pass-stock.png"
+          alt="Surfacing Wizard step 2 configure stock and removal"
+          caption="Step 2 configuration for stock size, work origin, removal depth, and step-over inputs."
+        />
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-02b-configure-pass-motion.png"
+          alt="Surfacing Wizard step 2 configure motion settings"
+          caption="Step 2 continuation with motion settings such as safe Z, feed/plunge rates, spindle RPM, cut direction, and finish pass."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 3: Toolpath Preview</h3>
+        <p className="text-sm">Review the 2D raster preview to validate line direction, coverage, and expected pass count.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-03-toolpath-preview.png"
+          alt="Surfacing Wizard step 3 toolpath preview"
+          caption="Step 3 preview of raster lines across the work area with computed summary values."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Step 4: Generate G-code</h3>
+        <p className="text-sm">Generate and inspect the output. The wizard shows key run parameters and a G-code snippet before saving.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-04-gcode-ready-preview.png"
+          alt="Surfacing Wizard step 4 gcode ready"
+          caption="Step 4 generated output view with G-code preview and Save & Open in Visualizer action."
+        />
+
+        <h3 className="text-lg font-semibold mt-4">Generated File Result</h3>
+        <p className="text-sm">After saving, the surfacing file appears in File Manager and can be loaded directly for visualization or execution.</p>
+        <HelpScreenshot
+          src="/help_images/wizards/surfacing-wizard-step-05-generated-file-card.png"
+          alt="Generated surfacing file in file manager"
+          caption="Saved surfacing output file card in File Manager (useful confirmation before running)."
+        />
+      </div>
+    ),
+  },
+  {
     id: 'bit-management',
     title: 'Bit Library',
     category: 'general',
