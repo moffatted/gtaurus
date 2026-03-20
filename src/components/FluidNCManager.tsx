@@ -378,7 +378,9 @@ function ConfigEditor() {
                         </div>
                         <Tooltip content="Set as Boot Config" position="bottom">
                             <button 
-                                onClick={setActiveConfig}
+                                onClick={() => {
+                                    void setActiveConfig();
+                                }}
                                 className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
                             >
                                 <CheckCircle className="w-3.5 h-3.5" />
@@ -539,7 +541,9 @@ function ConfigEditor() {
                             position="bottom"
                         >
                             <button 
-                                onClick={saveLiveToFlash}
+                                onClick={() => {
+                                    void saveLiveToFlash();
+                                }}
                                 className="px-3 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded transition-all cursor-pointer"
                             >
                                 Save Live
@@ -556,7 +560,9 @@ function ConfigEditor() {
                             position="bottom"
                         >
                             <button 
-                                onClick={saveConfig}
+                                onClick={() => {
+                                    void saveConfig();
+                                }}
                                 disabled={status === 'loading' || status === 'saving'}
                                 className="flex items-center gap-2 px-3 py-1 bg-[var(--accent-primary)] text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
                             >

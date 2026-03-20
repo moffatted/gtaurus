@@ -2,102 +2,17 @@
  * @file SettingsPanel.tsx
  * @purpose Comprehensive configuration interface for application, UI, and machine-specific settings.
  */
-import { useState, useRef, useEffect, ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Settings, X, Search, Bot,
-  Palette, SlidersHorizontal, Cable, Crosshair,
-  Cpu, Box, History, BarChart2, Wrench, RotateCw, LayoutDashboard,
-  ChevronDown, LayoutGrid, ChevronUp, Eye, EyeOff,
-  Wifi, UsbIcon, RefreshCw, Power, Activity,
-  Folder, HardDrive, Plus, Trash, Edit, Save, FileCode, Play, Camera, Drill,
-  RotateCcw
+  Palette, LayoutGrid, Play,
 } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
-import { ConfirmPopover } from './ui/Popovers';
-import { isTauriApp } from '../utils/platform';
-import { transport } from '../services/transportService';
 import { MachineSetupWizard } from './wizards/MachineSetupWizard';
 import { useMachineStore } from '../stores/machineStore';
-import { ThemeContent } from './settings/ThemeContent';
-import { GeneralContent } from './settings/GeneralContent';
-import { DashboardContent } from './settings/DashboardContent';
 import { SettingsSection } from './settings/SettingsSection';
-import { ConnectionContent as SettingsConnectionContent } from './settings/ConnectionContent';
-import { FileManagerContent as SettingsFileManagerContent } from './settings/FileManagerContent';
-import { VisualizerContent as SettingsVisualizerContent } from './settings/VisualizerContent';
-import { StatsContent as SettingsStatsContent } from './settings/StatsContent';
-import { AIAssistantContent } from './settings/AIAssistantContent';
-import { NavigationContent } from './settings/NavigationContent';
-import { ProbeContent } from './settings/ProbeContent';
-import { SpindleContent } from './settings/SpindleContent';
-import AtcContent from './settings/AtcContent';
-import MacrosContent from './settings/MacrosContent';
-import RotaryContent from './settings/RotaryContent';
-import CameraContent from './settings/CameraContent';
-
-// ─── SettingsSection ─────────────────────────────────────────────────────────
-
-// ─── ATC section ─────────────────────────────────────────────────────────────
-// (Extracted to AtcContent.tsx component)
-
-
-
-// ─── Macros section ─────────────────────────────────────────────────────────────
-// (Extracted to MacrosContent.tsx component)
-
-// ─── Rotary section ──────────────────────────────────────────────────────────
-// (Extracted to RotaryContent.tsx component)
-
-// ─── Camera section ──────────────────────────────────────────────────────────
-// (Extracted to CameraContent.tsx component)
-
-// ─── Navigation section ───────────────────────────────────────────────────────
-
-// ─── Section definitions ─────────────────────────────────────────────────────
-
-const SECTIONS = [
-  { id: 'dashboard',   title: 'Dashboard',      icon: <LayoutGrid className="w-4 h-4" />, tab: 'dashboard' },
-  { id: 'widgets',     title: 'Widgets',        icon: <LayoutDashboard className="w-4 h-4" />, tab: 'dashboard' },
-  { id: 'theme',       title: 'Theme & UX',     icon: <Palette className="w-4 h-4" />, tab: 'ui' },
-  { id: 'navigation',  title: 'Top Menu',       icon: <Activity className="w-4 h-4" />, tab: 'ui' },
-  { id: 'visualizer',  title: 'Bed Visualizer', icon: <Box className="w-4 h-4" />, tab: 'ui' },
-  { id: 'stats',       title: 'Stats Display',  icon: <BarChart2 className="w-4 h-4" />, tab: 'ui' },
-  { id: 'camera',      title: 'Camera',         icon: <Camera className="w-4 h-4" />, tab: 'ui' },
-  { id: 'general',     title: 'General',        icon: <SlidersHorizontal className="w-4 h-4" />, tab: 'machine' },
-  { id: 'connection',  title: 'Connection',     icon: <Cable className="w-4 h-4" />, tab: 'machine' },
-  { id: 'file-manager', title: 'File Manager',   icon: <Folder className="w-4 h-4" />, tab: 'machine' },
-  { id: 'probe',       title: 'Probe',          icon: <Crosshair className="w-4 h-4" />, tab: 'machine' },
-  { id: 'spindle',     title: 'Spindle',        icon: <Cpu className="w-4 h-4" />, tab: 'machine' },
-  { id: 'macros',      title: 'Macros',         icon: <FileCode className="w-4 h-4" />, tab: 'machine' },
-  { id: 'atc',         title: 'Tool Changer',   icon: <Wrench className="w-4 h-4" />, tab: 'machine' },
-  { id: 'rotary',      title: 'Rotary Config',  icon: <RotateCw className="w-4 h-4" />, tab: 'machine' },
-  { id: 'ai',          title: 'AI Assistant',   icon: <Bot className="w-4 h-4" />, tab: 'machine' },
-  { id: 'history',     title: 'History',        icon: <History className="w-4 h-4" />, tab: 'machine' },
-] as const;
-
-type SectionId = (typeof SECTIONS)[number]['id'];
-
-function getSectionContent(id: SectionId): ReactNode | undefined {
-  if (id === 'dashboard')  return <DashboardContent />;
-  if (id === 'theme')      return <ThemeContent />;
-  if (id === 'general')    return <GeneralContent />;
-  if (id === 'connection') return <SettingsConnectionContent />;
-  if (id === 'file-manager') return <SettingsFileManagerContent />;
-  if (id === 'probe')        return <ProbeContent />;
-  if (id === 'spindle')      return <SpindleContent />;
-  if (id === 'atc')          return <AtcContent />;
-  if (id === 'rotary')       return <RotaryContent />;
-
-  if (id === 'camera')       return <CameraContent />;
-  if (id === 'ai')           return <AIAssistantContent />;
-  if (id === 'navigation')   return <NavigationContent />;
-  if (id === 'visualizer') return <SettingsVisualizerContent />;
-  if (id === 'macros')     return <MacrosContent />;
-  return undefined; // renders placeholder
-}
+import { SETTINGS_SECTIONS as SECTIONS, getSectionContent } from './settings/settingsSections';
 
 // ─── SettingsPanel ───────────────────────────────────────────────────────────
 
@@ -447,7 +362,7 @@ export function SettingsPanel() {
               className="absolute right-0 bottom-0 w-5 h-5 cursor-nwse-resize"
               onMouseDown={handlePanelResizeStart}
               role="separator"
-              aria-orientation="both"
+              aria-orientation="vertical"
               aria-label="Resize settings panel"
             >
               <div className="absolute right-1 bottom-1 w-3 h-3 border-r-2 border-b-2 border-[var(--text-tertiary)]/60" />

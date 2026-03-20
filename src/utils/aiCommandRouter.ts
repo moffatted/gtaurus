@@ -3,7 +3,6 @@ import type { Settings } from '../stores/settingsStore';
 import type { SettingsTab } from '../stores/uiStore';
 import type { MachineStatus } from '../stores/machineStatusStore';
 
-type LocalCommandName = 'commands' | 'help' | 'status' | 'settings' | 'shortcuts' | 'wizard' | 'panel' | 'open';
 type HybridCommandName = 'diagnose' | 'gcode';
 
 type HelpCategoryLabel = 'General' | 'Cheat Sheets';
@@ -424,7 +423,7 @@ function scoreText(query: string, fields: string[]): number {
 function rankHelpTopics(query: string): HelpMatch[] {
   return HELP_TOPIC_INDEX.map((topic) => ({
     ...topic,
-    category: topic.category === 'cheat-sheets' ? 'Cheat Sheets' : 'General',
+    category: (topic.category === 'cheat-sheets' ? 'Cheat Sheets' : 'General') as HelpCategoryLabel,
     score: scoreText(query, [topic.title, topic.searchText]),
   }))
     .filter((topic) => topic.score > 0)
@@ -1151,7 +1150,7 @@ export function resolveSlashCommand(parsed: ParsedSlashCommand, context: Command
 
   if (alias === 'status') {
     const { mode } = parseStatusMode(args);
-    const action = mode === 'firmware'
+    const action: CommandAction | undefined = mode === 'firmware'
       ? { type: 'sendGcode', cmd: '$I' as const }
       : mode === 'config'
         ? { type: 'sendGcode', cmd: '$CD' as const }
