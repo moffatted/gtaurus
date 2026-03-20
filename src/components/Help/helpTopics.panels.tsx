@@ -140,6 +140,11 @@ export const panelTopics: HelpTopic[] = [
 
         <h3 className="text-lg font-semibold mt-4">AI Assistant</h3>
         <p className="text-sm">The AI Assistant helps with CNC workflows, command suggestions, and troubleshooting guidance.</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li>The assistant can now send supported commands directly to FluidNC from within the chat workflow.</li>
+          <li>When a command is executed, the command output and controller responses are visible in the G-code Console.</li>
+          <li>You can choose between your configured AI models from Machine &amp; System settings, then switch active clients in the AI Assistant panel.</li>
+        </ul>
         <HelpScreenshot
           src="/help_images/AIAssistant.png"
           alt="AI Assistant panel"
