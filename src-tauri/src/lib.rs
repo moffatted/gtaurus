@@ -49,6 +49,8 @@ pub fn run() {
             commands::camera::set_camera_settings,
             ai::ask_ai,
             ai::list_gemini_models,
+            ai::copilot_runtime_status,
+            ai::test_ai_client_connectivity,
             commands::tooling::find_fusion_tools,
             commands::gcode::parse_gcode_file,
             commands::surfacing::generate_surfacing_toolpath,

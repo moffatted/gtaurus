@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import { useToolStore } from '../stores/toolStore';
 import { useGcodeStore } from '../stores/gcodeStore';
@@ -15,6 +16,7 @@ export function ToolChangerModal() {
   const { machine } = useMachineStatusStore();
   const { settings } = useSettingsStore();
   const atc = settings.atc;
+  const [showSpindleWarning, setShowSpindleWarning] = useState(false);
 
   const activeTool = tools.find(t => t.id === activeToolId);
   const targetTool = tools.find(t => t.number === fileToolNumber);
@@ -170,7 +172,7 @@ export function ToolChangerModal() {
           <button
             onClick={async () => {
               if (machine.isSpindleActive) {
-                alert("Safety Check: Spindle is still active! Please wait for it to stop before resuming.");
+                setShowSpindleWarning(true);
                 return;
               }
               try {
@@ -195,6 +197,27 @@ export function ToolChangerModal() {
             Note: This will trigger the fluidNC <code>atc_manual</code> sequence (Probe & TLO calculation).
           </p>
         </div>
+
+        {showSpindleWarning && (
+          <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+                <h5 className="text-sm font-semibold text-[var(--text-primary)]">Safety Check</h5>
+              </div>
+              <div className="px-4 py-4">
+                <p className="text-xs text-[var(--text-secondary)]">Spindle is still active. Wait for it to stop before resuming probe operations.</p>
+              </div>
+              <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end bg-[var(--bg-header)]">
+                <button
+                  onClick={() => setShowSpindleWarning(false)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </FloatingWindow>
   );

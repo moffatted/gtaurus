@@ -5,6 +5,7 @@
  */
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::process::Command;
 
 // --- Gemini API Schema structs ---
 
@@ -80,6 +81,275 @@ pub struct OpenAIError {
     pub r#type: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnthropicMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnthropicRequest {
+    pub model: String,
+    pub system: String,
+    pub max_tokens: u32,
+    pub messages: Vec<AnthropicMessage>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnthropicTextBlock {
+    pub text: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnthropicResponse {
+    pub content: Option<Vec<AnthropicTextBlock>>,
+    pub error: Option<AnthropicError>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnthropicError {
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AiClientConfig {
+    pub id: String,
+    pub name: String,
+    pub tier: String,
+    pub provider: String,
+    pub model: String,
+    pub base_url: Option<String>,
+    pub api_key: Option<String>,
+    pub copilot_auth_mode: Option<String>,
+    pub copilot_byok_provider: Option<String>,
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CopilotRuntimeStatus {
+    pub available: bool,
+    pub version: Option<String>,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AiConnectivityResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+#[tauri::command]
+pub fn copilot_runtime_status() -> Result<CopilotRuntimeStatus, String> {
+    let candidates = [
+        ("copilot", vec!["--version"]),
+        ("gh", vec!["copilot", "--version"]),
+    ];
+
+    for (cmd, args) in candidates {
+        let output = Command::new(cmd).args(args).output();
+        if let Ok(result) = output {
+            if result.status.success() {
+                let stdout = String::from_utf8_lossy(&result.stdout).trim().to_string();
+                return Ok(CopilotRuntimeStatus {
+                    available: true,
+                    version: if stdout.is_empty() { None } else { Some(stdout) },
+                    message: format!("Detected runtime via '{}'.", cmd),
+                });
+            }
+        }
+    }
+
+    Ok(CopilotRuntimeStatus {
+        available: false,
+        version: None,
+        message: "Copilot runtime CLI was not detected on PATH. Install and authenticate Copilot CLI before enabling this provider.".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn test_ai_client_connectivity(
+    selected_client: AiClientConfig,
+    fallback_api_key: Option<String>,
+    fallback_local_api_key: Option<String>,
+) -> Result<AiConnectivityResult, String> {
+    let mut provider = selected_client.provider.clone();
+    let base_url = selected_client.base_url.clone().unwrap_or_default();
+    let mut api_key = selected_client
+        .api_key
+        .clone()
+        .unwrap_or_else(|| {
+            if provider == "openai-compatible" {
+                fallback_local_api_key.clone().unwrap_or_default()
+            } else {
+                fallback_api_key.clone().unwrap_or_default()
+            }
+        })
+        .trim()
+        .to_string();
+
+    if provider == "copilot-sdk" {
+        let auth_mode = selected_client
+            .copilot_auth_mode
+            .clone()
+            .unwrap_or_else(|| "subscription".to_string());
+
+        if auth_mode != "byok" {
+            return Ok(AiConnectivityResult {
+                ok: false,
+                message: "Copilot subscription mode runtime dispatch is not wired yet. Use BYOK mode to test live API reachability.".to_string(),
+            });
+        }
+
+        provider = selected_client
+            .copilot_byok_provider
+            .clone()
+            .unwrap_or_else(|| "openai".to_string());
+
+        if api_key.is_empty() {
+            api_key = fallback_api_key.unwrap_or_default();
+        }
+    }
+
+    if provider == "gemini" {
+        let key = if !api_key.is_empty() {
+            api_key
+        } else {
+            let bundled = option_env!("GEMINI_FREE_API_KEY").unwrap_or("").to_string();
+            if !bundled.is_empty() {
+                bundled
+            } else {
+                env::var("GEMINI_API_KEY").unwrap_or_default()
+            }
+        };
+
+        if key.is_empty() {
+            return Ok(AiConnectivityResult {
+                ok: false,
+                message: "Gemini API key is not configured.".to_string(),
+            });
+        }
+
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models?key={}",
+            key
+        );
+        let res = reqwest::Client::new()
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Gemini network error: {}", e))?;
+
+        if res.status().is_success() {
+            return Ok(AiConnectivityResult {
+                ok: true,
+                message: "Gemini models endpoint reachable.".to_string(),
+            });
+        }
+
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        return Ok(AiConnectivityResult {
+            ok: false,
+            message: format!("Gemini error ({}): {}", status, body),
+        });
+    }
+
+    if provider == "anthropic" {
+        if api_key.is_empty() {
+            return Ok(AiConnectivityResult {
+                ok: false,
+                message: "Anthropic API key is not configured.".to_string(),
+            });
+        }
+
+        let base = if base_url.trim().is_empty() {
+            "https://api.anthropic.com/v1".to_string()
+        } else {
+            base_url.trim().to_string()
+        };
+
+        let url = if base.ends_with('/') {
+            format!("{}models", base)
+        } else {
+            format!("{}/models", base)
+        };
+
+        let res = reqwest::Client::new()
+            .get(&url)
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .send()
+            .await
+            .map_err(|e| format!("Anthropic network error: {}", e))?;
+
+        if res.status().is_success() {
+            return Ok(AiConnectivityResult {
+                ok: true,
+                message: "Anthropic models endpoint reachable.".to_string(),
+            });
+        }
+
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        return Ok(AiConnectivityResult {
+            ok: false,
+            message: format!("Anthropic error ({}): {}", status, body),
+        });
+    }
+
+    let default_base_url = match provider.as_str() {
+        "openai" => "https://api.openai.com/v1",
+        "openrouter" => "https://openrouter.ai/api/v1",
+        "groq" => "https://api.groq.com/openai/v1",
+        "mistral" => "https://api.mistral.ai/v1",
+        "xai" => "https://api.x.ai/v1",
+        _ => "http://192.168.68.57:1473/v1",
+    };
+
+    let base = if base_url.trim().is_empty() {
+        default_base_url.to_string()
+    } else {
+        base_url.trim().to_string()
+    };
+    let url = if base.ends_with('/') {
+        format!("{}models", base)
+    } else {
+        format!("{}/models", base)
+    };
+
+    let mut request = reqwest::Client::new().get(&url);
+    if !api_key.is_empty() {
+        request = request.header("Authorization", format!("Bearer {}", api_key));
+    }
+    if provider == "openrouter" {
+        request = request.header("HTTP-Referer", "https://gtaurus.local");
+    }
+
+    let res = request
+        .send()
+        .await
+        .map_err(|e| format!("LLM network error: {}", e))?;
+
+    if res.status().is_success() {
+        Ok(AiConnectivityResult {
+            ok: true,
+            message: format!("{} models endpoint reachable.", provider),
+        })
+    } else {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        Ok(AiConnectivityResult {
+            ok: false,
+            message: format!("{} error ({}): {}", provider, status, body),
+        })
+    }
+}
+
 // --- Inference Command ---
 
 #[tauri::command]
@@ -95,6 +365,7 @@ pub async fn ask_ai(
     local_api_key: String,
     concise_mode: bool,
     local_context: Option<String>,
+    selected_client: Option<AiClientConfig>,
 ) -> Result<String, String> {
     let concise_instruction = if concise_mode {
         "6. CONCISENESS: Be very brief and direct. Avoid conversational filler or long intros. Use bullet points for steps. If providing G-code, just provide the block with a one-sentence explanation."
@@ -131,7 +402,134 @@ pub async fn ask_ai(
         local_context_block
     );
 
-    if ai_tier == "local" {
+    let resolved_tier = selected_client
+        .as_ref()
+        .map(|c| c.tier.clone())
+        .unwrap_or(ai_tier);
+    let mut resolved_provider = selected_client
+        .as_ref()
+        .map(|c| c.provider.clone())
+        .unwrap_or_else(|| if resolved_tier == "local" { "openai-compatible".to_string() } else { "gemini".to_string() });
+
+    let resolved_model = selected_client
+        .as_ref()
+        .map(|c| c.model.clone())
+        .unwrap_or_else(|| {
+            if resolved_tier == "local" {
+                local_model.clone()
+            } else if resolved_tier == "free" {
+                free_model.clone()
+            } else {
+                pro_model.clone()
+            }
+        });
+
+    let resolved_base_url = selected_client
+        .as_ref()
+        .and_then(|c| c.base_url.clone())
+        .unwrap_or(local_base_url);
+
+    let resolved_api_key = selected_client
+        .as_ref()
+        .and_then(|c| c.api_key.clone())
+        .unwrap_or_else(|| {
+            if resolved_provider == "openai-compatible" {
+                local_api_key.clone()
+            } else {
+                api_key.clone()
+            }
+        });
+
+    if resolved_provider == "copilot-sdk" {
+        let auth_mode = selected_client
+            .as_ref()
+            .and_then(|c| c.copilot_auth_mode.clone())
+            .unwrap_or_else(|| "subscription".to_string());
+
+        if auth_mode == "byok" {
+            let byok_provider = selected_client
+                .as_ref()
+                .and_then(|c| c.copilot_byok_provider.clone())
+                .unwrap_or_else(|| "openai".to_string());
+
+            resolved_provider = byok_provider;
+        } else {
+            return Err("Copilot SDK subscription mode is configured, but runtime chat dispatch is not wired yet (C2). Set Auth Mode to BYOK to use OpenAI/Anthropic routing now, or continue with SDK adapter implementation.".to_string());
+        }
+    }
+
+    if resolved_provider == "anthropic" {
+        if resolved_api_key.trim().is_empty() {
+            return Err("Anthropic API key is not configured.".to_string());
+        }
+
+        let anthropic_messages: Vec<AnthropicMessage> = messages
+            .into_iter()
+            .filter(|m| m.role != "system")
+            .map(|m| AnthropicMessage {
+                role: if m.role == "model" { "assistant".to_string() } else { m.role },
+                content: m.parts.get(0).map(|p| p.text.clone()).unwrap_or_default(),
+            })
+            .collect();
+
+        let req_body = AnthropicRequest {
+            model: if resolved_model.trim().is_empty() {
+                "claude-3-5-sonnet-latest".to_string()
+            } else {
+                resolved_model.clone()
+            },
+            system: system_prompt,
+            max_tokens: 1024,
+            messages: anthropic_messages,
+        };
+
+        let base = if resolved_base_url.trim().is_empty() {
+            "https://api.anthropic.com/v1".to_string()
+        } else {
+            resolved_base_url.clone()
+        };
+        let url = if base.ends_with('/') {
+            format!("{}messages", base)
+        } else {
+            format!("{}/messages", base)
+        };
+
+        let client = reqwest::Client::new();
+        let res = client
+            .post(&url)
+            .header("x-api-key", resolved_api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&req_body)
+            .send()
+            .await
+            .map_err(|e| format!("Anthropic Connection Error: {}", e))?;
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let err_text = res.text().await.unwrap_or_default();
+            return Err(format!("Anthropic API Error ({}): {}", status, err_text));
+        }
+
+        let parsed: AnthropicResponse = res
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse Anthropic JSON: {}", e))?;
+
+        if let Some(err) = parsed.error {
+            return Err(format!("Anthropic API Error: {}", err.message));
+        }
+
+        if let Some(content) = parsed.content {
+            if let Some(first_text) = content.into_iter().find(|p| p.kind == "text") {
+                return Ok(first_text.text);
+            }
+        }
+
+        return Err("Anthropic returned an empty response.".to_string());
+    }
+
+    if resolved_provider != "gemini" || resolved_tier == "local" {
         // --- Local LLM (OpenAI Compatible) ---
         let mut openai_messages = vec![
             OpenAIMessage {
@@ -149,13 +547,26 @@ pub async fn ask_ai(
             });
         }
 
-        let local_model_trimmed = local_model.trim();
+        let local_model_trimmed = resolved_model.trim();
         let req_body = OpenAIRequest {
             model: if local_model_trimmed.is_empty() { "qwen/qwen2.5-coder-14b".to_string() } else { local_model_trimmed.to_string() },
             messages: openai_messages,
         };
 
-        let base_url = if local_base_url.is_empty() { "http://192.168.68.57:1473/v1".to_string() } else { local_base_url };
+        let default_base_url = match resolved_provider.as_str() {
+            "openai" => "https://api.openai.com/v1",
+            "openrouter" => "https://openrouter.ai/api/v1",
+            "groq" => "https://api.groq.com/openai/v1",
+            "mistral" => "https://api.mistral.ai/v1",
+            "xai" => "https://api.x.ai/v1",
+            _ => "http://192.168.68.57:1473/v1",
+        };
+
+        let base_url = if resolved_base_url.is_empty() {
+            default_base_url.to_string()
+        } else {
+            resolved_base_url
+        };
         let url = if base_url.ends_with('/') {
             format!("{}chat/completions", base_url)
         } else {
@@ -167,8 +578,8 @@ pub async fn ask_ai(
             .header("Content-Type", "application/json")
             .json(&req_body);
 
-        if !local_api_key.is_empty() {
-            request = request.header("Authorization", format!("Bearer {}", local_api_key));
+        if !resolved_api_key.is_empty() {
+            request = request.header("Authorization", format!("Bearer {}", resolved_api_key));
         }
 
         let res = request.send()
@@ -198,13 +609,13 @@ pub async fn ask_ai(
     }
 
     // --- Gemini API ---
-    let (final_key, model) = if ai_tier == "free" {
+    let (final_key, model) = if resolved_tier == "free" {
         let bundled = option_env!("GEMINI_FREE_API_KEY").unwrap_or("");
-        let key = if !api_key.trim().is_empty() { api_key } else { bundled.to_string() };
-        (key, if free_model.is_empty() { "gemini-1.5-flash".to_string() } else { free_model })
+        let key = if !resolved_api_key.trim().is_empty() { resolved_api_key } else { bundled.to_string() };
+        (key, if resolved_model.is_empty() { "gemini-1.5-flash".to_string() } else { resolved_model })
     } else {
-        let key = if !api_key.trim().is_empty() { api_key } else { env::var("GEMINI_API_KEY").unwrap_or_else(|_| "".to_string()) };
-        (key, if pro_model.is_empty() { "gemini-1.5-pro".to_string() } else { pro_model })
+        let key = if !resolved_api_key.trim().is_empty() { resolved_api_key } else { env::var("GEMINI_API_KEY").unwrap_or_else(|_| "".to_string()) };
+        (key, if resolved_model.is_empty() { "gemini-1.5-pro".to_string() } else { resolved_model })
     };
 
     if final_key.is_empty() {

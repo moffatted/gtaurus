@@ -1036,7 +1036,7 @@ export function CarveWizard() {
           // but we'll log it for debugging and use alert if it fails.
         } catch (err) {
           console.error("[CarveWizard] Failed to start carve:", err);
-          alert(`Failed to start carve: ${err}`);
+          setFileError(`Failed to start carve: ${err}`);
         } finally {
           closeCarveWizard();
         }

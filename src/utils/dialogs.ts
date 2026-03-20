@@ -1,13 +1,13 @@
 /**
  * @file dialogs.ts
- * @purpose Cross-platform utilities for displaying native or browser-based alert and confirmation dialogs.
+ * @purpose Cross-platform dialog utilities that avoid browser-native dialog APIs.
  */
 import { ask as tauriAsk, message as tauriMessage } from '@tauri-apps/plugin-dialog';
 import { isTauriApp } from './platform';
 
 /**
  * Cross-platform confirmation dialog
- * Falls back to window.confirm when running in a web browser
+ * In browser mode, this returns false and logs a warning so callers can use in-app modal flows.
  */
 export const ask = async (
   message: string,
@@ -17,18 +17,21 @@ export const ask = async (
     try {
       return await tauriAsk(message, options);
     } catch (e) {
-      console.error('Tauri ask failed, falling back to window.confirm:', e);
-      return window.confirm(message);
+      console.error('Tauri ask failed. Avoiding browser-native fallback:', e);
+      return false;
     }
   }
 
-  // Web Browser Fallback
-  return window.confirm(`${options.title ? `[${options.title}]\n\n` : ''}${message}`);
+  console.warn('ask() called outside Tauri. Use an in-app confirmation modal instead.', {
+    title: options.title,
+    message,
+  });
+  return false;
 };
 
 /**
  * Cross-platform alert message
- * Falls back to window.alert when running in a web browser
+ * In browser mode, logs a warning so callers can use in-app notifications.
  */
 export const message = async (
   text: string,
@@ -39,12 +42,13 @@ export const message = async (
       await tauriMessage(text, options);
       return;
     } catch (e) {
-      console.error('Tauri message failed, falling back to window.alert:', e);
-      window.alert(text);
+      console.error('Tauri message failed. Avoiding browser-native fallback:', e);
       return;
     }
   }
 
-  // Web Browser Fallback
-  window.alert(`${options.title ? `[${options.title}]\n\n` : ''}${text}`);
+  console.warn('message() called outside Tauri. Use an in-app notification/modal instead.', {
+    title: options.title,
+    text,
+  });
 };

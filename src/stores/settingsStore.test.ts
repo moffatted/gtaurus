@@ -38,6 +38,34 @@ describe('settingsStore', () => {
     expect(state.settings.showAutolevelMesh).toBe(true);
   });
 
+  it('seeds AI clients in default settings', () => {
+    const state = useSettingsStore.getState();
+    expect(state.settings.ai.clients.length).toBeGreaterThan(0);
+    expect(state.settings.ai.activeClientId).toBeTruthy();
+  });
+
+  it('updates active AI client when setAiSettings is called', () => {
+    const { setAiSettings } = useSettingsStore.getState();
+    const firstClient = useSettingsStore.getState().settings.ai.clients[0];
+
+    const injectedClient = {
+      ...firstClient,
+      id: 'test-client-id',
+      name: 'Test Client',
+      tier: 'pro' as const,
+      model: 'gemini-1.5-pro',
+    };
+
+    setAiSettings({
+      clients: [firstClient, injectedClient],
+      activeClientId: 'test-client-id',
+    });
+
+    const state = useSettingsStore.getState();
+    expect(state.settings.ai.activeClientId).toBe('test-client-id');
+    expect(state.settings.ai.tier).toBe('pro');
+  });
+
   it('enables and disables dashboard panels', () => {
     const { setDashboardPanelEnabled } = useSettingsStore.getState();
     
