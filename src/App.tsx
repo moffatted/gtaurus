@@ -2,7 +2,7 @@
  * @file App.tsx
  * @purpose Main application component that initializes the theme, settings, and layout providers.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauriApp } from "./utils/platform";
@@ -26,7 +26,7 @@ import { AlarmIndicator } from "./components/AlarmIndicator";
 import { WorkpiecePanel } from "./components/WorkpiecePanel";
 import { useToolStore } from "./stores/toolStore";
 import { transport } from "./services/transportService";
-import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench, Camera, Layers } from "lucide-react";
+import { Play, BarChart2, Bot, SlidersHorizontal, Drill, Wrench, Camera, Layers, EllipsisVertical } from "lucide-react";
 import { CarveWizard } from "./components/wizards/CarveWizard";
 import { SurfacingWizard } from "./components/wizards/SurfacingWizard";
 import { ResumeWizard } from "./components/wizards/ResumeWizard";
@@ -142,6 +142,24 @@ function App() {
   useJobResumeListener();
 
   const appWindow = isTauriApp() ? getCurrentWindow() : null;
+  const [compactTopMenu, setCompactTopMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  useEffect(() => {
+    const evaluateHeaderMode = () => {
+      setCompactTopMenu(window.innerWidth <= 1450);
+    };
+
+    evaluateHeaderMode();
+    window.addEventListener('resize', evaluateHeaderMode);
+    return () => window.removeEventListener('resize', evaluateHeaderMode);
+  }, []);
+
+  useEffect(() => {
+    if (!compactTopMenu) {
+      setShowMoreMenu(false);
+    }
+  }, [compactTopMenu]);
 
   const handleResizeStart = (_e: React.MouseEvent, direction: string) => {
     if (appWindow) {
@@ -184,12 +202,12 @@ function App() {
           {/* Header - Made taller (h-16) and draggable with data-tauri-drag-region */}
           <header
             data-tauri-drag-region
-            className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-header)] flex items-center px-6 justify-between shadow-sm flex-shrink-0 z-20 cursor-default select-none group"
+            className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-header)] flex items-center px-4 justify-start gap-3 shadow-sm flex-shrink-0 z-20 cursor-default select-none group"
           >
             {/* Draggable indicator or Spacer */}
             <div
               data-tauri-drag-region
-              className="flex-1 h-full flex items-center gap-4 pl-2"
+              className="h-full flex items-center gap-3 pl-1 shrink-0"
             >
               <Tooltip content="Launch the Carve Wizard (Step-by-step Setup)" position="bottom">
                 <div className="relative group flex items-center cursor-pointer shadow-lg shadow-blue-500/10 rounded-xl" onClick={openCarveWizard}>
@@ -234,7 +252,7 @@ function App() {
               </Tooltip>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 min-w-0">
               <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
                 machine.status === 'Run' ? 'bg-green-500/10 border-green-500/30 text-green-500 animate-pulse' :
                 machine.status === 'Alarm' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
@@ -250,7 +268,7 @@ function App() {
                 <Tooltip content="Camera Viewer" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openCameraViewer()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="Camera Viewer"
                   >
                     <Camera className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-green-400 transition-colors" />
@@ -262,7 +280,7 @@ function App() {
                 <Tooltip content="AI Assistant" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openAIAssistant()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="AI Assistant"
                   >
                     <Bot className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
@@ -270,11 +288,11 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {statsEnabled && (
+              {!compactTopMenu && statsEnabled && (
                 <Tooltip content="Machine Statistics" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openMachineStats()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="Machine Statistics"
                   >
                     <BarChart2 className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-orange-400 transition-colors" />
@@ -282,11 +300,11 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {toolLibraryEnabled && (
+              {!compactTopMenu && toolLibraryEnabled && (
                 <Tooltip content="Bit Library" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openToolLibrary()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="Bit Library"
                   >
                     <Wrench className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-purple-400 transition-colors" />
@@ -294,11 +312,11 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {atcEnabled && (
+              {!compactTopMenu && atcEnabled && (
                 <Tooltip content="Tool Changer" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openToolChanger()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="Tool Changer"
                   >
                     <Drill className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-blue-400 transition-colors" />
@@ -306,11 +324,11 @@ function App() {
                   </button>
                 </Tooltip>
               )}
-              {fluidncManagerEnabled && (
+              {!compactTopMenu && fluidncManagerEnabled && (
                 <Tooltip content="FluidNC Manager" position="bottom">
                   <button
                     onClick={() => useUIStore.getState().openFluidNCManager()}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-2 group"
+                    className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer flex items-center gap-1.5 group"
                     aria-label="FluidNC Manager"
                   >
                     <SlidersHorizontal className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors" />
@@ -318,6 +336,76 @@ function App() {
                   </button>
                 </Tooltip>
               )}
+              {compactTopMenu && (statsEnabled || toolLibraryEnabled || atcEnabled || fluidncManagerEnabled) && (
+                <div className="relative">
+                  <Tooltip content="More Tools" position="bottom">
+                    <button
+                      onClick={() => setShowMoreMenu((v) => !v)}
+                      className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors duration-200 cursor-pointer"
+                      aria-label="More Tools"
+                    >
+                      <EllipsisVertical className="w-5 h-5 text-[var(--text-secondary)]" />
+                    </button>
+                  </Tooltip>
+
+                  {showMoreMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowMoreMenu(false)} />
+                      <div className="absolute right-0 mt-2 min-w-[170px] rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-xl z-20 py-1">
+                        {statsEnabled && (
+                          <button
+                            onClick={() => {
+                              useUIStore.getState().openMachineStats();
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full px-3 py-2 text-xs text-left hover:bg-[var(--bg-tertiary)] flex items-center gap-2"
+                          >
+                            <BarChart2 className="w-4 h-4 text-orange-400" />
+                            Stats
+                          </button>
+                        )}
+                        {toolLibraryEnabled && (
+                          <button
+                            onClick={() => {
+                              useUIStore.getState().openToolLibrary();
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full px-3 py-2 text-xs text-left hover:bg-[var(--bg-tertiary)] flex items-center gap-2"
+                          >
+                            <Wrench className="w-4 h-4 text-purple-400" />
+                            Library
+                          </button>
+                        )}
+                        {atcEnabled && (
+                          <button
+                            onClick={() => {
+                              useUIStore.getState().openToolChanger();
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full px-3 py-2 text-xs text-left hover:bg-[var(--bg-tertiary)] flex items-center gap-2"
+                          >
+                            <Drill className="w-4 h-4 text-blue-400" />
+                            Tools
+                          </button>
+                        )}
+                        {fluidncManagerEnabled && (
+                          <button
+                            onClick={() => {
+                              useUIStore.getState().openFluidNCManager();
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full px-3 py-2 text-xs text-left hover:bg-[var(--bg-tertiary)] flex items-center gap-2"
+                          >
+                            <SlidersHorizontal className="w-4 h-4 text-[var(--accent-primary)]" />
+                            Manager
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               <HelpMenu />
               <SettingsPanel />
             </div>
