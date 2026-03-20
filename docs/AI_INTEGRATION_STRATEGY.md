@@ -167,7 +167,7 @@ Backend should route through provider adapters:
 
 After manual switching is stable, add optional automatic client selection.
 
-#### Goals
+#### Model Goals
 
 - Let users choose `selectionMode = "auto"`.
 - Pick model clients by deterministic heuristics and fallback order.
@@ -229,12 +229,14 @@ GitHub Copilot can be integrated as a programmable agent platform through the Co
 
 1. Add a new provider type in settings for Copilot SDK clients (separate from pure HTTP providers).
 2. Create a backend adapter module responsible for SDK lifecycle:
-	- start runtime/session
-	- send prompt/context
-	- stream agent events
-	- map tool calls to internal Rust/Tauri commands
-3. Keep existing air-gap enforcement unchanged: generated code is reviewed in UI and never auto-executed.
-4. Keep fallback routing so failed Copilot session attempts can roll over to other enabled providers when selection mode allows it.
+
+- start runtime/session
+- send prompt/context
+- stream agent events
+- map tool calls to internal Rust/Tauri commands
+
+1. Keep existing air-gap enforcement unchanged: generated code is reviewed in UI and never auto-executed.
+2. Keep fallback routing so failed Copilot session attempts can roll over to other enabled providers when selection mode allows it.
 
 ### Operational Constraints
 
