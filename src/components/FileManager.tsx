@@ -18,6 +18,7 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { transport, isTauri } from '../services/transportService';
 import { useVisualizerStore } from '../stores/visualizerStore';
 import { Tooltip } from './ui/Tooltip';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 interface LocalFile {
   name: string;
@@ -497,6 +498,12 @@ export default function FileManager() {
               <Upload className="w-3.5 h-3.5" />
               Upload
             </button>
+            <HelpIconButton
+              topicId="dashboard-panels"
+              tooltip="File Manager Help"
+              className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
+              iconClassName="w-4 h-4"
+            />
           </div>
         </div>
 

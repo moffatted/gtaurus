@@ -22,6 +22,8 @@ export function CameraViewerModal() {
       minHeight={300}
       zIndex={useUIStore.getState().zIndexMap.cameraViewer}
       onFocus={() => useUIStore.getState().bringToFront('cameraViewer')}
+      helpTopicId="top-menu-panels"
+      helpTooltip="Camera Viewer Help"
     >
       <div className="h-full w-full bg-black">
         <CameraPanel hideHeader={true} />

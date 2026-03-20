@@ -14,6 +14,7 @@ import { useToolStore } from '../stores/toolStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useMeshStore, type HeightMapData } from '../stores/meshStore';
 import { Tooltip } from './ui/Tooltip';
+import { HelpIconButton } from './Help/HelpIconButton';
 import { transport } from '../services/transportService';
 
 // ─── Spindle Component ─────────────────────────────────────────────────────
@@ -899,6 +900,12 @@ export function BedVisualizer() {
       </Canvas>
 
       <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 z-10">
+        <HelpIconButton
+          topicId="visualizer"
+          tooltip="Visualizer Help"
+          className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all"
+          iconClassName="w-3.5 h-3.5"
+        />
         <Tooltip content="Zoom In" position="right">
           <button onClick={() => handleZoom('in')} className="p-1.5 bg-[var(--bg-tertiary)]/90 backdrop-blur-sm border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] rounded-lg shadow-sm transition-all">
             <Plus className="w-3.5 h-3.5" />

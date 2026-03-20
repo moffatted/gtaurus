@@ -22,6 +22,8 @@ export function AIAssistantModal() {
       minHeight={500}
       zIndex={useUIStore.getState().zIndexMap.aiAssistant}
       onFocus={() => useUIStore.getState().bringToFront('aiAssistant')}
+      helpTopicId="top-menu-panels"
+      helpTooltip="AI Assistant Help"
     >
       <AIPanel hideHeader={true} />
     </FloatingWindow>

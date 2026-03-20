@@ -27,6 +27,7 @@ import { Tooltip } from './ui/Tooltip';
 import { useSettingsStore } from '../stores/settingsStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 import { useConsoleStore, type LineType } from '../stores/consoleStore';
 
@@ -466,6 +467,13 @@ export function GcodeConsole() {
             </button>
           </Tooltip>
         )}
+
+        <HelpIconButton
+          topicId="console"
+          tooltip="Console Help"
+          className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+          iconClassName="w-3.5 h-3.5"
+        />
       </div>
 
       {/* ── Log ───────────────────────────────────────────────────────────── */}

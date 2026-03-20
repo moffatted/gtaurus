@@ -20,6 +20,7 @@ import { parseStatusReport } from '../utils/parser';
 import { useConsoleStore } from '../stores/consoleStore';
 import { ConfirmPopover, AlertPopover } from './ui/Popovers';
 import { useWizardStore } from '../stores/wizardStore';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 const MAX_REPEAT_MOVE = 1000;
 
@@ -475,6 +476,12 @@ export function ControlsPanel() {
                             <span>S: <span className="text-[var(--text-primary)]">{state.spindle}</span></span>
                         </div>
                     </Tooltip>
+                    <HelpIconButton
+                        topicId="controls"
+                        tooltip="Controls Help"
+                        className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
+                        iconClassName="w-4 h-4"
+                    />
                 </div>
                 {/* Alarm Banner (if active) */}
                 {state.status.toLowerCase().includes('alarm') && (

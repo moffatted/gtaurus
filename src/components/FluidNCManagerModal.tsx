@@ -22,6 +22,8 @@ export function FluidNCManagerModal() {
       minHeight={300}
       zIndex={useUIStore.getState().zIndexMap.fluidNCManager}
       onFocus={() => useUIStore.getState().bringToFront('fluidNCManager')}
+      helpTopicId="top-menu-panels"
+      helpTooltip="FluidNC Manager Help"
     >
       <FluidNCManager />
     </FloatingWindow>
