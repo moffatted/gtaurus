@@ -183,9 +183,35 @@ export interface StatsSettings {
   targetQuality: number;
 }
 
+export type AiTier = "free" | "pro" | "local";
+export type AiProvider =
+  | "gemini"
+  | "copilot-sdk"
+  | "openai"
+  | "anthropic"
+  | "openrouter"
+  | "groq"
+  | "mistral"
+  | "xai"
+  | "openai-compatible";
+export type AiSelectionMode = "manual" | "auto";
+
+export interface AiClientSettings {
+  id: string;
+  name: string;
+  tier: AiTier;
+  provider: AiProvider;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  copilotAuthMode?: "subscription" | "byok";
+  copilotByokProvider?: "openai" | "anthropic";
+  enabled: boolean;
+}
+
 export interface AiSettings {
   enabled: boolean;
-  tier: "free" | "pro" | "local";
+  tier: AiTier;
   apiKey: string;
   freeModel: string;
   proModel: string;
@@ -193,6 +219,212 @@ export interface AiSettings {
   localBaseUrl: string;
   localApiKey: string;
   conciseMode: boolean;
+  clients: AiClientSettings[];
+  activeClientId: string;
+  selectionMode: AiSelectionMode;
+}
+
+const DEFAULT_AI_FREE_MODEL = "gemini-1.5-flash";
+const DEFAULT_AI_PRO_MODEL = "gemini-1.5-pro";
+const DEFAULT_AI_LOCAL_MODEL = "qwen/qwen2.5-coder-14b";
+const DEFAULT_AI_LOCAL_BASE_URL = "http://192.168.68.57:1473/v1";
+const DEFAULT_AI_LOCAL_API_KEY = "lm-studio";
+const LEGACY_LOCAL_MODEL_ALIAS = "qwen-2.5-coder-14b";
+
+function normalizeLocalModelName(model: string): string {
+  return model === LEGACY_LOCAL_MODEL_ALIAS ? DEFAULT_AI_LOCAL_MODEL : model;
+}
+
+function defaultProviderBaseUrl(provider: AiProvider): string {
+  switch (provider) {
+    case "copilot-sdk":
+      return "";
+    case "openai":
+      return "https://api.openai.com/v1";
+    case "anthropic":
+      return "https://api.anthropic.com/v1";
+    case "openrouter":
+      return "https://openrouter.ai/api/v1";
+    case "groq":
+      return "https://api.groq.com/openai/v1";
+    case "mistral":
+      return "https://api.mistral.ai/v1";
+    case "xai":
+      return "https://api.x.ai/v1";
+    case "openai-compatible":
+      return DEFAULT_AI_LOCAL_BASE_URL;
+    default:
+      return "";
+  }
+}
+
+function defaultProviderModel(provider: AiProvider, tier: AiTier): string {
+  if (provider === "gemini") {
+    return tier === "free" ? DEFAULT_AI_FREE_MODEL : DEFAULT_AI_PRO_MODEL;
+  }
+
+  if (provider === "copilot-sdk") {
+    return tier === "free" ? "gpt-4o-mini" : "gpt-4o";
+  }
+
+  if (provider === "anthropic") {
+    return "claude-3-5-sonnet-latest";
+  }
+
+  if (provider === "openai") {
+    return tier === "free" ? "gpt-4o-mini" : "gpt-4.1";
+  }
+
+  if (provider === "openrouter") {
+    return tier === "free" ? "google/gemini-2.0-flash-exp:free" : "anthropic/claude-3.5-sonnet";
+  }
+
+  if (provider === "groq") {
+    return "llama-3.3-70b-versatile";
+  }
+
+  if (provider === "mistral") {
+    return "mistral-large-latest";
+  }
+
+  if (provider === "xai") {
+    return "grok-2-latest";
+  }
+
+  return DEFAULT_AI_LOCAL_MODEL;
+}
+
+function buildDefaultAiClients(ai: {
+  apiKey: string;
+  freeModel: string;
+  proModel: string;
+  localModel: string;
+  localBaseUrl: string;
+  localApiKey: string;
+}): AiClientSettings[] {
+  return [
+    {
+      id: "legacy-free-gemini",
+      name: "Free Gemini",
+      tier: "free",
+      provider: "gemini",
+      model: ai.freeModel,
+      apiKey: ai.apiKey,
+      enabled: true,
+    },
+    {
+      id: "free-openrouter",
+      name: "Free OpenRouter",
+      tier: "free",
+      provider: "openrouter",
+      model: defaultProviderModel("openrouter", "free"),
+      baseUrl: defaultProviderBaseUrl("openrouter"),
+      apiKey: "",
+      enabled: false,
+    },
+    {
+      id: "free-copilot-sdk",
+      name: "Free GitHub Copilot SDK",
+      tier: "free",
+      provider: "copilot-sdk",
+      model: defaultProviderModel("copilot-sdk", "free"),
+      copilotAuthMode: "subscription",
+      enabled: false,
+    },
+    {
+      id: "legacy-pro-gemini",
+      name: "Pro Gemini",
+      tier: "pro",
+      provider: "gemini",
+      model: ai.proModel,
+      apiKey: ai.apiKey,
+      enabled: true,
+    },
+    {
+      id: "pro-openai",
+      name: "Pro OpenAI",
+      tier: "pro",
+      provider: "openai",
+      model: defaultProviderModel("openai", "pro"),
+      baseUrl: defaultProviderBaseUrl("openai"),
+      apiKey: "",
+      enabled: false,
+    },
+    {
+      id: "pro-anthropic",
+      name: "Pro Anthropic",
+      tier: "pro",
+      provider: "anthropic",
+      model: defaultProviderModel("anthropic", "pro"),
+      baseUrl: defaultProviderBaseUrl("anthropic"),
+      apiKey: "",
+      enabled: false,
+    },
+    {
+      id: "pro-groq",
+      name: "Pro Groq",
+      tier: "pro",
+      provider: "groq",
+      model: defaultProviderModel("groq", "pro"),
+      baseUrl: defaultProviderBaseUrl("groq"),
+      apiKey: "",
+      enabled: false,
+    },
+    {
+      id: "pro-copilot-sdk",
+      name: "Pro GitHub Copilot SDK",
+      tier: "pro",
+      provider: "copilot-sdk",
+      model: defaultProviderModel("copilot-sdk", "pro"),
+      copilotAuthMode: "subscription",
+      enabled: false,
+    },
+    {
+      id: "legacy-local-openai",
+      name: "Local LLM",
+      tier: "local",
+      provider: "openai-compatible",
+      model: normalizeLocalModelName(ai.localModel),
+      baseUrl: ai.localBaseUrl,
+      apiKey: ai.localApiKey,
+      enabled: true,
+    },
+  ];
+}
+
+function normalizeSavedAi(savedAi: Partial<AiSettings> | undefined): AiSettings {
+  const mergedLegacy: AiSettings = {
+    ...DEFAULT_SETTINGS.ai,
+    ...savedAi,
+    localModel: normalizeLocalModelName(savedAi?.localModel ?? DEFAULT_SETTINGS.ai.localModel),
+    selectionMode: savedAi?.selectionMode === "auto" ? "auto" : "manual",
+    clients: [],
+    activeClientId: savedAi?.activeClientId ?? "",
+  };
+
+  const providedClients = Array.isArray(savedAi?.clients) ? savedAi.clients : [];
+  const clients = (providedClients.length > 0 ? providedClients : buildDefaultAiClients(mergedLegacy)).map((client, index) => ({
+    ...client,
+    id: client.id || `ai-client-${index + 1}`,
+    name: client.name || `AI Client ${index + 1}`,
+    model: normalizeLocalModelName(client.model),
+    baseUrl: client.baseUrl ?? defaultProviderBaseUrl(client.provider),
+    copilotAuthMode: client.provider === "copilot-sdk" ? (client.copilotAuthMode ?? "subscription") : undefined,
+    copilotByokProvider: client.provider === "copilot-sdk" ? client.copilotByokProvider : undefined,
+    enabled: client.enabled ?? true,
+  }));
+
+  const activeExists = clients.some((client) => client.id === mergedLegacy.activeClientId);
+  const activeClient = clients.find((client) => client.id === mergedLegacy.activeClientId);
+  const tierMatch = clients.find((client) => client.tier === mergedLegacy.tier && client.enabled);
+  const fallbackClient = tierMatch ?? clients.find((client) => client.enabled) ?? clients[0];
+
+  return {
+    ...mergedLegacy,
+    clients,
+    tier: activeExists ? (activeClient?.tier ?? mergedLegacy.tier) : (fallbackClient?.tier ?? mergedLegacy.tier),
+    activeClientId: activeExists ? mergedLegacy.activeClientId : fallbackClient.id,
+  };
 }
 
 
@@ -417,12 +649,22 @@ export const DEFAULT_SETTINGS: Settings = {
     enabled: true,
     tier: "free",
     apiKey: "",
-    freeModel: "gemini-1.5-flash",
-    proModel: "gemini-1.5-pro",
-    localModel: "qwen/qwen2.5-coder-14b",
-    localBaseUrl: "http://192.168.68.57:1473/v1",
-    localApiKey: "lm-studio",
+    freeModel: DEFAULT_AI_FREE_MODEL,
+    proModel: DEFAULT_AI_PRO_MODEL,
+    localModel: DEFAULT_AI_LOCAL_MODEL,
+    localBaseUrl: DEFAULT_AI_LOCAL_BASE_URL,
+    localApiKey: DEFAULT_AI_LOCAL_API_KEY,
     conciseMode: true,
+    clients: buildDefaultAiClients({
+      apiKey: "",
+      freeModel: DEFAULT_AI_FREE_MODEL,
+      proModel: DEFAULT_AI_PRO_MODEL,
+      localModel: DEFAULT_AI_LOCAL_MODEL,
+      localBaseUrl: DEFAULT_AI_LOCAL_BASE_URL,
+      localApiKey: DEFAULT_AI_LOCAL_API_KEY,
+    }),
+    activeClientId: "legacy-free-gemini",
+    selectionMode: "manual",
   },
 
   stock: {
@@ -720,10 +962,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           label: labelMap.get(p.id) || p.label
       }));
 
-      const aiSettings = { ...DEFAULT_SETTINGS.ai, ...saved?.ai };
-      if (aiSettings.localModel === "qwen-2.5-coder-14b") {
-        aiSettings.localModel = "qwen/qwen2.5-coder-14b";
-      }
+      const aiSettings = normalizeSavedAi(saved?.ai);
 
       set({
         settings: { 
@@ -913,9 +1152,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }),
   setAiSettings: (patch: Partial<AiSettings>) =>
     set((state) => {
+      const mergedAi = normalizeSavedAi({ ...state.settings.ai, ...patch });
       const next = {
         ...state.settings,
-        ai: { ...state.settings.ai, ...patch },
+        ai: mergedAi,
       };
       void saveToStorage(next);
       return { settings: next };

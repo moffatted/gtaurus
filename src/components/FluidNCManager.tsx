@@ -78,6 +78,12 @@ function ConfigEditor() {
     const [needsRestart, setNeedsRestart] = useState(false);
     const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'success' | 'error'>('idle');
     const [errorMsg, setError] = useState('');
+    const [confirmDialog, setConfirmDialog] = useState<{
+        title: string;
+        message: string;
+        confirmLabel?: string;
+        onConfirm: () => void;
+    } | null>(null);
 
     const uploadUrl = `http://${settings.connection.wsHost}/upload`;
 
@@ -206,7 +212,7 @@ function ConfigEditor() {
         }
     };
 
-    const saveLiveToFlash = async () => {
+    const saveLiveToFlash = async (skipBackupWarning = false) => {
         if (!validateYaml(true)) return;
         
         const warning = `SAVE LIVE ($CD) Warning:\n\n` +
@@ -215,12 +221,35 @@ function ConfigEditor() {
             `- Recent FluidNC versions have reported bugs where $CD adds invalid lines or "NO PIN" values which can prevent booting.\n\n` +
             `A local backup will be created first. Are you absolutely sure?`;
 
-        if (!confirm(warning)) return;
+        if (!skipBackupWarning) {
+            setConfirmDialog({
+                title: 'Save Live To Flash',
+                message: warning,
+                confirmLabel: 'Save Live',
+                onConfirm: () => {
+                    setConfirmDialog(null);
+                    void saveLiveToFlash(true);
+                },
+            });
+            return;
+        }
         
         try {
             const backedUp = await createLocalBackup(activeFilename);
             if (!backedUp && isConnected) {
-                if (!confirm("Could not create local backup (file might not exist). Proceed anyway?")) return;
+                setConfirmDialog({
+                    title: 'Backup Warning',
+                    message: 'Could not create a local backup (the file may not exist yet). Proceed anyway?',
+                    confirmLabel: 'Proceed',
+                    onConfirm: () => {
+                        setConfirmDialog(null);
+                        useConsoleStore.getState().appendLine(`> $CD=${activeFilename}`, 'cmd');
+                        void transport.invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
+                        setStatus('success');
+                        setTimeout(() => setStatus('idle'), 3000);
+                    },
+                });
+                return;
             }
             useConsoleStore.getState().appendLine(`> $CD=${activeFilename}`, 'cmd');
             await transport.invoke('send_gcode', { cmd: `$CD=${activeFilename}` });
@@ -232,8 +261,19 @@ function ConfigEditor() {
         }
     };
 
-    const setActiveConfig = async () => {
-        if (!confirm(`Set ${activeFilename} as the active boot configuration? This will require a restart.`)) return;
+    const setActiveConfig = async (confirmed = false) => {
+        if (!confirmed) {
+            setConfirmDialog({
+                title: 'Set Active Config',
+                message: `Set ${activeFilename} as the active boot configuration? This requires a restart.`,
+                confirmLabel: 'Set Active',
+                onConfirm: () => {
+                    setConfirmDialog(null);
+                    void setActiveConfig(true);
+                },
+            });
+            return;
+        }
         try {
             useConsoleStore.getState().appendLine(`> $Config/Filename=${activeFilename}`, 'cmd');
             await transport.invoke('send_gcode', { cmd: `$Config/Filename=${activeFilename}` });
@@ -246,9 +286,22 @@ function ConfigEditor() {
         }
     };
 
-    const restartController = async (type: 'soft' | 'full' = 'soft') => {
+    const restartController = async (type: 'soft' | 'full' = 'soft', confirmed = false) => {
         const isFull = type === 'full';
-        if (!confirm(isFull ? 'Perform a FULL hardware reboot? (Required to apply config items)' : 'Perform a soft reset to stop G-code and refresh UI?')) return;
+        if (!confirmed) {
+            setConfirmDialog({
+                title: isFull ? 'Full Controller Reboot' : 'Soft Controller Reset',
+                message: isFull
+                    ? 'Perform a full hardware reboot? This is required to apply some configuration items.'
+                    : 'Perform a soft reset to stop G-code and refresh the UI?',
+                confirmLabel: isFull ? 'Reboot' : 'Reset',
+                onConfirm: () => {
+                    setConfirmDialog(null);
+                    void restartController(type, true);
+                },
+            });
+            return;
+        }
         
         try {
             const url = isFull 
@@ -268,7 +321,7 @@ function ConfigEditor() {
         }
     };
 
-    const saveConfig = async () => {
+    const saveConfig = async (confirmed = false) => {
         if (!validateYaml(false)) return;
         
         const cleanYaml = sanitizeYaml(config);
@@ -277,7 +330,18 @@ function ConfigEditor() {
             return;
         }
 
-        if (!confirm(`UPLOAD: Overwrite ${activeFilename} on the controller with the contents of this editor? \n\nA local backup of the OLD file will be created first. Proceed?`)) return;
+        if (!confirmed) {
+            setConfirmDialog({
+                title: 'Upload Configuration',
+                message: `Overwrite ${activeFilename} on the controller with the editor content? A local backup of the old file will be created first.`,
+                confirmLabel: 'Upload',
+                onConfirm: () => {
+                    setConfirmDialog(null);
+                    void saveConfig(true);
+                },
+            });
+            return;
+        }
         
         setStatus('saving');
         try {
@@ -353,7 +417,8 @@ function ConfigEditor() {
                                             console.error('Failed to open folder:', e);
                                         }
                                     } else {
-                                        alert(`Backups are located at: ${path}`);
+                                        setStatus('error');
+                                        setError(`Backups are located at: ${path}`);
                                     }
                                 }}
                                 className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-all cursor-pointer"
@@ -531,6 +596,33 @@ function ConfigEditor() {
                 spellCheck={false}
                 placeholder="Click reload to fetch configuration..."
             />
+
+            {confirmDialog && (
+                <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+                        <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+                            <h5 className="text-sm font-semibold text-[var(--text-primary)]">{confirmDialog.title}</h5>
+                        </div>
+                        <div className="px-4 py-4">
+                            <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line">{confirmDialog.message}</p>
+                        </div>
+                        <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+                            <button
+                                onClick={() => setConfirmDialog(null)}
+                                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDialog.onConfirm}
+                                className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+                            >
+                                {confirmDialog.confirmLabel || 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -553,6 +645,12 @@ function MachineSettings() {
     const [wifiSsid, setWifiSsid] = useState('');
     const [wifiPass, setWifiPass] = useState('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [confirmDialog, setConfirmDialog] = useState<{
+        title: string;
+        message: string;
+        confirmLabel?: string;
+        onConfirm: () => void;
+    } | null>(null);
 
     const sendCmd = (cmd: string) => {
         useConsoleStore.getState().appendLine(`> ${cmd}`, 'cmd');
@@ -560,18 +658,38 @@ function MachineSettings() {
     };
 
     const handleApplyWifi = async () => {
-        if (!confirm('Warning: Setting WiFi will disconnect the current session. Proceed?')) return;
-        try {
-            await sendCmd(`$Sta/SSID=${wifiSsid}`);
-            await sendCmd(`$Sta/Password=${wifiPass}`);
-            setStatus('success');
-            setTimeout(() => setStatus('idle'), 3000);
-        } catch (e) {
-            setStatus('error');
-        }
+        setConfirmDialog({
+            title: 'Apply WiFi Settings',
+            message: 'Setting WiFi will disconnect the current session. Proceed?',
+            confirmLabel: 'Apply',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                try {
+                    await sendCmd(`$Sta/SSID=${wifiSsid}`);
+                    await sendCmd(`$Sta/Password=${wifiPass}`);
+                    setStatus('success');
+                    setTimeout(() => setStatus('idle'), 3000);
+                } catch (e) {
+                    setStatus('error');
+                }
+            },
+        });
+    };
+
+    const requestRestart = () => {
+        setConfirmDialog({
+            title: 'Restart FluidNC',
+            message: 'Restart FluidNC now? The connection will drop temporarily.',
+            confirmLabel: 'Restart',
+            onConfirm: () => {
+                setConfirmDialog(null);
+                sendCmd('$System/Restart');
+            },
+        });
     };
 
     return (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-2 pb-6 h-full custom-scrollbar">
             {/* 1. WiFi Config */}
             <SettingsSection title="WiFi Configuration" icon={Upload}>
@@ -659,9 +777,7 @@ function MachineSettings() {
             <SettingsSection title="FluidNC Tools" icon={Play}>
                 <div className="grid grid-cols-2 gap-2">
                     <button 
-                        onClick={() => {
-                            if(confirm('Restart FluidNC? Connection will drop.')) sendCmd('$System/Restart');
-                        }}
+                        onClick={requestRestart}
                         className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/20 transition-colors flex flex-col items-center gap-2 cursor-pointer"
                     >
                         <RefreshCw className="w-4 h-4" />
@@ -696,6 +812,34 @@ function MachineSettings() {
                 </div>
             </SettingsSection>
         </div>
+
+        {confirmDialog && (
+            <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+                        <h5 className="text-sm font-semibold text-[var(--text-primary)]">{confirmDialog.title}</h5>
+                    </div>
+                    <div className="px-4 py-4">
+                        <p className="text-xs text-[var(--text-secondary)]">{confirmDialog.message}</p>
+                    </div>
+                    <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+                        <button
+                            onClick={() => setConfirmDialog(null)}
+                            className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDialog.onConfirm}
+                            className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+                        >
+                            {confirmDialog.confirmLabel || 'Confirm'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
 

@@ -15,7 +15,7 @@ import {
 import { Tooltip } from './ui/Tooltip';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useThemeStore } from '../stores/themeStore';
-import { useSettingsStore } from '../stores/settingsStore';
+import { AiClientSettings, AiProvider, AiTier, useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
 import { isTauriApp } from '../utils/platform';
 import { transport } from '../services/transportService';
@@ -1668,6 +1668,7 @@ function VisualizerContent() {
 function StatsContent() {
   const { settings, setStatsSettings } = useSettingsStore();
   const sts = settings.stats;
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const labelCls = 'block text-xs font-medium text-[var(--text-secondary)] mb-1.5';
   const inputCls =
@@ -1791,21 +1792,7 @@ function StatsContent() {
         <div className="flex items-center justify-between mb-1">
           <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>3. Accumulated Statistics</h4>
           <button 
-            onClick={() => {
-              if (confirm("Are you sure you want to reset all machine statistics? This cannot be undone.")) {
-                setStatsSettings({
-                  totalJobs: 0,
-                  completedJobs: 0,
-                  failedJobs: 0,
-                  totalMachineOnTimeSec: 0,
-                  totalSpindleTimeSec: 0,
-                  totalCuttingTimeSec: 0,
-                  totalRapidTimeSec: 0,
-                  machineUtilizationRate: 0,
-                  averageCycleTimeSec: 0,
-                });
-              }
-            }}
+            onClick={() => setShowResetConfirm(true)}
             className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300 transition-colors"
           >
             Reset All
@@ -1832,6 +1819,47 @@ function StatsContent() {
           </div>
         </div>
       </div>
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+              <h5 className="text-sm font-semibold text-[var(--text-primary)]">Reset Machine Statistics</h5>
+            </div>
+            <div className="px-4 py-4 space-y-2">
+              <p className="text-xs text-[var(--text-secondary)]">Are you sure you want to reset all accumulated machine statistics?</p>
+              <p className="text-[10px] text-[var(--text-tertiary)]">This action cannot be undone.</p>
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setStatsSettings({
+                    totalJobs: 0,
+                    completedJobs: 0,
+                    failedJobs: 0,
+                    totalMachineOnTimeSec: 0,
+                    totalSpindleTimeSec: 0,
+                    totalCuttingTimeSec: 0,
+                    totalRapidTimeSec: 0,
+                    machineUtilizationRate: 0,
+                    averageCycleTimeSec: 0,
+                  });
+                  setShowResetConfirm(false);
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1840,50 +1868,181 @@ function StatsContent() {
 
 function AIAssistantContent() {
   const { settings, setDashboardPanelEnabled, setAiSettings } = useSettingsStore();
-  const [apiKey, setApiKey] = useState(settings.ai.apiKey);
-  const [freeModel, setFreeModel] = useState(settings.ai.freeModel || "gemini-1.5-flash");
-  const [proModel, setProModel] = useState(settings.ai.proModel || "gemini-1.5-pro");
-  const [localModel, setLocalModel] = useState(settings.ai.localModel || "qwen-2.5-coder-14b");
-  const [localBaseUrl, setLocalBaseUrl] = useState(settings.ai.localBaseUrl || "http://192.168.68.57:1473/v1");
-  const [localApiKey, setLocalApiKey] = useState(settings.ai.localApiKey || "lm-studio");
+  const [selectedClientId, setSelectedClientId] = useState(settings.ai.activeClientId || settings.ai.clients[0]?.id || '');
   const [loading, setLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [modelList, setModelList] = useState<string | null>(null);
-  const [conciseMode, setConciseMode] = useState(settings.ai.conciseMode);
+  const [copilotRuntimeStatus, setCopilotRuntimeStatus] = useState<{ available: boolean; version?: string; message: string } | null>(null);
+  const [pendingDeleteClient, setPendingDeleteClient] = useState<{ id: string; name: string } | null>(null);
+  const [testingClientId, setTestingClientId] = useState<string | null>(null);
+  const [testStatusByClientId, setTestStatusByClientId] = useState<Record<string, { ok: boolean; message: string }>>({});
+  const [clientModal, setClientModal] = useState<{
+    open: boolean;
+    mode: 'add' | 'edit';
+    client: AiClientSettings | null;
+  }>({ open: false, mode: 'add', client: null });
 
   const isPanelEnabled = settings.dashboardPanels.find(p => p.id === 'ai')?.enabled ?? false;
-  const isFreeTier = settings.ai.tier === 'free';
+  const clients = settings.ai.clients ?? [];
+  const activeClient = clients.find((c) => c.id === settings.ai.activeClientId) ?? clients[0] ?? null;
 
-  const handleSave = async () => {
+  const providerDefaults: Record<AiProvider, { model: string; baseUrl?: string }> = {
+    gemini: { model: 'gemini-1.5-pro' },
+    'copilot-sdk': { model: 'gpt-4o' },
+    openai: { model: 'gpt-4.1', baseUrl: 'https://api.openai.com/v1' },
+    anthropic: { model: 'claude-3-5-sonnet-latest', baseUrl: 'https://api.anthropic.com/v1' },
+    openrouter: { model: 'google/gemini-2.0-flash-exp:free', baseUrl: 'https://openrouter.ai/api/v1' },
+    groq: { model: 'llama-3.3-70b-versatile', baseUrl: 'https://api.groq.com/openai/v1' },
+    mistral: { model: 'mistral-large-latest', baseUrl: 'https://api.mistral.ai/v1' },
+    xai: { model: 'grok-2-latest', baseUrl: 'https://api.x.ai/v1' },
+    'openai-compatible': { model: 'qwen/qwen2.5-coder-14b', baseUrl: 'http://192.168.68.57:1473/v1' },
+  };
+
+  const providerHelp: Record<AiProvider, { title: string; keyHint: string; endpointHint: string; modelHint: string }> = {
+    gemini: {
+      title: 'Google Gemini',
+      keyHint: 'Google AI Studio key (AIza...) or bundled free key when available.',
+      endpointHint: 'Managed internally via Google Generative Language API.',
+      modelHint: 'Examples: gemini-1.5-flash, gemini-1.5-pro',
+    },
+    'copilot-sdk': {
+      title: 'GitHub Copilot SDK',
+      keyHint: 'Uses Copilot entitlement (subscription) or BYOK credentials in SDK mode.',
+      endpointHint: 'No direct HTTP endpoint. Uses Copilot runtime/CLI session orchestration.',
+      modelHint: 'Examples: gpt-4o-mini, gpt-4o, claude-family (when available in session config)',
+    },
+    openai: {
+      title: 'OpenAI',
+      keyHint: 'OpenAI key (sk-...).',
+      endpointHint: 'https://api.openai.com/v1',
+      modelHint: 'Examples: gpt-4o-mini, gpt-4.1',
+    },
+    anthropic: {
+      title: 'Anthropic',
+      keyHint: 'Anthropic key (sk-ant-...).',
+      endpointHint: 'https://api.anthropic.com/v1',
+      modelHint: 'Examples: claude-3-5-sonnet-latest',
+    },
+    openrouter: {
+      title: 'OpenRouter',
+      keyHint: 'OpenRouter key (sk-or-v1-...).',
+      endpointHint: 'https://openrouter.ai/api/v1',
+      modelHint: 'Examples: google/gemini-2.0-flash-exp:free, anthropic/claude-3.5-sonnet',
+    },
+    groq: {
+      title: 'Groq',
+      keyHint: 'Groq API key (gsk_...).',
+      endpointHint: 'https://api.groq.com/openai/v1',
+      modelHint: 'Examples: llama-3.3-70b-versatile',
+    },
+    mistral: {
+      title: 'Mistral',
+      keyHint: 'Mistral API key.',
+      endpointHint: 'https://api.mistral.ai/v1',
+      modelHint: 'Examples: mistral-large-latest',
+    },
+    xai: {
+      title: 'xAI',
+      keyHint: 'xAI API key.',
+      endpointHint: 'https://api.x.ai/v1',
+      modelHint: 'Examples: grok-2-latest',
+    },
+    'openai-compatible': {
+      title: 'OpenAI-Compatible Local/Hosted',
+      keyHint: 'Any token expected by your compatible gateway (or blank if not required).',
+      endpointHint: 'Example: http://192.168.68.57:1473/v1',
+      modelHint: 'Examples: qwen/qwen2.5-coder-14b, llama3.1',
+    },
+  };
+
+  const freeTierProviders: AiProvider[] = ['gemini', 'copilot-sdk', 'openrouter', 'openai', 'groq'];
+  const proTierProviders: AiProvider[] = ['gemini', 'copilot-sdk', 'openai', 'anthropic', 'groq', 'mistral', 'xai', 'openrouter'];
+  const localTierProviders: AiProvider[] = ['openai-compatible'];
+
+  useEffect(() => {
+    const fallbackId = settings.ai.activeClientId || settings.ai.clients[0]?.id || '';
+    const nextSelectedId = settings.ai.clients.some((c) => c.id === selectedClientId) ? selectedClientId : fallbackId;
+    if (nextSelectedId !== selectedClientId) {
+      setSelectedClientId(nextSelectedId);
+    }
+  }, [settings.ai, selectedClientId]);
+
+  const syncLegacyFields = (nextClients: AiClientSettings[], nextActiveClientId: string) => {
+    const freeClient = nextClients.find((c) => c.tier === 'free');
+    const proClient = nextClients.find((c) => c.tier === 'pro');
+    const localClient = nextClients.find((c) => c.tier === 'local');
+    const active = nextClients.find((c) => c.id === nextActiveClientId) ?? nextClients[0];
+    const geminiClient = nextClients.find((c) => c.provider === 'gemini');
+
+    return {
+      clients: nextClients,
+      activeClientId: nextActiveClientId,
+      tier: active?.tier ?? settings.ai.tier,
+      apiKey: geminiClient?.apiKey ?? settings.ai.apiKey,
+      freeModel: freeClient?.model ?? settings.ai.freeModel,
+      proModel: proClient?.model ?? settings.ai.proModel,
+      localModel: localClient?.model ?? settings.ai.localModel,
+      localBaseUrl: localClient?.baseUrl ?? settings.ai.localBaseUrl,
+      localApiKey: localClient?.apiKey ?? settings.ai.localApiKey,
+      conciseMode: settings.ai.conciseMode,
+    };
+  };
+
+  const createClient = (tier: AiTier, provider?: AiProvider): AiClientSettings => {
+    const resolvedProvider: AiProvider = provider ?? (tier === 'local' ? 'openai-compatible' : 'gemini');
+    const defaults = providerDefaults[resolvedProvider];
+    const model = tier === 'free' && resolvedProvider === 'gemini'
+      ? 'gemini-1.5-flash'
+      : defaults.model;
+
+    return {
+      id: crypto.randomUUID(),
+      name: `${tier.toUpperCase()} ${resolvedProvider.replace('-', ' ')}`,
+      tier,
+      provider: resolvedProvider,
+      model,
+      baseUrl: defaults.baseUrl || '',
+      apiKey: tier === 'local' ? 'lm-studio' : '',
+      enabled: true,
+    };
+  };
+
+  const updateModalClient = (patch: Partial<AiClientSettings>) => {
+    setClientModal((prev) => {
+      if (!prev.client) return prev;
+      return {
+        ...prev,
+        client: { ...prev.client, ...patch },
+      };
+    });
+  };
+
+  const checkCopilotRuntime = async () => {
     setLoading(true);
-    setSaveMessage('');
     try {
-      setAiSettings({ 
-        apiKey: apiKey.trim(),
-        freeModel: freeModel.trim(),
-        proModel: proModel.trim(),
-        localModel: localModel.trim(),
-        localBaseUrl: localBaseUrl.trim(),
-        localApiKey: localApiKey.trim(),
-        conciseMode: conciseMode,
-      });
-      setSaveMessage('Settings saved successfully.');
+      const status = await transport.invoke<{ available: boolean; version?: string; message: string }>('copilot_runtime_status');
+      setCopilotRuntimeStatus(status);
+      setSaveMessage(status.available ? 'Copilot runtime detected.' : `Copilot runtime not ready: ${status.message}`);
     } catch (e: any) {
       setSaveMessage(`Error: ${e}`);
+      setCopilotRuntimeStatus({ available: false, message: String(e) });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleListModels = async () => {
-    if (!apiKey.trim() && !settings.ai.apiKey) {
+  const handleListModels = async (client?: AiClientSettings | null) => {
+    const key = client?.apiKey?.trim() || settings.ai.apiKey;
+    if (!key) {
       setSaveMessage('Error: Please enter or save an API key first.');
       return;
     }
+
     setLoading(true);
     setSaveMessage('Fetching model list...');
+
     try {
-      const raw = await transport.invoke<string>('list_gemini_models', { apiKey: apiKey || settings.ai.apiKey });
+      const raw = await transport.invoke<string>('list_gemini_models', { apiKey: key });
       const data = JSON.parse(raw);
       if (data.models) {
         const names = data.models.map((m: any) => m.name.replace('models/', '')).join(', ');
@@ -1906,6 +2065,107 @@ function AIAssistantContent() {
     'text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] ' +
     'focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]';
   const subHeaderCls = "text-xs font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-3 mt-1";
+
+  const activateClient = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    setAiSettings(syncLegacyFields(clients, clientId));
+    setSelectedClientId(clientId);
+    setSaveMessage(`Active client set to ${client.name}.`);
+  };
+
+  const openAddClientModal = (tier: AiTier) => {
+    const newClient = createClient(tier);
+    setClientModal({ open: true, mode: 'add', client: newClient });
+    setModelList(null);
+    setCopilotRuntimeStatus(null);
+  };
+
+  const openEditClientModal = (client: AiClientSettings) => {
+    setClientModal({ open: true, mode: 'edit', client: { ...client } });
+    setModelList(null);
+    setCopilotRuntimeStatus(null);
+  };
+
+  const saveModalClient = () => {
+    if (!clientModal.client) return;
+    const normalizedClient = {
+      ...clientModal.client,
+      name: clientModal.client.name.trim() || 'LLM Client',
+      model: clientModal.client.model.trim(),
+      baseUrl: clientModal.client.baseUrl?.trim(),
+      apiKey: clientModal.client.apiKey?.trim(),
+    };
+
+    if (clientModal.mode === 'add') {
+      const nextClients = [...clients, normalizedClient];
+      setAiSettings(syncLegacyFields(nextClients, normalizedClient.id));
+      setSelectedClientId(normalizedClient.id);
+      setSaveMessage(`${normalizedClient.tier.toUpperCase()} client created.`);
+    } else {
+      const nextClients = clients.map((c) => (c.id === normalizedClient.id ? normalizedClient : c));
+      setAiSettings(syncLegacyFields(nextClients, settings.ai.activeClientId));
+      setSelectedClientId(normalizedClient.id);
+      setSaveMessage('Client profile saved.');
+    }
+
+    setClientModal({ open: false, mode: 'add', client: null });
+  };
+
+  const toggleClientEnabled = (clientId: string) => {
+    const target = clients.find((c) => c.id === clientId);
+    if (!target) return;
+    const nextClients = clients.map((c) => (c.id === clientId ? { ...c, enabled: !c.enabled } : c));
+    setAiSettings(syncLegacyFields(nextClients, settings.ai.activeClientId));
+    setSaveMessage(`${target.name} ${target.enabled ? 'disabled' : 'enabled'}.`);
+  };
+
+  const deleteClient = (clientId?: string) => {
+    const targetId = clientId ?? selectedClientId;
+    const targetClient = clients.find((c) => c.id === targetId);
+    if (!targetClient) return;
+
+    if (clients.length <= 1) {
+      setSaveMessage('Error: At least one client profile is required.');
+      return;
+    }
+
+    const nextClients = clients.filter((c) => c.id !== targetId);
+    const nextActiveId = settings.ai.activeClientId === targetId ? nextClients[0].id : settings.ai.activeClientId;
+    setAiSettings(syncLegacyFields(nextClients, nextActiveId));
+    setSelectedClientId(nextClients[0].id);
+    setSaveMessage('Client profile deleted.');
+  };
+
+  const testClientConnectivity = async (client: AiClientSettings) => {
+    setTestingClientId(client.id);
+    setTestStatusByClientId((prev) => {
+      const next = { ...prev };
+      delete next[client.id];
+      return next;
+    });
+    setSaveMessage('Testing LLM connectivity...');
+    try {
+      const result = await transport.invoke<{ ok: boolean; message: string }>('test_ai_client_connectivity', {
+        selectedClient: client,
+        fallbackApiKey: settings.ai.apiKey,
+        fallbackLocalApiKey: settings.ai.localApiKey,
+      });
+      setTestStatusByClientId((prev) => ({
+        ...prev,
+        [client.id]: { ok: result.ok, message: result.message },
+      }));
+      setSaveMessage(result.ok ? `Reachable: ${result.message}` : `Error: ${result.message}`);
+    } catch (e: any) {
+      setTestStatusByClientId((prev) => ({
+        ...prev,
+        [client.id]: { ok: false, message: String(e) },
+      }));
+      setSaveMessage(`Error: ${e}`);
+    } finally {
+      setTestingClientId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1957,10 +2217,10 @@ function AIAssistantContent() {
             <span className="text-[10px] text-[var(--text-tertiary)]">AI will provide brief, direct answers with minimal explanation.</span>
           </div>
           <button
-            onClick={() => setConciseMode(!conciseMode)}
-            className={`relative h-5 w-9 rounded-full transition-colors ${conciseMode ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
+            onClick={() => setAiSettings({ conciseMode: !settings.ai.conciseMode })}
+            className={`relative h-5 w-9 rounded-full transition-colors ${settings.ai.conciseMode ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'}`}
           >
-            <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${conciseMode ? 'translate-x-4' : ''}`} />
+            <span className={`absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-transform ${settings.ai.conciseMode ? 'translate-x-4' : ''}`} />
           </button>
         </div>
       </div>
@@ -1968,182 +2228,362 @@ function AIAssistantContent() {
       <div className="border-t border-[var(--border-color)]" />
 
       <div className="space-y-4">
-        <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>AI Engine Tier</h4>
-        <div className="flex gap-1.5 p-1 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-color)]">
-          <button
-            onClick={() => setAiSettings({ tier: 'free' })}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-              settings.ai.tier === 'free'
-                ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-            }`}
-          >
-            Free
-          </button>
-          <button
-            onClick={() => setAiSettings({ tier: 'pro' })}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-              settings.ai.tier === 'pro'
-                ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-            }`}
-          >
-            Pro Tier
-          </button>
-          <button
-            onClick={() => setAiSettings({ tier: 'local' })}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-              settings.ai.tier === 'local'
-                ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-            }`}
-          >
-            Local
-          </button>
+        <div className="flex items-center justify-between">
+          <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>Client Profiles</h4>
+          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">{clients.length} configured</span>
         </div>
-        <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
-          {settings.ai.tier === 'free' 
-            ? `Using the built-in free tier with ${settings.ai.freeModel}. Speed-optimized for fast responses.`
-            : settings.ai.tier === 'pro'
-            ? `Using ${settings.ai.proModel} for the most advanced reasoning. Requires your own Google API key.`
-            : `Connecting to a local LLM server (like LM Studio) at ${localBaseUrl}. Faster and private.`}
+        <div className="grid grid-cols-1 gap-2">
+          {clients.map((client) => (
+            <div
+              key={client.id}
+              className={`w-full p-2 rounded-lg border transition-colors ${
+                selectedClientId === client.id
+                  ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                  : 'border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedClientId(client.id);
+                  }}
+                  className="flex-1 text-left"
+                >
+                  <div className="text-xs font-semibold text-[var(--text-primary)]">{client.name}</div>
+                  <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">{client.tier} • {client.provider}</div>
+                  {testStatusByClientId[client.id] && (
+                    <Tooltip
+                      content={testStatusByClientId[client.id].message}
+                      position="top"
+                    >
+                      <div className={`mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] ${testStatusByClientId[client.id].ok ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {testStatusByClientId[client.id].ok ? 'Reachable' : 'Unreachable'}
+                      </div>
+                    </Tooltip>
+                  )}
+                </button>
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] text-[var(--text-tertiary)]">
+                    {settings.ai.activeClientId === client.id ? 'Active' : client.enabled ? 'Idle' : 'Disabled'}
+                  </div>
+                  <button
+                    onClick={() => toggleClientEnabled(client.id)}
+                    className="px-2 py-1 text-[10px] rounded border border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
+                  >
+                    {client.enabled ? 'Disable' : 'Enable'}
+                  </button>
+                  <button
+                    onClick={() => activateClient(client.id)}
+                    disabled={settings.ai.activeClientId === client.id}
+                    className="px-2 py-1 text-[10px] rounded border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {settings.ai.activeClientId === client.id ? 'Active' : 'Show'}
+                  </button>
+                  <button
+                    onClick={() => openEditClientModal(client)}
+                    className="px-2 py-1 text-[10px] rounded border border-[var(--border-color)] hover:bg-[var(--bg-secondary)]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => testClientConnectivity(client)}
+                    disabled={testingClientId === client.id}
+                    className="px-2 py-1 text-[10px] rounded border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] disabled:opacity-50"
+                  >
+                    {testingClientId === client.id ? 'Testing' : 'Test'}
+                  </button>
+                  <button
+                    onClick={() => setPendingDeleteClient({ id: client.id, name: client.name })}
+                    disabled={clients.length <= 1}
+                    className="px-2 py-1 text-[10px] rounded border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={clients.length <= 1 ? 'At least one client is required' : `Delete ${client.name}`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={() => openAddClientModal('free')} className="px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:bg-[var(--bg-secondary)]">+ Free</button>
+          <button onClick={() => openAddClientModal('pro')} className="px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:bg-[var(--bg-secondary)]">+ Pro</button>
+          <button onClick={() => openAddClientModal('local')} className="px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] hover:bg-[var(--bg-secondary)]">+ Local</button>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--border-color)]" />
+
+      {saveMessage && (
+        <p className={`text-center text-[10px] mt-2 ${saveMessage.includes('Error') ? 'text-[var(--danger-color)]' : 'text-[var(--success-color)]'}`}>
+          {saveMessage}
         </p>
-      </div>
-
-      <div className="border-t border-[var(--border-color)]" />
-
-      <div className="space-y-4">
-        <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>Model Configuration</h4>
-        <div className="grid grid-cols-1 gap-4">
-          {settings.ai.tier === 'free' && (
-            <div>
-              <label className={labelCls}>Free Tier Model</label>
-              <input
-                type="text"
-                value={freeModel}
-                onChange={(e) => setFreeModel(e.target.value)}
-                className={inputCls}
-                placeholder="e.g. gemini-1.5-flash"
-              />
-            </div>
-          )}
-          {settings.ai.tier === 'pro' && (
-            <div>
-              <label className={labelCls}>Pro Tier Model</label>
-              <input
-                type="text"
-                value={proModel}
-                onChange={(e) => setProModel(e.target.value)}
-                className={inputCls}
-                placeholder="e.g. gemini-1.5-pro"
-              />
-            </div>
-          )}
-          {settings.ai.tier === 'local' && (
-            <div className="space-y-4">
-              <div>
-                <label className={labelCls}>Local Model String</label>
-                <input
-                  type="text"
-                  value={localModel}
-                  onChange={(e) => setLocalModel(e.target.value)}
-                  className={inputCls}
-                  placeholder="e.g. qwen/qwen2.5-coder-14b"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>API Base URL</label>
-                  <input
-                    type="text"
-                    value={localBaseUrl}
-                    onChange={(e) => setLocalBaseUrl(e.target.value)}
-                    className={inputCls}
-                    placeholder="http://192.168.68.57:1473/v1"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Local API Key</label>
-                  <input
-                    type="password"
-                    value={localApiKey}
-                    onChange={(e) => setLocalApiKey(e.target.value)}
-                    className={inputCls}
-                    placeholder="lm-studio"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="border-t border-[var(--border-color)]" />
-
-      {settings.ai.tier !== 'local' && (
-        <>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className={subHeaderCls} style={{ marginBottom: 0 }}>API Credentials</h4>
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
-                {settings.ai.apiKey ? 'Key is Set ✓' : 'No Key Configured'}
-              </span>
-            </div>
-            
-            <div>
-              <label className={labelCls}>Gemini API Key</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={settings.ai.apiKey ? "••••••••••••••••" : "Paste your Gemini API Key here..."}
-                className={inputCls}
-              />
-              <p className="mt-1.5 text-[10px] text-[var(--text-tertiary)] italic leading-relaxed">
-                {isFreeTier 
-                  ? "You can provide your own key here to use the Free model, or leave it blank if the app was built with a bundled key."
-                  : "Your key is secure. Ensure you use a valid Pro capable API key for the selected model."}
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-[var(--border-color)]" />
-        </>
       )}
 
-      <div className="border-t border-[var(--border-color)]" />
-
-      <div className="space-y-4">
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="flex-1 px-4 py-2 bg-[var(--accent-primary)] text-white text-xs font-medium rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {loading ? 'Saving...' : 'Save AI Configuration'}
-          </button>
-          <button
-            onClick={handleListModels}
-            disabled={loading}
-            className="px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)] text-xs font-medium rounded-lg hover:bg-[var(--bg-secondary)] disabled:opacity-50 transition-colors"
-          >
-            {loading ? '...' : 'List Models'}
-          </button>
-        </div>
-        {saveMessage && (
-          <p className={`text-center text-[10px] mt-2 ${saveMessage.includes('Error') ? 'text-[var(--danger-color)]' : 'text-[var(--success-color)]'}`}>
-            {saveMessage}
-          </p>
-        )}
-        {modelList && (
-          <div className="mt-4 p-2 bg-[var(--bg-secondary)] rounded border border-[var(--border-color)] overflow-hidden">
-            <h5 className="text-[10px] font-bold text-[var(--accent-primary)] mb-1 uppercase">Models Your Key Can Access:</h5>
-            <div className="text-[10px] text-[var(--text-secondary)] font-mono max-h-24 overflow-y-auto break-all whitespace-pre-wrap">
-              {modelList}
+      {clientModal.open && clientModal.client && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+              <h5 className="text-sm font-semibold text-[var(--text-primary)]">{clientModal.mode === 'add' ? 'Add LLM Client' : 'Edit LLM Client'}</h5>
             </div>
-            <p className="mt-2 text-[8px] text-[var(--text-tertiary)] italic">Copy/paste one of these into the model boxes above if you get 404 errors.</p>
+            <div className="px-4 py-4 space-y-3 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Display Name</label>
+                  <input type="text" value={clientModal.client.name} onChange={(e) => updateModalClient({ name: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Tier</label>
+                  <select
+                    value={clientModal.client.tier}
+                    onChange={(e) => {
+                      const nextTier = e.target.value as AiTier;
+                      const allowedProviders = nextTier === 'free' ? freeTierProviders : nextTier === 'pro' ? proTierProviders : localTierProviders;
+                      const nextProvider = allowedProviders.includes(clientModal.client!.provider) ? clientModal.client!.provider : allowedProviders[0];
+                      updateModalClient({
+                        tier: nextTier,
+                        provider: nextProvider,
+                        model: providerDefaults[nextProvider].model,
+                        baseUrl: providerDefaults[nextProvider].baseUrl || '',
+                      });
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                    <option value="local">Local</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Provider</label>
+                  <select
+                    value={clientModal.client.provider}
+                    onChange={(e) => {
+                      const nextProvider = e.target.value as AiProvider;
+                      const defaults = providerDefaults[nextProvider];
+                      updateModalClient({
+                        provider: nextProvider,
+                        model: defaults.model,
+                        baseUrl: defaults.baseUrl || '',
+                      });
+                    }}
+                    className={inputCls}
+                  >
+                    {(clientModal.client.tier === 'free' ? freeTierProviders : clientModal.client.tier === 'pro' ? proTierProviders : localTierProviders).map((provider) => (
+                      <option key={provider} value={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Model String</label>
+                  <input type="text" value={clientModal.client.model} onChange={(e) => updateModalClient({ model: e.target.value })} className={inputCls} placeholder="e.g. gemini-1.5-pro" />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--accent-primary)] mb-1">
+                  Provider Help: {providerHelp[clientModal.client.provider].title}
+                </div>
+                <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                  <div>Key: {providerHelp[clientModal.client.provider].keyHint}</div>
+                  <div>Endpoint: {providerHelp[clientModal.client.provider].endpointHint}</div>
+                  <div>Model: {providerHelp[clientModal.client.provider].modelHint}</div>
+                </div>
+              </div>
+
+              {clientModal.client.provider !== 'gemini' && clientModal.client.provider !== 'anthropic' && clientModal.client.provider !== 'copilot-sdk' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>API Base URL</label>
+                    <input type="text" value={clientModal.client.baseUrl || ''} onChange={(e) => updateModalClient({ baseUrl: e.target.value })} className={inputCls} placeholder="http://192.168.68.57:1473/v1" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>API Key</label>
+                    <input type="password" value={clientModal.client.apiKey || ''} onChange={(e) => updateModalClient({ apiKey: e.target.value })} className={inputCls} placeholder="Optional token" />
+                  </div>
+                </div>
+              )}
+
+              {clientModal.client.provider === 'anthropic' && (
+                <div>
+                  <label className={labelCls}>Anthropic API Key</label>
+                  <input type="password" value={clientModal.client.apiKey || ''} onChange={(e) => updateModalClient({ apiKey: e.target.value })} className={inputCls} placeholder="sk-ant-..." />
+                </div>
+              )}
+
+              {clientModal.client.provider === 'gemini' && (
+                <div>
+                  <label className={labelCls}>Gemini API Key</label>
+                  <input type="password" value={clientModal.client.apiKey || ''} onChange={(e) => updateModalClient({ apiKey: e.target.value })} className={inputCls} placeholder="AIza..." />
+                </div>
+              )}
+
+              {clientModal.client.provider === 'copilot-sdk' && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}>Auth Mode</label>
+                      <select
+                        value={clientModal.client.copilotAuthMode || 'subscription'}
+                        onChange={(e) => updateModalClient({ copilotAuthMode: e.target.value as 'subscription' | 'byok' })}
+                        className={inputCls}
+                      >
+                        <option value="subscription">Copilot Subscription</option>
+                        <option value="byok">BYOK</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>BYOK Provider</label>
+                      <select
+                        value={clientModal.client.copilotByokProvider || 'openai'}
+                        onChange={(e) => {
+                          const provider = e.target.value as 'openai' | 'anthropic';
+                          updateModalClient({
+                            copilotByokProvider: provider,
+                            baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com/v1',
+                          });
+                        }}
+                        className={inputCls}
+                        disabled={(clientModal.client.copilotAuthMode || 'subscription') !== 'byok'}
+                      >
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {(clientModal.client.copilotAuthMode || 'subscription') === 'byok' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>BYOK API Key</label>
+                        <input
+                          type="password"
+                          value={clientModal.client.apiKey || ''}
+                          onChange={(e) => updateModalClient({ apiKey: e.target.value })}
+                          className={inputCls}
+                          placeholder={(clientModal.client.copilotByokProvider || 'openai') === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>BYOK Base URL</label>
+                        <input
+                          type="text"
+                          value={clientModal.client.baseUrl || ''}
+                          onChange={(e) => updateModalClient({ baseUrl: e.target.value })}
+                          className={inputCls}
+                          placeholder={(clientModal.client.copilotByokProvider || 'openai') === 'anthropic' ? 'https://api.anthropic.com/v1' : 'https://api.openai.com/v1'}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={checkCopilotRuntime}
+                      disabled={loading}
+                      className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] disabled:opacity-50"
+                    >
+                      {loading ? 'Checking...' : 'Check Copilot Runtime'}
+                    </button>
+                    {copilotRuntimeStatus && (
+                      <span className={`text-[10px] ${copilotRuntimeStatus.available ? 'text-[var(--success-color)]' : 'text-[var(--danger-color)]'}`}>
+                        {copilotRuntimeStatus.available
+                          ? `Ready${copilotRuntimeStatus.version ? ` (${copilotRuntimeStatus.version})` : ''}`
+                          : copilotRuntimeStatus.message}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <label className="inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={clientModal.client.enabled}
+                  onChange={(e) => updateModalClient({ enabled: e.target.checked })}
+                  className="rounded border-[var(--border-color)]"
+                />
+                Enabled for selection
+              </label>
+
+              {modelList && (
+                <div className="mt-4 p-2 bg-[var(--bg-secondary)] rounded border border-[var(--border-color)] overflow-hidden">
+                  <h5 className="text-[10px] font-bold text-[var(--accent-primary)] mb-1 uppercase">Gemini Models:</h5>
+                  <div className="text-[10px] text-[var(--text-secondary)] font-mono max-h-24 overflow-y-auto break-all whitespace-pre-wrap">
+                    {modelList}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+              <button
+                onClick={() => setClientModal({ open: false, mode: 'add', client: null })}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+              {clientModal.client.provider === 'gemini' && (
+                <button
+                  onClick={() => handleListModels(clientModal.client)}
+                  disabled={loading}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] disabled:opacity-50"
+                >
+                  {loading ? '...' : 'List Models'}
+                </button>
+              )}
+              <button
+                onClick={() => testClientConnectivity(clientModal.client!)}
+                disabled={testingClientId === clientModal.client.id}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] disabled:opacity-50"
+              >
+                {testingClientId === clientModal.client.id ? 'Testing...' : 'Test'}
+              </button>
+              <button
+                onClick={saveModalClient}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90"
+              >
+                Save
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {pendingDeleteClient && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+              <h5 className="text-sm font-semibold text-[var(--text-primary)]">Delete LLM Client</h5>
+            </div>
+            <div className="px-4 py-4 space-y-2">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Are you sure you want to delete <span className="font-semibold text-[var(--text-primary)]">{pendingDeleteClient.name}</span>?
+              </p>
+              <p className="text-[10px] text-[var(--text-tertiary)]">This removes the client profile from AI Assistant settings.</p>
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+              <button
+                onClick={() => setPendingDeleteClient(null)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteClient(pendingDeleteClient.id);
+                  setPendingDeleteClient(null);
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2156,6 +2596,7 @@ function MacrosContent() {
   const [newName, setNewName] = useState('');
   const [newContent, setNewContent] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [pendingDeleteMacro, setPendingDeleteMacro] = useState<{ id: string; name: string } | null>(null);
 
   const subHeaderCls = 'text-xs font-bold text-[var(--accent-primary)] mb-3 uppercase tracking-wider';
   const labelCls = 'block text-[10px] font-bold text-[var(--text-tertiary)] uppercase mb-1.5';
@@ -2282,11 +2723,7 @@ function MacrosContent() {
                 </Tooltip>
                 <Tooltip content="Delete Macro" position="top">
                   <button
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete "${macro.name}"?`)) {
-                        deleteMacro(macro.id);
-                      }
-                    }}
+                    onClick={() => setPendingDeleteMacro({ id: macro.id, name: macro.name })}
                     disabled={!!editingId}
                     className="p-1.5 text-[var(--text-tertiary)] hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all disabled:opacity-30 cursor-pointer"
                   >
@@ -2755,6 +3192,38 @@ function NavigationContent() {
           </div>
         ))}
       </div>
+
+      {pendingDeleteMacro && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+              <h5 className="text-sm font-semibold text-[var(--text-primary)]">Delete Macro</h5>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Delete macro <span className="font-semibold text-[var(--text-primary)]">{pendingDeleteMacro.name}</span>?
+              </p>
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+              <button
+                onClick={() => setPendingDeleteMacro(null)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteMacro(pendingDeleteMacro.id);
+                  setPendingDeleteMacro(null);
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

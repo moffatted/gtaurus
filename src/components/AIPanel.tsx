@@ -20,7 +20,7 @@ interface AIPanelProps {
 }
 
 export function AIPanel({ hideHeader }: AIPanelProps) {
-  const { settings } = useSettingsStore();
+  const { settings, setAiSettings } = useSettingsStore();
   const { machine } = useMachineStatusStore();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -33,6 +33,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -43,6 +44,11 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const activeClient = settings.ai.clients?.find((c) => c.id === settings.ai.activeClientId)
+    ?? settings.ai.clients?.find((c) => c.tier === settings.ai.tier)
+    ?? settings.ai.clients?.[0]
+    ?? null;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -81,14 +87,15 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
       const reply = await transport.invoke<string>("ask_ai", {
         messages: history.length > 0 ? history : [{ role: "user", parts: [{ text: userMsg.content }] }],
         machineContext,
-        aiTier: settings.ai.tier,
-        apiKey: settings.ai.apiKey,
-        freeModel: settings.ai.freeModel,
-        proModel: settings.ai.proModel,
-        localModel: settings.ai.localModel,
-        localBaseUrl: settings.ai.localBaseUrl,
-        localApiKey: settings.ai.localApiKey,
+        aiTier: activeClient?.tier ?? settings.ai.tier,
+        apiKey: activeClient?.provider === 'gemini' ? (activeClient.apiKey || settings.ai.apiKey) : settings.ai.apiKey,
+        freeModel: (activeClient?.tier === 'free' ? activeClient.model : settings.ai.freeModel),
+        proModel: (activeClient?.tier === 'pro' ? activeClient.model : settings.ai.proModel),
+        localModel: (activeClient?.tier === 'local' ? activeClient.model : settings.ai.localModel),
+        localBaseUrl: (activeClient?.tier === 'local' ? (activeClient.baseUrl || settings.ai.localBaseUrl) : settings.ai.localBaseUrl),
+        localApiKey: (activeClient?.tier === 'local' ? (activeClient.apiKey || settings.ai.localApiKey) : settings.ai.localApiKey),
         conciseMode: settings.ai.conciseMode,
+        selectedClient: activeClient,
       });
 
 
@@ -116,22 +123,22 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
   };
 
   const clearChat = () => {
-    if (window.confirm("Are you sure you want to clear the chat history?")) {
-      setMessages([
-        {
-          id: Date.now().toString(),
-          role: "model",
-          content: "Chat cleared. What's next?",
-        },
-      ]);
-    }
+    setMessages([
+      {
+        id: Date.now().toString(),
+        role: "model",
+        content: "Chat cleared. What's next?",
+      },
+    ]);
+    setShowClearConfirm(false);
   };
 
-  const activeModelName = settings.ai.tier === 'free' 
-    ? settings.ai.freeModel
-    : settings.ai.tier === 'pro'
-      ? settings.ai.proModel
-      : settings.ai.localModel;
+  const activeModelName = activeClient?.model
+    ?? (settings.ai.tier === 'free' 
+      ? settings.ai.freeModel
+      : settings.ai.tier === 'pro'
+        ? settings.ai.proModel
+        : settings.ai.localModel);
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]">
@@ -146,11 +153,29 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
               <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">AI Assistant</h2>
               <div className="flex items-center gap-1.5">
                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                 <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{settings.ai.tier} Model Active</span>
+                 <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{activeClient?.name ?? settings.ai.tier} Active</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <select
+              value={activeClient?.id ?? ''}
+              onChange={(e) => {
+                const next = settings.ai.clients.find((c) => c.id === e.target.value);
+                if (!next) return;
+                setAiSettings({
+                  activeClientId: next.id,
+                  tier: next.tier,
+                });
+              }}
+              className="max-w-[170px] px-2 py-1 text-[10px] rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)]"
+            >
+              {settings.ai.clients
+                .filter((client) => client.enabled)
+                .map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+            </select>
             <button
               onClick={() => setShowDebug(!showDebug)}
               className={`p-1.5 rounded-md transition-colors ${showDebug ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)]'}`}
@@ -159,7 +184,7 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
               <Bot className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={clearChat}
+              onClick={() => setShowClearConfirm(true)}
               className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--danger-color)] hover:bg-[var(--danger-color)]/10 rounded-md transition-colors"
               title="Clear Chat"
             >
@@ -298,6 +323,33 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
           {activeModelName}
         </div>
       </div>
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-header)]">
+              <h5 className="text-sm font-semibold text-[var(--text-primary)]">Clear Chat History</h5>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-xs text-[var(--text-secondary)]">Delete all messages in this chat session?</p>
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-header)]">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearChat}
+                className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

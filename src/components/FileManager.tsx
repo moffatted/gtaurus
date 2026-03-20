@@ -170,7 +170,15 @@ export default function FileManager() {
     dragCounter.current = 0;
 
     if (!settings.gcodeStoragePath) {
-      alert("Please configure a G-code storage path in Settings first.");
+      setPopover({
+        isOpen: true,
+        type: 'alert',
+        title: 'Storage Path Required',
+        message: 'Please configure a G-code storage path in Settings first.',
+        kind: 'warning',
+        triggerRef: uploadButtonRef,
+        position: 'bottom',
+      });
       return;
     }
 
@@ -184,7 +192,15 @@ export default function FileManager() {
 
   const handleUpload = async () => {
     if (!settings.gcodeStoragePath) {
-      alert("Please configure a G-code storage path in Settings first.");
+      setPopover({
+        isOpen: true,
+        type: 'alert',
+        title: 'Storage Path Required',
+        message: 'Please configure a G-code storage path in Settings first.',
+        kind: 'warning',
+        triggerRef: uploadButtonRef,
+        position: 'bottom',
+      });
       return;
     }
 
