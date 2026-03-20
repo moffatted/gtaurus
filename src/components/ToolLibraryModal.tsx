@@ -21,6 +21,8 @@ export function ToolLibraryModal() {
       minWidth={600}
       minHeight={420}
       zIndex={115}
+      helpTopicId="bit-management"
+      helpTooltip="Tool Library Help"
     >
       <ToolLibraryPanel />
     </FloatingWindow>

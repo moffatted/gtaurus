@@ -31,6 +31,8 @@ export function ToolChangerModal() {
       defaultSize={{ width: 400, height: 600 }}
       minWidth={350}
       minHeight={450}
+      helpTopicId="top-menu-panels"
+      helpTooltip="Tool Changer Help"
     >
       <div className="p-4 flex flex-col h-full bg-[var(--bg-secondary)] text-[var(--text-primary)] min-h-0">
         

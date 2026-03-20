@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useVisualizerStore } from '../stores/visualizerStore';
 import { Box, Layers, MousePointer2, Route, Target } from 'lucide-react';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 export function WorkpiecePanel() {
   const { settings, setStockSettings } = useSettingsStore();
@@ -45,6 +46,14 @@ export function WorkpiecePanel() {
   return (
     <div className="flex flex-col bg-[var(--bg-primary)] h-full min-w-0 overflow-hidden">
       <div className="p-2.5 pb-0 space-y-3 overflow-y-auto flex-1">
+        <div className="flex justify-end">
+          <HelpIconButton
+            topicId="probing"
+            tooltip="Workpiece Help"
+            className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
+            iconClassName="w-3.5 h-3.5"
+          />
+        </div>
         
         {/* 0. Visibility Toggle */}
         <div className="flex items-center justify-between p-2 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] shadow-sm">

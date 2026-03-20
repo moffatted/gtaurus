@@ -4,6 +4,7 @@
  */
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, GripHorizontal } from "lucide-react";
+import { HelpIconButton } from "../Help/HelpIconButton";
 
 interface FloatingWindowProps {
   title: string;
@@ -17,6 +18,8 @@ interface FloatingWindowProps {
   minHeight?: number;
   zIndex?: number;
   onFocus?: () => void;
+  helpTopicId?: string;
+  helpTooltip?: string;
 }
 
 export function FloatingWindow({
@@ -31,6 +34,8 @@ export function FloatingWindow({
   minHeight = 200,
   zIndex = 1000,
   onFocus,
+  helpTopicId,
+  helpTooltip = 'Open Help',
 }: FloatingWindowProps) {
   const [pos, setPos] = useState(defaultPosition);
   const [size, setSize] = useState(defaultSize);
@@ -41,7 +46,7 @@ export function FloatingWindow({
   const windowRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".close-btn")) return;
+    if ((e.target as HTMLElement).closest(".window-action-btn")) return;
     setIsDragging(true);
     dragRef.current = {
       startX: e.clientX,
@@ -132,9 +137,18 @@ export function FloatingWindow({
           <span className="text-sm font-bold text-[var(--text-primary)] tracking-tight">{title}</span>
         </div>
         <div className="flex items-center gap-1">
+            {helpTopicId && (
+              <div className="window-action-btn">
+                <HelpIconButton
+                  topicId={helpTopicId}
+                  tooltip={helpTooltip}
+                  className="window-action-btn p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+                />
+              </div>
+            )}
             <button
               onClick={onClose}
-              className="close-btn p-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 text-[var(--text-tertiary)] transition-colors cursor-pointer"
+              className="window-action-btn close-btn p-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 text-[var(--text-tertiary)] transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-4 h-4" />

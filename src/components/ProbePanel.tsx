@@ -3,12 +3,13 @@
  * @purpose UI panel for managing probing operations and calibration.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Settings, HelpCircle, X, Info } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { BasicProbeUI } from './shared/BasicProbeUI';
 import { useMachineStatusStore } from '../stores/machineStatusStore';
 import { transport } from '../services/transportService';
 import { useConsoleStore } from '../stores/consoleStore';
 import { parseFluidNCProbeSettingLine } from '../utils/parser';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 type ProbeConfigStatus = 'idle' | 'checking' | 'detected' | 'missing' | 'unsupported';
 
@@ -183,21 +184,13 @@ export function ProbePanel() {
   return (
     <div className="relative h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
       <div className="p-2 space-y-2 overflow-y-auto flex-1">
-
-        {/* Minimal top action row */}
         <div className="flex justify-end">
-          <div className="flex gap-1">
-            <button 
-              onClick={() => setShowHelp(true)}
-              className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
-              title="Probe Help & Calibration Guide"
-            >
-              <HelpCircle className="w-3 h-3" />
-            </button>
-            <button className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors hidden">
-              <Settings className="w-3 h-3" />
-            </button>
-          </div>
+          <HelpIconButton
+            topicId="probing"
+            tooltip="Probe Help"
+            className="p-1 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
+            iconClassName="w-3 h-3"
+          />
         </div>
 
         <BasicProbeUI />

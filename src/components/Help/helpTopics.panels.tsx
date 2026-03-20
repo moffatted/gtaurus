@@ -141,7 +141,7 @@ export const panelTopics: HelpTopic[] = [
         <h3 className="text-lg font-semibold mt-4">AI Assistant</h3>
         <p className="text-sm">The AI Assistant helps with CNC workflows, command suggestions, and troubleshooting guidance.</p>
         <HelpScreenshot
-          src="/help_images/top-menu-ai-assistant-panel.png"
+          src="/help_images/AIAssistant.png"
           alt="AI Assistant panel"
           caption="AI Assistant panel launched from the top menu."
         />

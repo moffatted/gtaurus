@@ -22,6 +22,8 @@ export function MachineStatsModal() {
       minHeight={400}
       zIndex={useUIStore.getState().zIndexMap.machineStats}
       onFocus={() => useUIStore.getState().bringToFront('machineStats')}
+      helpTopicId="stats"
+      helpTooltip="Machine Statistics Help"
     >
       <StatsPanel />
     </FloatingWindow>

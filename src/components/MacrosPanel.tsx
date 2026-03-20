@@ -11,6 +11,7 @@ import clsx from "clsx";
 import { transport } from '../services/transportService';
 import { ConfirmPopover } from './ui/Popovers';
 import { useRef, useState } from 'react';
+import { HelpIconButton } from './Help/HelpIconButton';
 
 export function MacrosPanel() {
     const { settings, deleteMacro } = useSettingsStore();
@@ -72,6 +73,12 @@ export function MacrosPanel() {
                             <Settings className="w-4 h-4" />
                         </button>
                     </Tooltip>
+                    <HelpIconButton
+                        topicId="macros"
+                        tooltip="Macros Help"
+                        className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+                        iconClassName="w-4 h-4"
+                    />
                 </div>
             </div>
 
