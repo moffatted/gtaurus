@@ -268,20 +268,22 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
             <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center border border-[var(--accent-primary)]/20">
               <Code className="w-4 h-4 text-[var(--accent-primary)]" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">AI Assistant</h2>
-              <div className="flex items-center gap-1.5">
-                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                 <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{activeClient?.name ?? settings.ai.tier} Active</span>
-                 <span className={clsx(
-                   "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
-                   legacyGrblMode
-                     ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
-                     : "bg-teal-500/20 text-teal-400 border border-teal-500/30"
-                 )}>
-                   {firmwareLabel}
-                 </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div>
+                <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">AI Assistant</h2>
+                <div className="flex items-center gap-1.5">
+                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                   <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{activeClient?.name ?? settings.ai.tier} Active</span>
+                </div>
               </div>
+              <span className={clsx(
+                "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
+                legacyGrblMode
+                  ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                  : "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+              )}>
+                {firmwareLabel}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-1">
