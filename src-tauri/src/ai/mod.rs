@@ -401,6 +401,9 @@ pub async fn ask_ai(
     local_context: Option<String>,
     selected_client: Option<AiClientConfig>,
 ) -> Result<String, String> {
+    // Detect if user is in GRBL 1.1 (legacy mode) from machine context
+    let legacy_grbl_mode = machine_context.contains("\"legacyGrblMode\":true");
+
     let concise_instruction = if concise_mode {
         "6. CONCISENESS: Be very brief and direct. Avoid conversational filler or long intros. Use bullet points for steps. If providing G-code, just provide the block with a one-sentence explanation."
     } else {
@@ -415,6 +418,23 @@ pub async fn ask_ai(
         _ => String::new(),
     };
 
+    // When in GRBL 1.1 legacy mode, add a strict constraint against FluidNC commands
+    let grbl_mode_constraint = if legacy_grbl_mode {
+        "\n\nIMPORTANT - GRBL 1.1 LEGACY MODE ACTIVE:\n\
+        The user has enabled GRBL 1.1 (legacy) mode. The machine is running standard GRBL v1.1, NOT FluidNC.\n\
+        ⚠️  DO NOT suggest any FluidNC-specific commands. Forbidden commands include:\n\
+        - $Config/* (config file operations)\n\
+        - $SD/* (SD card operations)\n\
+        - $System/Stats, $Report/Interval, $Firmware/Info (FluidNC extensions)\n\
+        - $probe (YAML-specific probe config query)\n\
+        - $Alarms/List, $Alarm/Send, $Alarm/Disable (FluidNC alarm variants)\n\
+        - $CD (Config Dump)\n\
+        Stick exclusively to standard GRBL v1.1 commands: $0-$32 settings, $H (home), $X (unlock), $?, $I, etc.\n\
+        If the user asks for a feature that requires FluidNC, explain that it is not available in GRBL 1.1 mode.".to_string()
+    } else {
+        String::new()
+    };
+
     let system_prompt = format!(
         "You are an expert CNC application engineer and master machinist specializing in GRBL and FluidNC controllers. You are the digital assistant for 'Gtaurus', a high-performance CNC sender.\n\n\
         CORE CAPABILITIES:\n\
@@ -427,11 +447,12 @@ pub async fn ask_ai(
         3. CONTROLLER AWARENESS: Use the provided context to identify the firmware (e.g., FluidNC, GRBL v1.1). If the context contains 'FluidNC', suggest FluidNC-specific commands: '$I' (build info), '$A' or '$Alarms/List' (list alarm codes), '$Alarm/Send=[num]' (manually trigger alarm for testing), '$SD/List' (files), and '$X' to clear/unlock. Mention hardware safety pins like 'fault_pin' or 'estop_pin' in the YAML config if the user is asking about external safety sensors.\n\
         4. PRECISION: Comment every line of G-code you generate. Use the current units (G20/G21) and coordinates (WCS vs Machine) from the context.\n\
         5. DEBUGGING: If the machine state is 'Alarm', prioritize explaining how to clear it ($X) and the risks of doing so without homing ($H).\n\
-        {}\n\n\
+        {}{}\n\n\
         === CURRENT MACHINE & APP CONTEXT (JSON) ===\n\
         {}\n\
         ==============================={}",
         concise_instruction,
+        grbl_mode_constraint,
         machine_context,
         local_context_block
     );
@@ -490,6 +511,46 @@ pub async fn ask_ai(
         } else {
             return Err("Copilot SDK subscription mode is configured, but runtime chat dispatch is not wired yet (C2). Set Auth Mode to BYOK to use OpenAI/Anthropic routing now, or continue with SDK adapter implementation.".to_string());
         }
+    }
+
+    // Helper function to filter FluidNC commands from response when in GRBL mode
+    fn filter_fluidnc_commands(response: String, is_grbl_mode: bool) -> String {
+        if !is_grbl_mode {
+            return response;
+        }
+
+        // List of FluidNC-specific patterns to warn about
+        let fluidnc_patterns = [
+            "$Config",
+            "$SD/",
+            "$System/Stats",
+            "$Report/Interval",
+            "$Firmware/Info",
+            "$probe",
+            "$Alarms/List",
+            "$Alarm/Send",
+            "$Alarm/Disable",
+            "$CD",
+        ];
+
+        // Check if response contains any FluidNC commands
+        let mut has_fluidnc_commands = false;
+        for pattern in &fluidnc_patterns {
+            if response.contains(pattern) {
+                has_fluidnc_commands = true;
+                break;
+            }
+        }
+
+        // If FluidNC commands were suggested, append a warning
+        if has_fluidnc_commands {
+            return format!(
+                "{}\n\n⚠️  **NOTE:** This suggestion contains FluidNC-specific commands, but you're in GRBL 1.1 (legacy) mode. These commands are not available. Please use standard GRBL v1.1 commands instead ($0-$32, $H, $X, $I, ?, etc.)",
+                response
+            );
+        }
+
+        response
     }
 
     if resolved_provider == "anthropic" {
@@ -556,7 +617,7 @@ pub async fn ask_ai(
 
         if let Some(content) = parsed.content {
             if let Some(first_text) = content.into_iter().find(|p| p.kind == "text") {
-                return Ok(first_text.text);
+                return Ok(filter_fluidnc_commands(first_text.text, legacy_grbl_mode));
             }
         }
 
@@ -635,7 +696,7 @@ pub async fn ask_ai(
 
         if let Some(choices) = parsed.choices {
             if !choices.is_empty() {
-                return Ok(choices[0].message.content.clone());
+                return Ok(filter_fluidnc_commands(choices[0].message.content.clone(), legacy_grbl_mode));
             }
         }
 
@@ -696,7 +757,7 @@ pub async fn ask_ai(
         if !candidates.is_empty() {
             let candidate = candidates.remove(0);
             if !candidate.content.parts.is_empty() {
-                return Ok(candidate.content.parts[0].text.clone());
+                return Ok(filter_fluidnc_commands(candidate.content.parts[0].text.clone(), legacy_grbl_mode));
             }
         }
     }
