@@ -220,6 +220,7 @@ function Toolpath() {
 
   const stock = useSettingsStore(state => state.settings.stock);
   const bedSizeZ = useSettingsStore(state => state.settings.general.bedSizeZ);
+  const stockThickness = Math.max(stock.thickness, 1);
 
   const width = Math.max(stock.width, 1);
   const depth = Math.max(stock.height, 1);
@@ -241,9 +242,16 @@ function Toolpath() {
   }, [stock.zeroPosition, width, depth]);
 
   // GCode points are in WCS space; shift by visual WCS zero on the fixed stock.
+  // Keep the whole preview path above the stock by lifting it by the lowest plunge depth.
+  const lowestSimZ = useMemo(
+    () => simulatedPath.reduce((min, p) => Math.min(min, p.z), 0),
+    [simulatedPath],
+  );
+  const simLift = Math.max(0, -lowestSimZ);
+  const simBaseY = stockThickness + 0.06 + simLift;
   const simPoints = useMemo(() => 
-    simulatedPath.map(p => new THREE.Vector3(wcsX + p.x, p.z + bedSizeZ, -(wcsY + p.y))), 
-  [simulatedPath, bedSizeZ, wcsX, wcsY]);
+    simulatedPath.map(p => new THREE.Vector3(wcsX + p.x, p.z + simBaseY, -(wcsY + p.y))), 
+  [simulatedPath, simBaseY, wcsX, wcsY]);
 
   const actPoints = useMemo(() => 
     actualPath.map(p => new THREE.Vector3(p.x, p.z + bedSizeZ, -p.y)), 
@@ -254,20 +262,20 @@ function Toolpath() {
       {simPoints.length > 1 && (
         <Line
           points={simPoints}
-          color="#ef4444"
-          lineWidth={1.5}
+          color="#ff5a5a"
+          lineWidth={3.2}
           dashed
           dashSize={5}
           gapSize={3}
-          opacity={0.5}
+          opacity={0.9}
           transparent
         />
       )}
       {actPoints.length > 1 && (
         <Line
           points={actPoints}
-          color="#10b981"
-          lineWidth={2.5}
+          color="#34d399"
+          lineWidth={4.0}
         />
       )}
     </group>
