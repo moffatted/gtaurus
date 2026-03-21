@@ -20,6 +20,7 @@ interface FloatingWindowProps {
   onFocus?: () => void;
   helpTopicId?: string;
   helpTooltip?: string;
+  titleSuffix?: React.ReactNode;
 }
 
 export function FloatingWindow({
@@ -36,6 +37,7 @@ export function FloatingWindow({
   onFocus,
   helpTopicId,
   helpTooltip = 'Open Help',
+  titleSuffix,
 }: FloatingWindowProps) {
   const [pos, setPos] = useState(defaultPosition);
   const [size, setSize] = useState(defaultSize);
@@ -135,6 +137,7 @@ export function FloatingWindow({
         <div className="flex items-center gap-2.5">
           {icon && <div className="text-[var(--accent-primary)] group-hover:scale-110 transition-transform">{icon}</div>}
           <span className="text-sm font-bold text-[var(--text-primary)] tracking-tight">{title}</span>
+          {titleSuffix && <div className="flex items-center gap-1">{titleSuffix}</div>}
         </div>
         <div className="flex items-center gap-1">
             {helpTopicId && (
