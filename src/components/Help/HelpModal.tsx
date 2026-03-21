@@ -3,9 +3,11 @@
  * @purpose Interactive modal window for displaying granular help topics and user documentation.
  */
 import { useState } from 'react';
-import { X, ChevronRight, BookOpen, Search } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, BookOpen, Search } from 'lucide-react';
 import { useHelpStore } from '../../stores/helpStore';
 import { HELP_TOPICS } from './helpContent';
+import { getAncestorTopics, getChildTopics, getParentTopic, getTopLevelTopics } from './helpNavigation';
+import { getRankedHelpTopicMatches } from './helpSearch';
 
 export function HelpModal() {
   const { isOpen, close, activeTopic, setTopic } = useHelpStore();
@@ -14,19 +16,93 @@ export function HelpModal() {
   if (!isOpen) return null;
 
   const currentTopic = HELP_TOPICS.find((t) => t.id === activeTopic) || HELP_TOPICS[0];
+  const ancestorTopics = getAncestorTopics(HELP_TOPICS, currentTopic.id);
+  const currentTopicBreadcrumb = [...ancestorTopics.map((topic) => topic.title), currentTopic.title].join(' / ');
+  const isSearching = searchQuery.trim() !== '';
 
   // Filter topics based on search query
-  const filteredTopics = searchQuery.trim() === '' 
-    ? HELP_TOPICS
-    : HELP_TOPICS.filter((topic) =>
-        topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.searchText.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const matchedEntries = getRankedHelpTopicMatches(HELP_TOPICS, searchQuery);
+  const filteredTopics = matchedEntries.map((entry) => entry.topic);
+  const matchedTopicIds = new Set(matchedEntries.map((entry) => entry.topic.id));
+  const visibleTopicIds = new Set<string>();
+
+  for (const entry of matchedEntries) {
+    visibleTopicIds.add(entry.topic.id);
+
+    for (const ancestor of getAncestorTopics(HELP_TOPICS, entry.topic.id)) {
+      visibleTopicIds.add(ancestor.id);
+    }
+  }
 
   // Separate filtered topics by category
   const filteredGeneral = filteredTopics.filter(t => t.category === 'general');
   const filteredCheatSheets = filteredTopics.filter(t => t.category === 'cheat-sheets');
+  const filteredGeneralRoots = isSearching
+    ? getTopLevelTopics(HELP_TOPICS).filter((topic) => topic.category === 'general' && visibleTopicIds.has(topic.id))
+    : getTopLevelTopics(filteredGeneral);
+  const filteredCheatSheetRoots = isSearching
+    ? getTopLevelTopics(HELP_TOPICS).filter((topic) => topic.category === 'cheat-sheets' && visibleTopicIds.has(topic.id))
+    : filteredCheatSheets;
   const hasResults = filteredGeneral.length > 0 || filteredCheatSheets.length > 0;
+  const expandedTopicIds = new Set(ancestorTopics.map((topic) => topic.id));
+
+  if (!isSearching && getChildTopics(HELP_TOPICS, currentTopic.id).length > 0) {
+    expandedTopicIds.add(currentTopic.id);
+  }
+
+  const renderTopicButton = (topicId: string, nested = false) => {
+    const topic = HELP_TOPICS.find((entry) => entry.id === topicId);
+    if (!topic) return null;
+
+    const childTopics = getChildTopics(HELP_TOPICS, topic.id);
+    const visibleChildTopics = isSearching
+      ? childTopics.filter((childTopic) => visibleTopicIds.has(childTopic.id))
+      : childTopics;
+    const hasChildren = childTopics.length > 0;
+    const hasVisibleChildren = visibleChildTopics.length > 0;
+    const isExpanded = isSearching ? hasVisibleChildren : expandedTopicIds.has(topic.id);
+    const isActive = activeTopic === topic.id;
+    const parentTopic = getParentTopic(HELP_TOPICS, topic);
+    const isSearchMatch = isSearching && matchedTopicIds.has(topic.id);
+
+    return (
+      <div key={topic.id}>
+        <button
+          data-testid={`help-topic-${topic.id}`}
+          data-search-match={isSearchMatch ? 'true' : undefined}
+          onClick={() => setTopic(topic.id)}
+          aria-expanded={hasChildren ? isExpanded : undefined}
+          className={`w-full text-left ${nested ? 'pl-8 pr-3 py-2' : 'px-4 py-2.5'} text-sm font-medium transition-colors flex items-center justify-between gap-2 group ${
+            isActive
+              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
+              : isSearchMatch
+                ? 'bg-[var(--accent-primary)]/8 text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <span className="min-w-0">
+            <span className={`${nested ? 'text-[13px]' : ''} block truncate`}>{topic.title}</span>
+            {isSearching && parentTopic && (
+              <span className="block text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] truncate">
+                {parentTopic.title}
+              </span>
+            )}
+          </span>
+          {hasChildren ? (
+            isExpanded ? <ChevronDown className="w-4 h-4 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 flex-shrink-0" />
+          ) : isActive ? (
+            <ChevronRight className="w-4 h-4 flex-shrink-0" />
+          ) : null}
+        </button>
+
+        {hasChildren && isExpanded && (
+          <div className="pb-1">
+            {visibleChildTopics.map((childTopic) => renderTopicButton(childTopic.id, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
@@ -55,8 +131,18 @@ export function HelpModal() {
                 placeholder="Search help..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                className="w-full pl-9 pr-9 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
               />
+              {searchQuery.trim() !== '' && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear help search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           
@@ -73,20 +159,7 @@ export function HelpModal() {
                     <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
                       General
                     </div>
-                    {filteredGeneral.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setTopic(topic.id)}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between group ${
-                          activeTopic === topic.id
-                            ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {topic.title}
-                        {activeTopic === topic.id && <ChevronRight className="w-4 h-4" />}
-                      </button>
-                    ))}
+                    {filteredGeneralRoots.map((topic) => renderTopicButton(topic.id))}
                   </>
                 )}
 
@@ -100,20 +173,7 @@ export function HelpModal() {
                     <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
                       Cheat Sheets
                     </div>
-                    {filteredCheatSheets.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setTopic(topic.id)}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-between group ${
-                          activeTopic === topic.id
-                            ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-r-2 border-[var(--accent-primary)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {topic.title}
-                        {activeTopic === topic.id && <ChevronRight className="w-4 h-4" />}
-                      </button>
-                    ))}
+                    {filteredCheatSheetRoots.map((topic) => renderTopicButton(topic.id))}
                   </>
                 )}
               </>
@@ -129,7 +189,7 @@ export function HelpModal() {
         <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-w-0">
           {/* Header */}
           <div className="h-16 border-b border-[var(--border-color)] flex items-center justify-between px-8 flex-shrink-0">
-             <h1 className="text-xl font-bold text-[var(--text-primary)]">{currentTopic.title}</h1>
+             <h1 className="text-xl font-bold text-[var(--text-primary)]">{currentTopicBreadcrumb}</h1>
              <button 
                  onClick={close}
                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] transition-colors"

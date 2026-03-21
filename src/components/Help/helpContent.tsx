@@ -19,7 +19,7 @@ export const HELP_TOPICS = [
   ...referenceTopics,
 ];
 
-export const HELP_TOPIC_INDEX = HELP_TOPICS.map((topic) => ({
+export const HELP_TOPIC_INDEX = HELP_TOPICS.filter((topic) => !topic.parentId).map((topic) => ({
   id: topic.id,
   title: topic.title,
   category: topic.category,

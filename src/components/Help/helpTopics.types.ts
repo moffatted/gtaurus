@@ -8,4 +8,5 @@ export interface HelpTopic {
   category: HelpCategory;
   content: ReactNode;
   searchText: string;
+  parentId?: string;
 }
