@@ -15,6 +15,14 @@
 - Prefer extracting reusable logic/components over growing large, multi-purpose files.
 - Follow language-specific best practices for TypeScript, React, and Rust.
 
+## Rust Documentation
+
+- Use Rust doc comments (`///`) for public items and module-level docs (`//!`) where helpful for context.
+- Document intent, parameters, return values, and side effects for non-trivial functions and methods.
+- Include rustdoc sections like `# Errors`, `# Panics`, and `# Safety` when applicable.
+- Keep examples concise and realistic; prefer examples that compile when practical.
+- Update docs alongside code changes so behavior and constraints remain accurate.
+
 ## Validation & Verification
 
 - Run `npm run -s typecheck` after TypeScript/React changes and before committing.
