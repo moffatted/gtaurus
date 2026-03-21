@@ -50,6 +50,12 @@
 
 ## GitHub Workflow
 
-- Default to creating bugfix/feature branches from main before modifying code.
-- Let the developer test and review before committing and pushing unless they explicitly request commit/push.
-- If the developer explicitly requests direct work on the current branch or main, proceed and follow their instruction.
+- Default to creating a feature or bugfix branch from `main` before making code changes.
+- Before switching branches, run `git status -sb` and confirm the working tree is clean, or explicitly stash/commit first.
+- Never carry unstaged work across branches unintentionally; if checkout is blocked or risky, stop and resolve state first.
+- Stage intentionally with explicit paths when practical (avoid broad `git add .` unless requested).
+- Keep commits focused and atomic: one logical change set per commit with clear messages.
+- Before merging, verify validation for touched areas (at minimum `npm run -s typecheck`, plus relevant tests).
+- Prefer merge via feature branch history; only commit directly to `main` when explicitly requested.
+- After merge/push, verify with `git status -sb` and branch tracking to confirm clean synced state.
+- Let the developer test and review before commit/push unless they explicitly request immediate check-in.
