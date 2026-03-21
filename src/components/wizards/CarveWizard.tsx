@@ -15,11 +15,18 @@ import { BasicProbeUI } from '../shared/BasicProbeUI';
 import { BasicAutolevelUI } from '../shared/BasicAutolevelUI';
 import { Tooltip } from '../ui/Tooltip';
 import { StepSizeSelector } from '../shared/StepSizeSelector';
+import { WizardAxisCard } from './WizardAxisCard';
+import { WizardJogPad } from './WizardJogPad';
+import { WizardSafetyChecks } from './WizardSafetyChecks';
+import { WizardZeroMethodSelector } from './WizardZeroMethodSelector';
+import { startCarveJob } from './startCarveJob';
+import { useWizardLocalFiles } from './useWizardLocalFiles';
+import { useWizardJogControls } from './useWizardJogControls';
+import { useWizardQuickAddTool } from './useWizardQuickAddTool';
 import { 
   CheckCircle2, Play, 
   Box, FileCode, Target, AlignVerticalSpaceAround,
-  Info, Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
-  ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight,
+  Info, Home,
   CheckSquare, Wrench, XCircle, XOctagon, AlertCircle, RotateCcw,
   Square
 } from 'lucide-react';
@@ -46,54 +53,27 @@ export function CarveWizard() {
     vacuumOn: false
   });
 
-  // Tool Quick Add state
-  const [isAddingTool, setIsAddingTool] = useState(false);
-  const [newToolName, setNewToolName] = useState('');
-  const [newToolDiameter, setNewToolDiameter] = useState(3.175);
-  const [newToolNumber, setNewToolNumber] = useState(1);
-  const [newToolType, setNewToolType] = useState<ToolType>('endmill');
+  const {
+    isAddingTool,
+    setIsAddingTool,
+    newToolName,
+    setNewToolName,
+    newToolDiameter,
+    setNewToolDiameter,
+    newToolNumber,
+    setNewToolNumber,
+    newToolType,
+    setNewToolType,
+    handleQuickAddTool,
+  } = useWizardQuickAddTool();
 
-  // Jog State for Wizard
-  const isMetric = settings.general.carvingUnits === 'mm';
-  const unitLabel = isMetric ? 'mm' : 'in';
-  const [stepSize, setStepSize] = useState<number>(isMetric ? 10 : 0.5);
-  const stepSizes = isMetric ? [0.05, 0.1, 1, 5, 10, 100] : [0.001, 0.01, 0.05, 0.1, 0.5, 1];
-
-  // Local files state for selection
-  const [localFiles, setLocalFiles] = useState<{name: string, size: number, modified: number}[]>([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
-
-  // Fetch local files when wizard opens
-  useEffect(() => {
-    if (isCarveWizardOpen && settings.gcodeStoragePath) {
-      setIsLoadingFiles(true);
-      setFileError(null);
-      transport.invoke<{name: string, size: number, modified: number}[]>('list_local_files', { path: settings.gcodeStoragePath })
-        .then(list => setLocalFiles(list.sort((a, b) => b.modified - a.modified)))
-        .catch(() => setFileError('Failed to load files from storage.'))
-        .finally(() => setIsLoadingFiles(false));
-    }
-  }, [isCarveWizardOpen, settings.gcodeStoragePath]);
-
-  const handleSelectFile = async (filename: string) => {
-    try {
-      const fullPath = `${settings.gcodeStoragePath}/${filename}`.replace(/\\/g, '/');
-      const content = await transport.invoke<string>('read_local_file', { 
-        path: settings.gcodeStoragePath,
-        filename 
-      });
-      useGcodeStore.getState().setGcode(content, filename, fullPath);
-    } catch (e) {
-      console.error("Failed to read file", e);
-    }
-  };
-
-  // Sync step size with units
-  useEffect(() => {
-    const isActuallyMetric = settings.general.carvingUnits === 'mm';
-    setStepSize(isActuallyMetric ? 10 : 0.5);
-  }, [settings.general.carvingUnits]);
+  const {
+    localFiles,
+    isLoadingFiles,
+    fileError,
+    setFileError,
+    handleSelectFile,
+  } = useWizardLocalFiles(isCarveWizardOpen, settings.gcodeStoragePath);
 
   // Reset local state when wizard opens
   useEffect(() => {
@@ -109,52 +89,11 @@ export function CarveWizard() {
   const isConnected = machine.status !== 'Disconnected' && machine.status !== 'Connecting';
   const isIdle = machine.status.startsWith('Idle');
   const activeTool = tools.find(t => t.id === activeToolId);
+  const { unitLabel, stepSize, setStepSize, stepSizes, handleJog } = useWizardJogControls(settings.general, isIdle);
 
   const sendGcode = (cmd: string) => {
     transport.invoke('send_gcode', { cmd }).catch(console.error);
   };
-
-  const handleJog = (x: number, y: number, z: number) => {
-    if (!isIdle) return;
-    const feed = 1000;
-    
-    // respect reversal settings
-    let dirX = x; let dirY = y; let dirZ = z;
-    if (settings.general.reverseX) dirX *= -1;
-    if (settings.general.reverseY) dirY *= -1;
-    if (settings.general.reverseZ) dirZ *= -1;
-    
-    sendGcode(`$J=G91 G21 X${dirX * stepSize} Y${dirY * stepSize} Z${dirZ * stepSize} F${feed}`);
-  };
-
-  const handleQuickAddTool = () => {
-    const { addTool } = useToolStore.getState();
-    addTool({
-      name: newToolName || `Tool ${newToolNumber}`,
-      diameter: newToolDiameter,
-      number: newToolNumber,
-      type: newToolType,
-      fluteCount: 2,
-      material: 'Carbide'
-    });
-    
-    // We need to wait for the next render or find the tool by ID, but addTool doesn't return ID.
-    // Actually addTool in store uses a randomUUID too, but let's just wait and pick the latest one or let the list update.
-    setIsAddingTool(false);
-    setNewToolName('');
-  };
-
-  const AxisCard = ({ label, mpos, wco }: { label: string, mpos: number, wco: number }) => {
-    const wpos = mpos - wco;
-    return (
-      <div className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] text-center flex-1">
-        <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase">{label} WCO</span>
-        <p className="font-mono text-sm text-[var(--text-primary)] font-bold">{wpos.toFixed(2)}</p>
-      </div>
-    );
-  };
-
-  const jogBtnClass = "w-full h-full hover:bg-[var(--accent-primary)]/20 active:bg-[var(--accent-primary)]/40 hover:text-[var(--accent-primary)] transition-all duration-100 flex items-center justify-center p-3 rounded-xl";
 
   const steps: WizardStep[] = [
     {
@@ -557,59 +496,7 @@ export function CarveWizard() {
     {
        id: 'zero-method',
        title: 'Zero Method',
-       component: (
-         <div className="space-y-6">
-           <p className="text-sm text-[var(--text-secondary)] mb-4">
-             How would you like to set the Workspace Zero (origin) for this carve?
-           </p>
-
-           <div className="grid grid-cols-2 gap-4">
-             <button
-               onClick={() => setZeroMethod('manual')}
-               className={`
-                 p-6 rounded-xl border-2 text-left transition-all flex flex-col gap-3
-                 ${zeroMethod === 'manual' 
-                   ? 'border-blue-500 bg-blue-500/10' 
-                   : 'border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:border-[var(--text-tertiary)]'}
-               `}
-             >
-               <div className="flex items-center justify-between">
-                 <Target className={`w-8 h-8 ${zeroMethod === 'manual' ? 'text-blue-500' : 'text-[var(--text-tertiary)]'}`} />
-                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${zeroMethod === 'manual' ? 'border-blue-500' : 'border-[var(--border-color)]'}`}>
-                   {zeroMethod === 'manual' && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />}
-                 </div>
-               </div>
-               <div>
-                  <h4 className={`font-bold ${zeroMethod === 'manual' ? 'text-blue-500' : 'text-[var(--text-primary)]'}`}>Manual Zero</h4>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">Jog the tool to the visual zero point and set it manually.</p>
-               </div>
-             </button>
-
-             <button
-               onClick={() => setZeroMethod('probe')}
-               className={`
-                 p-6 rounded-xl border-2 text-left transition-all flex flex-col gap-3
-                 ${zeroMethod === 'probe' 
-                   ? 'border-purple-500 bg-purple-500/10' 
-                   : 'border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:border-[var(--text-tertiary)]'}
-               `}
-             >
-               <div className="flex items-center justify-between">
-                 <AlignVerticalSpaceAround className={`w-8 h-8 ${zeroMethod === 'probe' ? 'text-purple-500' : 'text-[var(--text-tertiary)]'}`} />
-                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${zeroMethod === 'probe' ? 'border-purple-500' : 'border-[var(--border-color)]'}`}>
-                   {zeroMethod === 'probe' && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />}
-                 </div>
-               </div>
-               <div>
-                  <h4 className={`font-bold flex items-center gap-2 ${zeroMethod === 'probe' ? 'text-purple-500' : 'text-[var(--text-primary)]'}`}>
-                    Use Touch Probe
-                  </h4>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">Use a conductivity probe to precisely set the Z height.</p>
-               </div>
-             </button>
-           </div>
-         </div>
-       )
+       component: <WizardZeroMethodSelector zeroMethod={zeroMethod} setZeroMethod={setZeroMethod} />
     },
     {
       id: 'jog-to-zero',
@@ -630,39 +517,16 @@ export function CarveWizard() {
              className="bg-[var(--bg-tertiary)]/30 p-4 rounded-xl border border-[var(--border-color)]"
            />
 
-           <div className="flex items-center justify-center gap-8 bg-[var(--bg-tertiary)]/50 p-6 rounded-2xl border border-[var(--border-color)]">
-              {/* XY Pad */}
-              <div className="grid grid-cols-3 gap-2 w-48 h-48">
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(-1, 1, 0)}><ArrowUpLeft className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(0, 1, 0)}><ArrowUp className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(1, 1, 0)}><ArrowUpRight className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(-1, 0, 0)}><ArrowLeft className="w-6 h-6" /></button>
-                  <Tooltip content="HALT JOGGING (0x85)" position="top">
-                    <button 
-                         onClick={() => transport.invoke('send_realtime', { byte: 0x85 })}
-                         className="w-full h-full bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-[0_4px_12px_rgba(220,38,38,0.3)] hover:shadow-[0_4px_15px_rgba(220,38,38,0.5)] active:scale-90 rounded-xl transition-all duration-150 flex items-center justify-center p-3 border-none group"
-                    >
-                        <XOctagon className="w-6 h-6 drop-shadow-sm group-hover:scale-110 transition-transform" strokeWidth={2.5} />
-                    </button>
-                  </Tooltip>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(1, 0, 0)}><ArrowRight className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(-1, -1, 0)}><ArrowDownLeft className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(0, -1, 0)}><ArrowDown className="w-6 h-6" /></button>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)]`} onClick={() => handleJog(1, -1, 0)}><ArrowDownRight className="w-6 h-6" /></button>
-              </div>
-
-              {/* Z Pad */}
-              <div className="flex flex-col gap-2 w-16 h-48 justify-between p-2 rounded-xl">
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)] flex-1`} onClick={() => handleJog(0, 0, 1)}><ArrowUp className="w-6 h-6 cursor-pointer" /></button>
-                  <div className="text-xs font-bold text-center text-[var(--accent-primary)] uppercase py-1">Z</div>
-                  <button disabled={!isIdle} className={`${jogBtnClass} border border-[var(--border-color)] bg-[var(--bg-secondary)] flex-1`} onClick={() => handleJog(0, 0, -1)}><ArrowDown className="w-6 h-6 cursor-pointer" /></button>
-              </div>
-           </div>
+           <WizardJogPad
+             isIdle={isIdle}
+             onJog={handleJog}
+             onHalt={() => transport.invoke('send_realtime', { byte: 0x85 })}
+           />
 
            <div className="flex gap-4">
-              <AxisCard label="X" mpos={machine.x.mpos} wco={machine.x.wco} />
-              <AxisCard label="Y" mpos={machine.y.mpos} wco={machine.y.wco} />
-              <AxisCard label="Z" mpos={machine.z.mpos} wco={machine.z.wco} />
+              <WizardAxisCard label="X" mpos={machine.x.mpos} wco={machine.x.wco} />
+              <WizardAxisCard label="Y" mpos={machine.y.mpos} wco={machine.y.wco} />
+              <WizardAxisCard label="Z" mpos={machine.z.mpos} wco={machine.z.wco} />
            </div>
         </div>
       )
@@ -704,9 +568,9 @@ export function CarveWizard() {
                       {hasZeroed ? "Zero Coordinate Set" : "Zero All (XYZ)"}
                   </button>
                   <div className="flex gap-4 w-full pt-4">
-                      <AxisCard label="X" mpos={machine.x.mpos} wco={machine.x.wco} />
-                      <AxisCard label="Y" mpos={machine.y.mpos} wco={machine.y.wco} />
-                      <AxisCard label="Z" mpos={machine.z.mpos} wco={machine.z.wco} />
+                      <WizardAxisCard label="X" mpos={machine.x.mpos} wco={machine.x.wco} />
+                      <WizardAxisCard label="Y" mpos={machine.y.mpos} wco={machine.y.wco} />
+                      <WizardAxisCard label="Z" mpos={machine.z.mpos} wco={machine.z.wco} />
                   </div>
                 </div>
              </>
@@ -905,34 +769,7 @@ export function CarveWizard() {
       id: 'safety',
       title: 'Safety Checks',
       canProceed: Object.values(safetyChecks).every(v => v),
-      component: (
-        <div className="space-y-4">
-          <h4 className="text-sm font-bold text-[var(--text-primary)] mb-4">Final Safety Confirmation</h4>
-          
-          {[
-            { id: 'eyeProtection', label: 'I am wearing eye protection' },
-            { id: 'secureWorkpiece', label: 'Workpiece is securely clamped' },
-            { id: 'clearPath', label: 'The tool path is clear of obstructions' },
-            { id: 'vacuumOn', label: 'Dust collection/Coolant is ready' }
-          ].map(check => (
-            <div 
-              key={check.id}
-              onClick={() => setSafetyChecks(prev => ({ ...prev, [check.id]: !(prev as any)[check.id] }))}
-              className={`
-                flex items-center gap-4 p-4 rounded-2xl border flex-1 cursor-pointer transition-all
-                ${(safetyChecks as any)[check.id] 
-                  ? 'bg-blue-500/10 border-blue-500/40 text-[var(--text-primary)] shadow-inner' 
-                  : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-tertiary)]'}
-              `}
-            >
-              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${ (safetyChecks as any)[check.id] ? 'bg-blue-600 border-blue-600' : 'border-[var(--border-color)]' }`}>
-                { (safetyChecks as any)[check.id] && <CheckCircle2 className="w-4 h-4 text-white" /> }
-              </div>
-              <span className="font-bold tracking-tight">{check.label}</span>
-            </div>
-          ))}
-        </div>
-      )
+      component: <WizardSafetyChecks checks={safetyChecks} setChecks={setSafetyChecks} />
     },
     {
       id: 'confirm',
@@ -1006,28 +843,16 @@ export function CarveWizard() {
         if (!activeFilePath) return;
 
         try {
-          // If in alarm, try to clear it first automatically
-          if (machine.status === 'Alarm') {
-            await transport.invoke('send_gcode', { cmd: '$X' });
-          }
-
-          let postJobGcode: string | undefined = undefined;
-          if (settings.general.postJobAction && settings.general.postJobMacroId) {
-            const macro = settings.macros.find(m => m.id === settings.general.postJobMacroId);
-            if (macro) {
-              postJobGcode = macro.content;
-            }
-          }
-
-          // Clear previous visualization paths before starting the new carve
           const gcodeStore = useGcodeStore.getState();
-          gcodeStore.clearSimulation();
-          gcodeStore.clearActualPath();
-
-          const result = await transport.invoke<string>('stream_local_gcode', { 
-            path: activeFilePath,
-            feedRateOverride: settings.general.feedRate,
-            postJobGcode
+          const result = await startCarveJob({
+            machineStatus: machine.status,
+            activeFilePath,
+            feedRate: settings.general.feedRate,
+            postJobAction: settings.general.postJobAction,
+            postJobMacroId: settings.general.postJobMacroId,
+            macros: settings.macros,
+            clearSimulation: gcodeStore.clearSimulation,
+            clearActualPath: gcodeStore.clearActualPath,
           });
           console.log("[CarveWizard] Stream result:", result);
           

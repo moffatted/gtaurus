@@ -3,9 +3,27 @@
  * @purpose Central configuration store for all user-defined application and hardware settings.
  */
 import { create } from "zustand";
-import { Store } from "@tauri-apps/plugin-store";
-import { isTauriApp } from "../utils/platform";
 import { transport } from '../services/transportService';
+import {
+  buildDefaultAiClients,
+  DEFAULT_AI_FREE_MODEL,
+  DEFAULT_AI_LOCAL_API_KEY,
+  DEFAULT_AI_LOCAL_BASE_URL,
+  DEFAULT_AI_LOCAL_MODEL,
+  DEFAULT_AI_PRO_MODEL,
+  normalizeSavedAi,
+} from './settingsAi';
+import { buildDashboardPanels } from './settingsDashboard';
+import {
+  withDashboardLayout,
+  withDashboardPanelDimensions,
+  withDashboardPanelEnabled,
+  withDashboardPanelMovedDown,
+  withDashboardPanelMovedUp,
+  withoutDashboardLayout,
+} from './settingsDashboardMutations';
+import { normalizeSavedProbe, normalizeSavedStock } from './settingsNormalization';
+import { loadSettingsFromStorage, saveSettingsToStorage } from './settingsStorage';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -232,209 +250,6 @@ export interface AiSettings {
   clients: AiClientSettings[];
   activeClientId: string;
   selectionMode: AiSelectionMode;
-}
-
-const DEFAULT_AI_FREE_MODEL = "gemini-1.5-flash";
-const DEFAULT_AI_PRO_MODEL = "gemini-1.5-pro";
-const DEFAULT_AI_LOCAL_MODEL = "qwen/qwen2.5-coder-14b";
-const DEFAULT_AI_LOCAL_BASE_URL = "http://192.168.68.57:1473/v1";
-const DEFAULT_AI_LOCAL_API_KEY = "lm-studio";
-const LEGACY_LOCAL_MODEL_ALIAS = "qwen-2.5-coder-14b";
-
-function normalizeLocalModelName(model: string): string {
-  return model === LEGACY_LOCAL_MODEL_ALIAS ? DEFAULT_AI_LOCAL_MODEL : model;
-}
-
-function defaultProviderBaseUrl(provider: AiProvider): string {
-  switch (provider) {
-    case "copilot-sdk":
-      return "";
-    case "openai":
-      return "https://api.openai.com/v1";
-    case "anthropic":
-      return "https://api.anthropic.com/v1";
-    case "openrouter":
-      return "https://openrouter.ai/api/v1";
-    case "groq":
-      return "https://api.groq.com/openai/v1";
-    case "mistral":
-      return "https://api.mistral.ai/v1";
-    case "xai":
-      return "https://api.x.ai/v1";
-    case "openai-compatible":
-      return DEFAULT_AI_LOCAL_BASE_URL;
-    default:
-      return "";
-  }
-}
-
-function defaultProviderModel(provider: AiProvider, tier: AiTier): string {
-  if (provider === "gemini") {
-    return tier === "free" ? DEFAULT_AI_FREE_MODEL : DEFAULT_AI_PRO_MODEL;
-  }
-
-  if (provider === "copilot-sdk") {
-    return tier === "free" ? "gpt-4o-mini" : "gpt-4o";
-  }
-
-  if (provider === "anthropic") {
-    return "claude-3-5-sonnet-latest";
-  }
-
-  if (provider === "openai") {
-    return tier === "free" ? "gpt-4o-mini" : "gpt-4.1";
-  }
-
-  if (provider === "openrouter") {
-    return tier === "free" ? "google/gemini-2.0-flash-exp:free" : "anthropic/claude-3.5-sonnet";
-  }
-
-  if (provider === "groq") {
-    return "llama-3.3-70b-versatile";
-  }
-
-  if (provider === "mistral") {
-    return "mistral-large-latest";
-  }
-
-  if (provider === "xai") {
-    return "grok-2-latest";
-  }
-
-  return DEFAULT_AI_LOCAL_MODEL;
-}
-
-function buildDefaultAiClients(ai: {
-  apiKey: string;
-  freeModel: string;
-  proModel: string;
-  localModel: string;
-  localBaseUrl: string;
-  localApiKey: string;
-}): AiClientSettings[] {
-  return [
-    {
-      id: "legacy-free-gemini",
-      name: "Free Gemini",
-      tier: "free",
-      provider: "gemini",
-      model: ai.freeModel,
-      apiKey: ai.apiKey,
-      enabled: true,
-    },
-    {
-      id: "free-openrouter",
-      name: "Free OpenRouter",
-      tier: "free",
-      provider: "openrouter",
-      model: defaultProviderModel("openrouter", "free"),
-      baseUrl: defaultProviderBaseUrl("openrouter"),
-      apiKey: "",
-      enabled: false,
-    },
-    {
-      id: "free-copilot-sdk",
-      name: "Free GitHub Copilot SDK",
-      tier: "free",
-      provider: "copilot-sdk",
-      model: defaultProviderModel("copilot-sdk", "free"),
-      copilotAuthMode: "subscription",
-      enabled: false,
-    },
-    {
-      id: "legacy-pro-gemini",
-      name: "Pro Gemini",
-      tier: "pro",
-      provider: "gemini",
-      model: ai.proModel,
-      apiKey: ai.apiKey,
-      enabled: true,
-    },
-    {
-      id: "pro-openai",
-      name: "Pro OpenAI",
-      tier: "pro",
-      provider: "openai",
-      model: defaultProviderModel("openai", "pro"),
-      baseUrl: defaultProviderBaseUrl("openai"),
-      apiKey: "",
-      enabled: false,
-    },
-    {
-      id: "pro-anthropic",
-      name: "Pro Anthropic",
-      tier: "pro",
-      provider: "anthropic",
-      model: defaultProviderModel("anthropic", "pro"),
-      baseUrl: defaultProviderBaseUrl("anthropic"),
-      apiKey: "",
-      enabled: false,
-    },
-    {
-      id: "pro-groq",
-      name: "Pro Groq",
-      tier: "pro",
-      provider: "groq",
-      model: defaultProviderModel("groq", "pro"),
-      baseUrl: defaultProviderBaseUrl("groq"),
-      apiKey: "",
-      enabled: false,
-    },
-    {
-      id: "pro-copilot-sdk",
-      name: "Pro GitHub Copilot SDK",
-      tier: "pro",
-      provider: "copilot-sdk",
-      model: defaultProviderModel("copilot-sdk", "pro"),
-      copilotAuthMode: "subscription",
-      enabled: false,
-    },
-    {
-      id: "legacy-local-openai",
-      name: "Local LLM",
-      tier: "local",
-      provider: "openai-compatible",
-      model: normalizeLocalModelName(ai.localModel),
-      baseUrl: ai.localBaseUrl,
-      apiKey: ai.localApiKey,
-      enabled: true,
-    },
-  ];
-}
-
-function normalizeSavedAi(savedAi: Partial<AiSettings> | undefined): AiSettings {
-  const mergedLegacy: AiSettings = {
-    ...DEFAULT_SETTINGS.ai,
-    ...savedAi,
-    localModel: normalizeLocalModelName(savedAi?.localModel ?? DEFAULT_SETTINGS.ai.localModel),
-    selectionMode: savedAi?.selectionMode === "auto" ? "auto" : "manual",
-    clients: [],
-    activeClientId: savedAi?.activeClientId ?? "",
-  };
-
-  const providedClients = Array.isArray(savedAi?.clients) ? savedAi.clients : [];
-  const clients = (providedClients.length > 0 ? providedClients : buildDefaultAiClients(mergedLegacy)).map((client, index) => ({
-    ...client,
-    id: client.id || `ai-client-${index + 1}`,
-    name: client.name || `AI Client ${index + 1}`,
-    model: normalizeLocalModelName(client.model),
-    baseUrl: client.baseUrl ?? defaultProviderBaseUrl(client.provider),
-    copilotAuthMode: client.provider === "copilot-sdk" ? (client.copilotAuthMode ?? "subscription") : undefined,
-    copilotByokProvider: client.provider === "copilot-sdk" ? client.copilotByokProvider : undefined,
-    enabled: client.enabled ?? true,
-  }));
-
-  const activeExists = clients.some((client) => client.id === mergedLegacy.activeClientId);
-  const activeClient = clients.find((client) => client.id === mergedLegacy.activeClientId);
-  const tierMatch = clients.find((client) => client.tier === mergedLegacy.tier && client.enabled);
-  const fallbackClient = tierMatch ?? clients.find((client) => client.enabled) ?? clients[0];
-
-  return {
-    ...mergedLegacy,
-    clients,
-    tier: activeExists ? (activeClient?.tier ?? mergedLegacy.tier) : (fallbackClient?.tier ?? mergedLegacy.tier),
-    activeClientId: activeExists ? mergedLegacy.activeClientId : fallbackClient.id,
-  };
 }
 
 
@@ -745,118 +560,9 @@ export const DEFAULT_SETTINGS: Settings = {
 // ─── Storage helpers ─────────────────────────────────────────────────────────
 
 const STORE_KEY = "appSettings";
-let tauriStore: Store | null = null;
+const loadFromStorage = (): Promise<Settings | null> => loadSettingsFromStorage(STORE_KEY);
 
-async function getTauriStore(): Promise<Store | null> {
-  if (tauriStore) return tauriStore;
-  
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      console.warn("[settings] Store.load timed out after 3s");
-      resolve(null);
-    }, 3000);
-
-    Store.load("settings.json")
-      .then((s) => {
-        clearTimeout(timer);
-        tauriStore = s;
-        resolve(s);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        console.error("[settings] Store.load failed:", err);
-        resolve(null);
-      });
-  });
-}
-
-async function loadFromStorage(): Promise<Settings | null> {
-  try {
-    if (isTauriApp()) {
-      const s = await getTauriStore();
-      if (!s) return null;
-      
-      return await new Promise((resolve) => {
-        const timer = setTimeout(() => {
-          console.warn("[settings] s.get timed out after 2s");
-          resolve(null);
-        }, 2000);
-        
-        s.get<Settings>(STORE_KEY).then((val) => {
-          clearTimeout(timer);
-          resolve(val ?? null);
-        }).catch((err) => {
-          clearTimeout(timer);
-          console.error("[settings] s.get failed:", err);
-          resolve(null);
-        });
-      });
-    } else {
-      const raw = localStorage.getItem(STORE_KEY);
-      return raw ? (JSON.parse(raw) as Settings) : null;
-    }
-  } catch (err) {
-    console.error("[settings] Failed to load from storage:", err);
-    return null;
-  }
-}
-
-function normalizeSavedStock(savedStock: any): Partial<StockSettings> {
-  if (!savedStock) return {};
-
-  return {
-    ...savedStock,
-    zeroX: savedStock.zeroX ?? savedStock.posX ?? DEFAULT_SETTINGS.stock.zeroX,
-    zeroY: savedStock.zeroY ?? savedStock.posY ?? DEFAULT_SETTINGS.stock.zeroY,
-    workOffsetX: savedStock.workOffsetX ?? savedStock.offsetX ?? DEFAULT_SETTINGS.stock.workOffsetX,
-    workOffsetY: savedStock.workOffsetY ?? savedStock.offsetY ?? DEFAULT_SETTINGS.stock.workOffsetY,
-    workOffsetZ: savedStock.workOffsetZ ?? savedStock.offsetZ ?? DEFAULT_SETTINGS.stock.workOffsetZ,
-  };
-}
-
-function normalizeSavedProbe(savedProbe: any): Partial<ProbeSettings> {
-  if (!savedProbe) return {};
-
-  const toNumber = (value: any, fallback: number): number => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
-
-  return {
-    ...savedProbe,
-    xWallThickness: toNumber(savedProbe.xWallThickness, DEFAULT_SETTINGS.probe.xWallThickness),
-    yWallThickness: toNumber(savedProbe.yWallThickness, DEFAULT_SETTINGS.probe.yWallThickness),
-    holeDiameter: toNumber(savedProbe.holeDiameter, DEFAULT_SETTINGS.probe.holeDiameter),
-    xyDropDistance: toNumber(savedProbe.xyDropDistance, DEFAULT_SETTINGS.probe.xyDropDistance),
-    xEdgeClearance: toNumber(savedProbe.xEdgeClearance, DEFAULT_SETTINGS.probe.xEdgeClearance),
-    yEdgeClearance: toNumber(savedProbe.yEdgeClearance, DEFAULT_SETTINGS.probe.yEdgeClearance),
-    centeringFudge: toNumber(savedProbe.centeringFudge, DEFAULT_SETTINGS.probe.centeringFudge),
-    zTouchPlateShape: savedProbe.zTouchPlateShape === 'round' ? 'round' : 'square',
-    zTouchPlateLength: toNumber(savedProbe.zTouchPlateLength, DEFAULT_SETTINGS.probe.zTouchPlateLength),
-    zTouchPlateWidth: toNumber(savedProbe.zTouchPlateWidth, DEFAULT_SETTINGS.probe.zTouchPlateWidth),
-    zTouchPlateDiameter: toNumber(savedProbe.zTouchPlateDiameter, DEFAULT_SETTINGS.probe.zTouchPlateDiameter),
-    zTouchPlateInsetX: toNumber(savedProbe.zTouchPlateInsetX, DEFAULT_SETTINGS.probe.zTouchPlateInsetX),
-    zTouchPlateInsetY: toNumber(savedProbe.zTouchPlateInsetY, DEFAULT_SETTINGS.probe.zTouchPlateInsetY),
-    plateGeometry: savedProbe.plateGeometry === 'ring-hole' ? 'ring-hole' : 'solid-block',
-    postProbeReturnMode: savedProbe.postProbeReturnMode === 'auto-return-xy0' ? 'auto-return-xy0' : 'hold-z',
-    lastProbeMethod: savedProbe.lastProbeMethod === '3-axis' ? '3-axis' : 'z-only',
-  };
-}
-
-async function saveToStorage(settings: Settings): Promise<void> {
-  try {
-    if (isTauriApp()) {
-      const s = await getTauriStore();
-      if (!s) return;
-      await s.set(STORE_KEY, settings);
-      await s.save();
-    } else {
-      localStorage.setItem(STORE_KEY, JSON.stringify(settings));
-    }
-  } catch (err) {
-    console.error("[settings] Failed to save:", err);
-  }
-}
+const saveToStorage = (settings: Settings): Promise<void> => saveSettingsToStorage(STORE_KEY, settings);
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
@@ -937,59 +643,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const saved = await loadFromStorage();
 
     if (saved) {
-      // 1. Migrate old "dro" or "jog" to "controls"
-      const hasOldPanels = saved.dashboardPanels.some(p => p.id === 'dro' || p.id === 'jog');
-      let migratedPanels = [...saved.dashboardPanels];
-      
-      if (hasOldPanels) {
-          const dro = migratedPanels.find(p => p.id === 'dro');
-          const jog = migratedPanels.find(p => p.id === 'jog');
-          const wasEnabled = (dro?.enabled || jog?.enabled) ?? true;
-          
-          // Remove old ones
-          migratedPanels = migratedPanels.filter(p => p.id !== 'dro' && p.id !== 'jog');
-          
-          // Ensure "controls" is present and inherits enabled state
-          if (!migratedPanels.find(p => p.id === 'controls')) {
-              migratedPanels.push({ 
-                  id: "controls", 
-                  label: "Controls", 
-                  enabled: wasEnabled, 
-                  order: 0,
-                  defaultWidth: 600,
-                  defaultHeight: 541,
-                  minWidth: 380,
-                  minHeight: 450
-              });
-          } else {
-              migratedPanels = migratedPanels.map(p => 
-                  p.id === 'controls' ? { ...p, enabled: wasEnabled } : p
-              );
-          }
-      }
+      const merged = buildDashboardPanels(saved.dashboardPanels, AVAILABLE_DASHBOARD_PANELS);
 
-      // 2. Filter out any panels that are no longer supported
-      const validIds = new Set(AVAILABLE_DASHBOARD_PANELS.map(p => p.id));
-      let merged = migratedPanels.filter(p => validIds.has(p.id));
-
-      // 3. Add any newly introduced panels
-      const currentIds = new Set(merged.map((p) => p.id));
-      AVAILABLE_DASHBOARD_PANELS.forEach((p) => {
-        if (!currentIds.has(p.id)) {
-          merged.push({ ...p, order: merged.length });
-        }
-      });
-
-      // 4. Force labels to match definitions (handles renames)
-      const labelMap = new Map(AVAILABLE_DASHBOARD_PANELS.map(p => [p.id, p.label]));
-      const defaultsMap = new Map(AVAILABLE_DASHBOARD_PANELS.map(p => [p.id, p]));
-      merged = merged.map(p => ({
-          ...defaultsMap.get(p.id),
-          ...p,
-          label: labelMap.get(p.id) || p.label
-      }));
-
-      const aiSettings = normalizeSavedAi(saved?.ai);
+      const aiSettings = normalizeSavedAi(saved?.ai, DEFAULT_SETTINGS.ai);
 
       set({
         settings: { 
@@ -997,11 +653,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...saved, 
           connection: { ...DEFAULT_SETTINGS.connection, ...saved?.connection },
           general: { ...DEFAULT_SETTINGS.general, ...saved?.general },
-          probe: { ...DEFAULT_SETTINGS.probe, ...normalizeSavedProbe(saved?.probe) },
+          probe: { ...DEFAULT_SETTINGS.probe, ...normalizeSavedProbe(saved?.probe, DEFAULT_SETTINGS.probe) },
           spindle: { ...DEFAULT_SETTINGS.spindle, ...saved?.spindle },
           stats: { ...DEFAULT_SETTINGS.stats, ...saved?.stats },
           ai: aiSettings,
-          stock: { ...DEFAULT_SETTINGS.stock, ...normalizeSavedStock(saved?.stock) },
+          stock: { ...DEFAULT_SETTINGS.stock, ...normalizeSavedStock(saved?.stock, DEFAULT_SETTINGS.stock) },
           atc: { ...DEFAULT_SETTINGS.atc, ...saved?.atc },
           camera: { ...DEFAULT_SETTINGS.camera, ...saved?.camera },
           toolLibrary: { ...DEFAULT_SETTINGS.toolLibrary, ...saved?.toolLibrary },
@@ -1058,64 +714,41 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setDashboardPanelEnabled: (id, enabled) => {
-    const panels = get().settings.dashboardPanels.map((p) =>
-      p.id === id ? { ...p, enabled } : p,
-    );
-    const next = { ...get().settings, dashboardPanels: panels };
+    const next = withDashboardPanelEnabled(get().settings, id, enabled);
     set({ settings: next });
     void saveToStorage(next);
   },
 
   setDashboardPanelDimensions: (id, dims) => {
-    const panels = get().settings.dashboardPanels.map((p) =>
-      p.id === id ? { ...p, ...dims } : p,
-    );
-    const next = { ...get().settings, dashboardPanels: panels };
+    const next = withDashboardPanelDimensions(get().settings, id, dims);
     set({ settings: next });
     void saveToStorage(next);
   },
 
   setDashboardLayout: (layout) => {
-    const next = { ...get().settings, dashboardLayout: layout };
+    const next = withDashboardLayout(get().settings, layout);
     set({ settings: next });
     void saveToStorage(next);
   },
 
   resetDashboardLayout: () => {
-    const next = { ...get().settings, dashboardLayout: undefined };
+    const next = withoutDashboardLayout(get().settings);
     set({ settings: next });
     void saveToStorage(next);
   },
 
   moveDashboardPanelUp: (id) => {
-    const panels = [...get().settings.dashboardPanels].sort(
-      (a, b) => a.order - b.order,
-    );
-    const idx = panels.findIndex((p) => p.id === id);
-    if (idx <= 0) return;
-    // Swap order values with the panel above
-    const reordered = panels.map((p, i) => {
-      if (i === idx - 1) return { ...p, order: idx };
-      if (i === idx) return { ...p, order: idx - 1 };
-      return p;
-    });
-    const next = { ...get().settings, dashboardPanels: reordered };
+    const current = get().settings;
+    const next = withDashboardPanelMovedUp(current, id);
+    if (next === current) return;
     set({ settings: next });
     void saveToStorage(next);
   },
 
   moveDashboardPanelDown: (id) => {
-    const panels = [...get().settings.dashboardPanels].sort(
-      (a, b) => a.order - b.order,
-    );
-    const idx = panels.findIndex((p) => p.id === id);
-    if (idx < 0 || idx >= panels.length - 1) return;
-    const reordered = panels.map((p, i) => {
-      if (i === idx) return { ...p, order: idx + 1 };
-      if (i === idx + 1) return { ...p, order: idx };
-      return p;
-    });
-    const next = { ...get().settings, dashboardPanels: reordered };
+    const current = get().settings;
+    const next = withDashboardPanelMovedDown(current, id);
+    if (next === current) return;
     set({ settings: next });
     void saveToStorage(next);
   },
@@ -1160,7 +793,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set((state) => {
       const next = {
         ...state.settings,
-        probe: { ...state.settings.probe, ...normalizeSavedProbe(patch) },
+        probe: { ...state.settings.probe, ...normalizeSavedProbe(patch, DEFAULT_SETTINGS.probe) },
       };
       void saveToStorage(next);
       return { settings: next };
@@ -1185,7 +818,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }),
   setAiSettings: (patch: Partial<AiSettings>) =>
     set((state) => {
-      const mergedAi = normalizeSavedAi({ ...state.settings.ai, ...patch });
+      const mergedAi = normalizeSavedAi({ ...state.settings.ai, ...patch }, DEFAULT_SETTINGS.ai);
       const next = {
         ...state.settings,
         ai: mergedAi,
