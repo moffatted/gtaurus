@@ -3,6 +3,11 @@
  * @purpose Commands for interacting with FluidNC via HTTP (uploads, restarts, file fetching).
  * @author Ed Moffatt
  */
+/// Downloads a text file from a FluidNC HTTP endpoint.
+///
+/// # Errors
+/// Returns an error for network failures, non-success HTTP status codes, or
+/// response body decoding failures.
 #[tauri::command]
 pub async fn fetch_fluidnc_file(url: String) -> Result<String, String> {
     let client = reqwest::Client::new();
@@ -13,6 +18,14 @@ pub async fn fetch_fluidnc_file(url: String) -> Result<String, String> {
     res.text().await.map_err(|e| e.to_string())
 }
 
+/// Calls the FluidNC restart endpoint.
+///
+/// Treats connection-reset style errors as success because restart may close the
+/// connection before a full response body is returned.
+///
+/// # Errors
+/// Returns an error for request-construction failures and non-transient network
+/// or HTTP failures.
 #[tauri::command]
 pub async fn restart_fluidnc(url: String) -> Result<String, String> {
     let client = reqwest::Client::builder()
@@ -42,6 +55,10 @@ pub async fn restart_fluidnc(url: String) -> Result<String, String> {
     }
 }
 
+/// Uploads a file to a FluidNC HTTP endpoint using multipart form data.
+///
+/// # Errors
+/// Returns an error for network failures or non-success HTTP status codes.
 #[tauri::command]
 pub async fn upload_fluidnc_file(
     url: String,

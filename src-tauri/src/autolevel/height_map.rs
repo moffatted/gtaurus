@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Rectangular probe grid used for autolevel interpolation.
 pub struct HeightMap {
     pub min_x: f64,
     pub min_y: f64,
@@ -16,6 +17,7 @@ pub struct HeightMap {
 }
 
 impl HeightMap {
+    /// Creates a new height map with a zero-initialized probe grid.
     pub fn new(min_x: f64, min_y: f64, spacing: f64, cols: usize, rows: usize) -> Self {
         Self {
             min_x,
@@ -27,6 +29,7 @@ impl HeightMap {
         }
     }
 
+    /// Sets a probed Z value if the target grid index is in range.
     pub fn set_z_at_index(&mut self, col: usize, row: usize, z: f64) {
         if col < self.cols && row < self.rows {
             self.grid[row * self.cols + col] = z;

@@ -8,6 +8,11 @@ use std::io::{BufRead, BufReader};
 use super::models::{GCodePoint, OperationInfo, GCodeAnalysis};
 use super::utils::{extract_tool_info, linearize_arc};
 
+/// Parses a G-code file and produces path, operation, and timing analysis.
+///
+/// # Errors
+/// Returns an error if the file cannot be opened/read or a required operation
+/// in the parsing pipeline fails.
 pub fn parse_gcode_file_impl(path: String) -> Result<GCodeAnalysis, String> {
     let file = File::open(&path).map_err(|e| e.to_string())?;
     let reader = BufReader::new(file);

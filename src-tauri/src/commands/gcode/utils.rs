@@ -3,6 +3,7 @@
  * @purpose Utility functions for G-code parsing, including tool info extraction and arc linearization.
  * @author Ed Moffatt
  */
+/// Extracts tool diameter, tool type, and optional angle from a tool label.
 pub fn extract_tool_info(tool_name: Option<&str>) -> (f32, String, Option<f32>) {
     if let Some(name) = tool_name {
         let lower = name.to_lowercase();
@@ -60,6 +61,7 @@ pub fn extract_tool_info(tool_name: Option<&str>) -> (f32, String, Option<f32>) 
     }
 }
 
+/// Approximates a G2/G3 arc as linear segments for visualization and metrics.
 pub fn linearize_arc(
     start: [f32; 3],
     end: [f32; 3],

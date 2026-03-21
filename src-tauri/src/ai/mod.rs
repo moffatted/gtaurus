@@ -10,11 +10,13 @@ use std::process::Command;
 // --- Gemini API Schema structs ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// One text part in a provider-agnostic chat message.
 pub struct Part {
     pub text: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Provider-agnostic chat message content used by frontend/backend exchange.
 pub struct Content {
     pub role: String,
     pub parts: Vec<Part>,
@@ -22,6 +24,7 @@ pub struct Content {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Request payload for Gemini chat generation.
 pub struct GeminiRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_instruction: Option<Content>,
@@ -30,6 +33,7 @@ pub struct GeminiRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Response payload for Gemini chat generation.
 pub struct GeminiResponse {
     pub candidates: Option<Vec<Candidate>>,
     pub error: Option<GeminiError>,
@@ -37,6 +41,7 @@ pub struct GeminiResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Gemini candidate completion entry.
 pub struct Candidate {
     pub content: Content,
     pub finish_reason: Option<String>,
@@ -44,6 +49,7 @@ pub struct Candidate {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Gemini API error envelope.
 pub struct GeminiError {
     pub code: i32,
     pub message: String,
@@ -53,41 +59,48 @@ pub struct GeminiError {
 // --- OpenAI API Schema structs (for Local LLMs like LM Studio) ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// OpenAI-compatible message object.
 pub struct OpenAIMessage {
     pub role: String,
     pub content: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// OpenAI-compatible chat completion request.
 pub struct OpenAIRequest {
     pub model: String,
     pub messages: Vec<OpenAIMessage>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// OpenAI-compatible chat completion response.
 pub struct OpenAIResponse {
     pub choices: Option<Vec<OpenAIChoice>>,
     pub error: Option<OpenAIError>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// One OpenAI-compatible choice item.
 pub struct OpenAIChoice {
     pub message: OpenAIMessage,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// OpenAI-compatible error body.
 pub struct OpenAIError {
     pub message: String,
     pub r#type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Anthropic message entry used in request payloads.
 pub struct AnthropicMessage {
     pub role: String,
     pub content: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Anthropic request payload.
 pub struct AnthropicRequest {
     pub model: String,
     pub system: String,
@@ -96,6 +109,7 @@ pub struct AnthropicRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Anthropic content text block.
 pub struct AnthropicTextBlock {
     pub text: String,
     #[serde(rename = "type")]
@@ -103,18 +117,21 @@ pub struct AnthropicTextBlock {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Anthropic response envelope.
 pub struct AnthropicResponse {
     pub content: Option<Vec<AnthropicTextBlock>>,
     pub error: Option<AnthropicError>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Anthropic error envelope.
 pub struct AnthropicError {
     pub message: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Frontend-configured AI client descriptor.
 pub struct AiClientConfig {
     pub id: String,
     pub name: String,
@@ -130,6 +147,7 @@ pub struct AiClientConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Runtime availability check result for Copilot CLI integration.
 pub struct CopilotRuntimeStatus {
     pub available: bool,
     pub version: Option<String>,
@@ -138,11 +156,17 @@ pub struct CopilotRuntimeStatus {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Connectivity test result for a configured AI provider.
 pub struct AiConnectivityResult {
     pub ok: bool,
     pub message: String,
 }
 
+/// Detects whether a Copilot runtime CLI is available on PATH.
+///
+/// # Errors
+/// Returns an error only for unexpected internal failures; command probing
+/// normally maps to a successful status object (available or unavailable).
 #[tauri::command]
 pub fn copilot_runtime_status() -> Result<CopilotRuntimeStatus, String> {
     let candidates = [
@@ -171,6 +195,11 @@ pub fn copilot_runtime_status() -> Result<CopilotRuntimeStatus, String> {
     })
 }
 
+/// Verifies network/API reachability for a selected AI client configuration.
+///
+/// # Errors
+/// Returns an error for network failures, malformed responses, or unsupported
+/// runtime routing modes.
 #[tauri::command]
 pub async fn test_ai_client_connectivity(
     selected_client: AiClientConfig,
@@ -353,6 +382,11 @@ pub async fn test_ai_client_connectivity(
 // --- Inference Command ---
 
 #[tauri::command]
+/// Sends chat messages to the configured AI provider and returns model output.
+///
+/// # Errors
+/// Returns an error for missing credentials, unsupported provider modes,
+/// network failures, or provider API errors.
 pub async fn ask_ai(
     messages: Vec<Content>,
     machine_context: String,
@@ -671,6 +705,11 @@ pub async fn ask_ai(
 }
 
 #[tauri::command]
+/// Lists available Gemini models for a given API key.
+///
+/// # Errors
+/// Returns an error for network failures, non-success HTTP status codes, or
+/// response read failures.
 pub async fn list_gemini_models(api_key: String) -> Result<String, String> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models?key={}",

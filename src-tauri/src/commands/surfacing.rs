@@ -193,6 +193,10 @@ pub fn build_surfacing_gcode(p: &SurfacingParams) -> Result<String, String> {
 }
 
 #[tauri::command]
+/// Builds a surfacing toolpath from frontend parameters.
+///
+/// # Errors
+/// Returns an error when geometric or feed/depth inputs are invalid.
 pub fn generate_surfacing_toolpath(
     width: f32,
     height: f32,

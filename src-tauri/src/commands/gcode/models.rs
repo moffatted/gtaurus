@@ -6,6 +6,7 @@
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// One motion sample point in the analyzed toolpath.
 pub struct GCodePoint {
     pub x: f32,
     pub y: f32,
@@ -17,6 +18,7 @@ pub struct GCodePoint {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Tool-bound operation segment metadata inferred from tool changes.
 pub struct OperationInfo {
     pub id: u32,
     pub tool_number: Option<u32>,
@@ -31,6 +33,7 @@ pub struct OperationInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Aggregate analysis result returned to the frontend visualizer.
 pub struct GCodeAnalysis {
     pub points: Vec<GCodePoint>,
     pub operations: Vec<OperationInfo>,

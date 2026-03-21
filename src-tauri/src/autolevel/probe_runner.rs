@@ -12,6 +12,7 @@ static PRB_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[PRB:([\d\.-]+),([\d\.-]+),([\d\.-]+):([01])\]").unwrap());
 
 #[derive(Debug, PartialEq)]
+/// Result of parsing a probe report line from controller output.
 pub enum ProbeResult {
     /// Probe successfully triggered and recorded location
     Success(DVec3),

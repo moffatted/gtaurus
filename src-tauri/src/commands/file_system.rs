@@ -8,12 +8,17 @@ use std::path::PathBuf;
 use std::fs;
 
 #[derive(Serialize)]
+/// File metadata returned to the frontend file browser.
 pub struct LocalFile {
     pub name: String,
     pub size: u64,
     pub modified: u64, // timestamp in seconds
 }
 
+/// Returns the current user's home directory as a string path.
+///
+/// # Errors
+/// Returns an error if the home directory cannot be determined.
 #[tauri::command]
 pub fn get_home_dir() -> Result<String, String> {
     dirs::home_dir()
@@ -21,11 +26,19 @@ pub fn get_home_dir() -> Result<String, String> {
         .ok_or_else(|| "Could not find home directory".to_string())
 }
 
+/// Creates the target directory and any missing parent directories.
+///
+/// # Errors
+/// Returns an error if directory creation fails.
 #[tauri::command]
 pub fn ensure_dir_exists(path: String) -> Result<(), String> {
     fs::create_dir_all(path).map_err(|e| e.to_string())
 }
 
+/// Lists regular files in a local directory, creating it if needed.
+///
+/// # Errors
+/// Returns an error if directory creation, read, or metadata access fails.
 #[tauri::command]
 pub fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
     let dir = PathBuf::from(&path);
@@ -52,6 +65,10 @@ pub fn list_local_files(path: String) -> Result<Vec<LocalFile>, String> {
     Ok(files)
 }
 
+/// Reads a UTF-8 text file from the provided directory and filename.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 #[tauri::command]
 pub fn read_local_file(path: String, filename: String) -> Result<String, String> {
     let mut full_path = PathBuf::from(&path);
@@ -59,6 +76,10 @@ pub fn read_local_file(path: String, filename: String) -> Result<String, String>
     fs::read_to_string(&full_path).map_err(|e| e.to_string())
 }
 
+/// Writes UTF-8 content to a file, creating the directory when needed.
+///
+/// # Errors
+/// Returns an error if directory creation or file write fails.
 #[tauri::command]
 pub fn save_local_file(path: String, filename: String, content: String) -> Result<(), String> {
     let dir = PathBuf::from(&path);
@@ -68,6 +89,10 @@ pub fn save_local_file(path: String, filename: String, content: String) -> Resul
     fs::write(&full_path, content).map_err(|e| e.to_string())
 }
 
+/// Deletes a local file from the provided directory and filename.
+///
+/// # Errors
+/// Returns an error if file deletion fails.
 #[tauri::command]
 pub fn delete_local_file(path: String, filename: String) -> Result<(), String> {
     let mut full_path = PathBuf::from(path);
@@ -75,6 +100,11 @@ pub fn delete_local_file(path: String, filename: String) -> Result<(), String> {
     fs::remove_file(full_path).map_err(|e| e.to_string())
 }
 
+/// Copies a source file into the destination storage directory.
+///
+/// # Errors
+/// Returns an error if the source does not exist, destination creation fails,
+/// or the copy operation fails.
 #[tauri::command]
 pub fn copy_to_storage(source_path: String, dest_dir: String) -> Result<(), String> {
     let source = PathBuf::from(&source_path);
@@ -89,6 +119,10 @@ pub fn copy_to_storage(source_path: String, dest_dir: String) -> Result<(), Stri
     fs::copy(&source, &dest).map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Performs a lightweight heuristic check for G-code-looking content.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 #[tauri::command]
 pub fn validate_gcode_file(path: String) -> Result<bool, String> {
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;

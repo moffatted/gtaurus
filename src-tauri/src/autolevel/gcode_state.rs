@@ -6,6 +6,7 @@
 use gcode::GCode;
 
 #[derive(Debug, Clone, Default)]
+/// Modal G-code position/feed tracker used by the warping pipeline.
 pub struct GCodeState {
     pub x: f64,
     pub y: f64,
@@ -14,6 +15,7 @@ pub struct GCodeState {
 }
 
 impl GCodeState {
+    /// Builds a zero-initialized modal state (XYZ = 0, feed unset).
     pub fn new() -> Self {
         Self {
             x: 0.0,

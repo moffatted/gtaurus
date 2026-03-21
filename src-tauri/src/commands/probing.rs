@@ -8,6 +8,11 @@ use tauri::{AppHandle, Emitter, State};
 use crate::state::AppState;
 use crate::autolevel;
 
+/// Starts a background probing routine and emits progress events to the UI.
+///
+/// # Errors
+/// Returns an error if the driver or height-map state cannot be cloned from
+/// managed application state.
 #[tauri::command]
 pub fn start_probing(
     app_handle: AppHandle,
@@ -73,6 +78,10 @@ pub fn start_probing(
     Ok(())
 }
 
+/// Stops probing motion by issuing a controller reset command.
+///
+/// # Errors
+/// Returns an error if driver locking or command transmission fails.
 #[tauri::command]
 pub fn stop_probing(state: State<'_, AppState>) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|e| e.to_string())?;

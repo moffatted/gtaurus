@@ -1,5 +1,6 @@
 use walkdir::WalkDir;
 
+/// Scans common Autodesk Fusion directories for tool library files.
 #[tauri::command]
 pub fn find_fusion_tools() -> Vec<String> {
     let mut found = Vec::new();

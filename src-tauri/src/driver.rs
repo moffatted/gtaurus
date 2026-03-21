@@ -12,6 +12,10 @@ use tauri::{AppHandle, Emitter};
 /// Must match the event name used by the standalone bridge server and all frontend listeners.
 pub const RX_EVENT: &str = "fluidnc://rx";
 
+/// Tauri-aware wrapper around the shared FluidNC driver.
+///
+/// This adapter forwards machine output to both frontend event listeners and
+/// optional in-process subscribers.
 pub struct FluidNCDriver {
     inner: LibDriver,
     app_handle_mutex: Arc<Mutex<Option<AppHandle>>>,
@@ -35,6 +39,10 @@ impl DriverEventObserver for TauriObserver {
     }
 }
 
+/// Connection abstraction used by Tauri commands.
+///
+/// It extends the shared connection trait with methods that also capture an
+/// active Tauri app handle so RX lines can be emitted to the UI.
 pub trait GCodeConnection: LibGCodeConnection + Send {
     fn connect_serial_tauri(
         &mut self,
@@ -55,6 +63,7 @@ pub trait GCodeConnection: LibGCodeConnection + Send {
 pub use gtaurus_common::GCodeConnection as LibGCodeConnection;
 
 impl FluidNCDriver {
+    /// Creates a new Tauri-capable FluidNC driver instance.
     pub fn new() -> Self {
         let app_handle_mutex = Arc::new(Mutex::new(None));
 
@@ -79,6 +88,7 @@ impl FluidNCDriver {
         }
     }
 
+    /// Creates a boxed driver trait object for shared application state.
     pub fn new_boxed() -> Box<dyn GCodeConnection> {
         Box::new(Self::new())
     }

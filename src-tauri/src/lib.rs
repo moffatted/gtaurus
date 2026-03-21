@@ -13,6 +13,10 @@ use driver::FluidNCDriver;
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Starts the Tauri backend runtime and registers all command handlers.
+///
+/// # Panics
+/// Panics if the Tauri application fails to initialize or run.
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

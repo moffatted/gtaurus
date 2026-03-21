@@ -7,6 +7,11 @@ use tauri::State;
 use crate::state::AppState;
 use crate::autolevel;
 
+/// Applies a height-map warp transform to a G-code program.
+///
+/// # Errors
+/// Returns an error only if input state cannot be represented; current
+/// implementation performs an in-memory transform and always succeeds.
 #[tauri::command]
 pub fn warp_gcode(
     gcode: String,
@@ -22,6 +27,14 @@ pub fn warp_gcode(
     Ok(autolevel::warper::parse_and_warp(&gcode, &map))
 }
 
+/// Streams a multi-line G-code program to the controller.
+///
+/// When warping is enabled, the active height map is used to transform motion
+/// commands before transmission.
+///
+/// # Errors
+/// Returns an error if driver/height-map locking fails, warping is requested
+/// without an active map, or command transmission fails.
 #[tauri::command]
 pub fn send_gcode_stream(
     state: State<'_, AppState>,
@@ -49,12 +62,20 @@ pub fn send_gcode_stream(
     Ok(())
 }
 
+/// Sends a single G-code line to the controller.
+///
+/// # Errors
+/// Returns an error if driver locking or command transmission fails.
 #[tauri::command]
 pub fn send_gcode_line(state: State<'_, AppState>, line: String) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|e| e.to_string())?;
     driver.send_command(line)
 }
 
+/// Updates the controller feed override percentage.
+///
+/// # Errors
+/// Returns an error if driver locking or command transmission fails.
 #[tauri::command]
 pub fn update_feed_override(state: State<'_, AppState>, value: u32) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|e| e.to_string())?;
@@ -63,12 +84,20 @@ pub fn update_feed_override(state: State<'_, AppState>, value: u32) -> Result<()
     driver.send_command(format!("$Feed/Override={}", value))
 }
 
+/// Updates the controller spindle override percentage.
+///
+/// # Errors
+/// Returns an error if driver locking or command transmission fails.
 #[tauri::command]
 pub fn update_spindle_override(state: State<'_, AppState>, value: u32) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|e| e.to_string())?;
     driver.send_command(format!("$Spindle/Override={}", value))
 }
 
+/// Returns the currently active autolevel height map, if one is loaded.
+///
+/// # Errors
+/// Returns an error if height-map state locking fails.
 #[tauri::command]
 pub fn get_active_height_map(
     state: State<'_, AppState>,
@@ -77,6 +106,10 @@ pub fn get_active_height_map(
     Ok(hmap.clone())
 }
 
+/// Clears the active autolevel height map.
+///
+/// # Errors
+/// Returns an error if height-map state locking fails.
 #[tauri::command]
 pub fn clear_height_map(state: State<'_, AppState>) -> Result<(), String> {
     let mut hmap = state.height_map.lock().map_err(|e| e.to_string())?;
@@ -84,6 +117,10 @@ pub fn clear_height_map(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Stores a new active autolevel height map.
+///
+/// # Errors
+/// Returns an error if height-map state locking fails.
 #[tauri::command]
 pub fn set_height_map(
     state: State<'_, AppState>,

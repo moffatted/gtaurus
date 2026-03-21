@@ -13,11 +13,17 @@ pub(crate) fn shared_list_serial_ports() -> Vec<String> {
     }
 }
 
+/// Lists currently available serial ports on the local machine.
 #[tauri::command]
 pub fn list_serial_ports() -> Vec<String> {
     shared_list_serial_ports()
 }
 
+/// Opens a serial connection to the controller and binds frontend event output.
+///
+/// # Errors
+/// Returns an error if state locking fails or the underlying driver cannot
+/// establish the serial connection.
 #[tauri::command]
 pub fn connect_serial(
     state: State<'_, AppState>,
@@ -30,6 +36,11 @@ pub fn connect_serial(
     Ok(format!("Connected to {}", port_name))
 }
 
+/// Opens a telnet connection to the controller and binds frontend event output.
+///
+/// # Errors
+/// Returns an error if state locking fails or the underlying driver cannot
+/// establish the telnet connection.
 #[tauri::command]
 pub fn connect_telnet(
     state: State<'_, AppState>,
@@ -43,6 +54,10 @@ pub fn connect_telnet(
     Ok(format!("Connected to {}:{}", host, port))
 }
 
+/// Disconnects the active machine connection.
+///
+/// # Errors
+/// Returns an error if state locking fails.
 #[tauri::command]
 pub fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
@@ -50,18 +65,30 @@ pub fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Sends one line of controller command text.
+///
+/// # Errors
+/// Returns an error if state locking fails or command transmission fails.
 #[tauri::command]
 pub fn send_gcode(state: State<'_, AppState>, cmd: String) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
     driver.send_command(cmd)
 }
 
+/// Sends one realtime command byte to the controller.
+///
+/// # Errors
+/// Returns an error if state locking fails or byte transmission fails.
 #[tauri::command]
 pub fn send_realtime(state: State<'_, AppState>, byte: u8) -> Result<(), String> {
     let mut driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
     driver.send_realtime(byte)
 }
 
+/// Reports the current connection status string from the active driver.
+///
+/// # Errors
+/// Returns an error if state locking fails.
 #[tauri::command]
 pub fn get_connection_status(state: State<'_, AppState>) -> Result<String, String> {
     let driver = state.driver.lock().map_err(|_| "Lock failed".to_string())?;
