@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Trash2, Code, Command, Sparkles, Search, Activity, ExternalLink } from "lucide-react";
+import clsx from "clsx";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useMachineStatusStore } from "../stores/machineStatusStore";
 import { useUIStore } from "../stores/uiStore";
@@ -254,6 +255,10 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
     }
   };
 
+  // Firmware mode label
+  const legacyGrblMode = useSettingsStore((state) => state.settings.general.legacyGrblMode);
+  const firmwareLabel = legacyGrblMode ? "GRBL 1.1" : "FluidNC";
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]">
       {/* Header */}
@@ -268,6 +273,14 @@ export function AIPanel({ hideHeader }: AIPanelProps) {
               <div className="flex items-center gap-1.5">
                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                  <span className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">{activeClient?.name ?? settings.ai.tier} Active</span>
+                 <span className={clsx(
+                   "text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap",
+                   legacyGrblMode
+                     ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                     : "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+                 )}>
+                   {firmwareLabel}
+                 </span>
               </div>
             </div>
           </div>
