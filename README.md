@@ -1,6 +1,6 @@
 # Gtaurus
 
-**Gtaurus** is a high-performance, lightweight CNC Desktop Controller designed for MKS DLC32 v2.1 boards running FluidNC. It is built on the **T3-Tauri Stack** (Tauri v2, Rust, React, TypeScript, Tailwind CSS).
+**Gtaurus** is a high-performance, lightweight CNC Desktop GCODE Controller designed for MKS DLC32 v2.1 boards running FluidNC. It is built on the **T3-Tauri Stack** (Tauri v2, Rust, React, TypeScript, Tailwind CSS).
 
 ## ✨ Features
 
