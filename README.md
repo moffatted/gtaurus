@@ -99,6 +99,54 @@ sudo apt install libwebkit2gtk-4.1-dev \
 
 *For Arch, Fedora, or other distributions, check the [Tauri v2 Prerequisites Guide](https://v2.tauri.app/start/prerequisites/#linux).*
 
+#### WSL Ubuntu 24.04 (WSLg)
+
+Running Gtaurus as a Tauri app in WSL Ubuntu 24.04 is supported under WSLg. You may still see this warning in graphics diagnostics:
+
+```text
+libEGL warning: egl: failed to create dri2 screen
+```
+
+If the app launches with missing icons or theme assets, install the full Adwaita icon package:
+
+```bash
+sudo apt install adwaita-icon-theme-full
+```
+
+In WSLg, this is usually harmless when the app itself launches and renders correctly.
+
+- `WAYLAND_DISPLAY=wayland-0` means the Wayland path is active (this is the path Tauri/WebKit uses).
+- `DISPLAY=:0` means Xwayland compatibility is also active.
+- X11 probing attempts DRI3/DRI2 first, which can emit warnings in WSLg before falling back to the working EGL/D3D12 path.
+
+If Gtaurus starts and the UI renders, this warning can be safely ignored.
+
+To confirm the warning source, run diagnostics without Xwayland:
+
+```bash
+WAYLAND_DISPLAY=wayland-0 DISPLAY= eglinfo
+```
+
+If you want to reduce similar warnings from other Linux GUI tools, prefer Wayland in your shell profile:
+
+```bash
+export QT_QPA_PLATFORM=wayland
+export CLUTTER_BACKEND=wayland
+export SDL_VIDEODRIVER=wayland
+export MOZ_ENABLE_WAYLAND=1
+```
+
+For WSLg users who want a stricter Mesa compatibility profile, you can also add:
+
+```bash
+export MESA_LOADER_DRIVER_OVERRIDE=d3d12
+export GALLIUM_DRIVER=d3d12
+export MESA_NO_DRI3=1
+export MESA_NO_DRI=1
+```
+
+These are optional tuning flags. Use them if they improve stability in your WSL setup.
+
 ### 📷 Camera Support (Optional)
 
 To use the built-in Camera Viewer and hardware settings manager in Gtaurus:
